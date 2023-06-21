@@ -17,10 +17,10 @@ library(stargazer)
 
 rm(list = ls())
 
-result1 = read.csv(here('data', 'result1.csv'))
+result1 = read.csv(here('data', 'outputs', 'result1.csv'))
 
 
-calibration = read.csv(here("data", "calibration_params.csv"))
+calibration = read.csv(here("data", 'outputs', "calibration_params.csv"))
 
 for(i in 1:nrow(calibration)){
   assign(calibration$params[i], calibration$value[i])
@@ -190,9 +190,9 @@ tester %>%
   geom_line(aes(y = v_max), linewidth = 1.1, linetype = 'dashed', colour = 'red')+
   #geom_ribbon(data=subset(tester, x>=10000 & x <= 20000), 
   #            aes(ymin=v_max,ymax=1.8*v), fill="red", alpha=0.5) +
-  geom_ribbon(data=subset(tester, x>=10000 & x <= 14750), 
+  geom_ribbon(data=subset(tester, x>=10000 & x <= 11200), 
               aes(ymin=v,ymax=v_func), fill="red", alpha=0.5) +
-  geom_ribbon(data=subset(tester, x >= 14750 & x>=10000), 
+  geom_ribbon(data=subset(tester, x >= 11200 & x>=10000), 
               aes(ymin=v,ymax=v_func), fill="black", alpha=0.5) +
   
   theme_bw()+
@@ -241,5 +241,70 @@ store %>%
   theme_bw()+
   labs(fill = 'V such that poaching ceases')
 ggsave(here('visuals/supplementary_visuals', 'v_poaching_stop.jpg'))
+```
+
+## Illustrating the different equilibria
+
+```{r}
+zero = function(x){
+  if(x<0){
+    return(NA)
+  }else{
+    return(x)
+  }
+}
+
+growth = function(x, 
+                  k.=k, 
+                  r.=r){
+  y = r.*x*(1-x/k.)
+  return(y)
+}
+
+plot_ = result1 %>%
+  mutate(growth2 = growth(x,r.=4.03*r, k.=5000),
+         growth3 = growth(x, r. = 10.1*r, k.=2000))%>%
+  mutate(growth2 = sapply(growth2, zero), 
+         growth3 = sapply(growth3, zero))%>%
+  subset(x<7500)%>%
+  ggplot(aes(x=x))+
+  #geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1)+
+  geom_line(aes(y = growth2), linewidth = 1)+
+  #geom_line(aes(y = growth3, colour = 'Growth'), linewidth = 1)+
+  geom_line(aes(y = monop_harvest, colour = 'Monopoly'), linewidth = 1)+
+  geom_line(aes(y = cournot_harvest, colour = 'Cournot'), linewidth = 1)+
+  geom_line(aes(y = bertrand_harvest, colour = 'Bertrand'), linewidth = 1)+
+  geom_line(aes(y = pt_harvest, colour = 'Price taker'), linewidth = 1) +
+  theme_bw()+
+  ylab('Growth / harvest')+
+  xlab('Population stock')+
+  scale_color_aaas()+
+  labs(colour = ' ')+
+  theme(legend.position = 'bottom')
+plot_
+ggsave(here('visuals', 'supplementary_visuals', 'Figure3b.jpg'))
+
+plot_ = result1 %>%
+  mutate(growth2 = growth(x,r.=4.03*r, k.=5000),
+         growth3 = growth(x, r. = 10.1*r, k.=2000))%>%
+  mutate(growth2 = sapply(growth2, zero), 
+         growth3 = sapply(growth3, zero))%>%
+  subset(x<3000)%>%
+  ggplot(aes(x=x))+
+  #geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1)+
+  #geom_line(aes(y = growth2, colour = 'Growth'), linewidth = 1)+
+  geom_line(aes(y = growth3), linewidth = 1)+
+  geom_line(aes(y = monop_harvest, colour = 'Monopoly'), linewidth = 1)+
+  geom_line(aes(y = cournot_harvest, colour = 'Cournot'), linewidth = 1)+
+  geom_line(aes(y = bertrand_harvest, colour = 'Bertrand'), linewidth = 1)+
+  geom_line(aes(y = pt_harvest, colour = 'Price taker'), linewidth = 1) +
+  theme_bw()+
+  ylab('Growth / harvest')+
+  xlab('Population stock')+
+  scale_color_aaas()+
+  labs(colour = ' ')+
+  theme(legend.position = 'bottom')
+plot_
+ggsave(here('visuals', 'supplementary_visuals', 'Figure3c.jpg'))
 ```
 

@@ -293,8 +293,9 @@ lines_ = F
 
 plot_ = result1 %>%
   subset(x < 1.5*max(actual_steady))%>%
+  #subset(x<500)%>%
   ggplot(aes(x=x))+
-  geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1)+
+  geom_line(aes(y = growth), linewidth = 1)+
   geom_line(aes(y = monop_harvest, colour = 'Monopoly'), linewidth = 1)+
   geom_line(aes(y = cournot_harvest, colour = 'Cournot'), linewidth = 1)+
   geom_line(aes(y = bertrand_harvest, colour = 'Bertrand'), linewidth = 1)+
