@@ -1,0 +1,245 @@
+---
+title: "Additional graphs and analysis"
+author: "Lawson et al."
+date: "2023-06-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+options(scipen=999)
+
+library(tidyverse)
+library("ggsci")
+library(here)
+library(knitr)
+library(stargazer)
+
+rm(list = ls())
+
+result1 = read.csv(here('data', 'result1.csv'))
+
+
+calibration = read.csv(here("data", "calibration_params.csv"))
+
+for(i in 1:nrow(calibration)){
+  assign(calibration$params[i], calibration$value[i])
+}  
+
+
+# Build the 2nd order parameters from parameter list
+  # Differentiate parameters for Wild and Farmed inverse demands
+alpha_w = alpha
+alpha_f = alpha
+beta_w = beta
+beta_f = beta
+  # Demand functions parameters
+e   = gamma/(beta_w*beta_f - (gamma^2))
+a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
+a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
+b_f = beta_f/(beta_w*beta_f - (gamma^2))
+b_w = beta_w/(beta_w*beta_f - (gamma^2))
+
+if(dir.exists(here('visuals/supplementary_visuals'))==F){
+  dir.create(here('visuals/supplementary_visuals/'))
+}
+```
+
+# Illustrating equilibria in our set-up
+
+```{r}
+qty_monop = function(x){
+ y = (400 - 4)*.02^2 * x^2 / (2*80* 0.02^2 * x^2 + 2*5)
+ return(y)
+}
+
+qty_monop2 = function(x){
+ y = (400 - 4)*.02^2 * x^2 / (2*80* 0.025^2 * x^2 + 2*5)
+ return(y)
+}
+
+qty_monop3 = function(x){
+ y = (400 - 4)*.02^2 * x^2 / (2*80* 0.018^2 * x^2 + 2*5)
+ return(y)
+}
+
+growth = function(x){
+  y = 0.1*x*(1-x/100)
+  return(y)
+}
+  
+data.frame(x = seq(1,100))%>%
+  mutate(monop = qty_monop(x),
+         monop2 = qty_monop2(x),
+         monop3 = qty_monop3(x),
+         growth = growth(x))%>%
+  ggplot(aes(x = x))+
+  geom_line(aes(y = monop, colour = 'Harvest'), linewidth = 1.2)+
+  geom_line(aes(y = monop2, colour = 'Harvest'), linewidth = 1.2)+
+  geom_line(aes(y = monop3, colour = 'Harvest'), linewidth = 1.2)+
+  geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1.2)+
+  scale_color_manual(values = c( 'grey','black'))+
+  ylim(0,3)+
+  ylab('Quantity')+
+  xlab('Stock')+
+  theme_classic()+
+  #geom_segment(x = 8, xend = 8, y = 0, yend= .75, linetype = 2)+
+  #geom_segment(x = 31, xend = 31, y = 0, yend= 2.1, linetype = 2)+
+  #geom_segment(x = 61, xend = 61, y = 0, yend= 2.35, linetype = 2)+
+  annotate('text', x = 15, y = .7, label= 'stable')+
+  annotate('text', x = 38, y = 2, label= 'unstable')+
+  annotate('text', x = 65, y = 2.5, label= 'stable')+
+  annotate('text', x = 85, y = 1.7, label= 'stable') +
+  annotate('text', x = 103, y = 3, label= 'A') +
+  annotate('text', x = 103, y = 2.45, label= 'B') +
+  annotate('text', x = 103, y = 1.55, label= 'C') +
+  theme(legend.position = "none", 
+        axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank())
+  ggsave(here("visuals/supplementary_visuals/", "equilibria.jpg"))
+
+```
+
+
+# Bertrand v. Monopoly
+## A. Compare harvest functions
+
+```{r}
+
+bertrand_harvest = function(x,
+                              sigma. = sigma, 
+                              a_f. = a_f, 
+                              a_w. = a_w, 
+                              b_f. = b_f, 
+                              b_w. = b_w, 
+                              e. = e, 
+                              v. = v, 
+                              c. = c, 
+                              W. = W_mid){
+  y = ((sigma.^2)*(x^2)*b_w.*(b_f.*(2*a_w.+e.*v.) + c.*((e.^2)- 2*b_f.*b_w.) + e.*a_f.))/((sigma.^2)*(x^2)*(4*b_w.*b_f. - (e.^2)) + 2*W.*b_w.*(2*b_f.*b_w. - (e.^2)))
+  return(y)
+}
+result1 = result1 %>% mutate(q_bertrand_harvest = bertrand_harvest(x),
+                             q_bertrand_harvest_illustration = bertrand_harvest(x, v. = .5*v),
+                             q_bertrand_harvest_c_illustration = bertrand_harvest(x, c. = 10*c))
+
+result1 %>%
+  ggplot(aes(x = x))+
+  geom_line(aes(y = monop_harvest, colour = 'Monopoly harvest'), linewidth = 1.1)+
+  #geom_line(aes(y = growth, colour = 'Growth'))+
+  geom_line(aes(y = bertrand_harvest, colour = 'Betrand harvest'), linewidth = 1.1)+
+  geom_line(aes(y = q_bertrand_harvest_illustration, colour = 'Betrand with lower v'), linewidth = 1.1, linetype = 'dashed')+
+  #geom_line(aes(y = q_bertrand_farmed, colour = 'Bertrand farmed'))+
+  scale_color_manual(values = c( 'red','red','black'))+
+  ylab('Harvest')+
+  xlab('Population stock')+
+  theme_bw()+
+  theme(legend.position = 'bottom')+
+  labs(color=NULL)
+  ggsave(here("visuals/supplementary_visuals/", "monopoly_bertrand_harvest.jpg"))
+
+```
+
+## B. Illustration for Lemma 4
+
+```{r}
+a_m = alpha/beta
+b_m = 1/beta
+
+v_func = function(x,c){
+  coeff = (a_m - b_m*c)/(b_w*b_f*e)
+  parenthesis = (2*W_mid*b_w*(2*b_w*b_f - e^2) + (4*b_w*b_f - e^2)*sigma^2*x^2)/(2*W_mid*b_m + 2*sigma^2*x^2)
+  const = (e*a_f + c*(e^2 - 2*b_w*b_f) + 2*b_f*a_w)/(b_f*e)
+  return(coeff* parenthesis - const)
+}
+
+tester = data.frame(x = seq(1,k))%>%
+  mutate(v_func = v_func(x,c),
+         v_func2 = v_func(x, 5*c),
+         v = v, 
+         v_ = .7*v,
+         v_max = 1.*v)
+
+
+tester %>%
+  ggplot(aes(x=x))+
+  geom_line(aes(y = v_func, colour = 'F(x)'), linewidth = 1.1)+
+  geom_line(aes(y = v, colour = 'v' ), linewidth = 1.1)+
+  geom_line(aes(y = v_), linetype = 'dashed')+
+  geom_line(aes(y = v_max), linetype = 'dashed')+
+  geom_hline(yintercept = 5*v,linetype = 'dashed')+
+  geom_ribbon(data=subset(tester, x <= 13000), 
+              aes(ymin=v,ymax=v_func), fill="red", alpha=0.5) +
+  geom_ribbon(data=subset(tester, x >= 13000), 
+              aes(ymin=v,ymax=v_func), fill="black", alpha=0.5) +
+  theme_bw()+
+  scale_color_manual(values = c('red', 'black'))+
+  theme(legend.position = 'bottom')+
+  labs(color=NULL)
+  ggsave(here("visuals/supplementary_visuals/", "Lemma4.jpg"))
+
+# Zoomed version
+tester %>%
+  subset( x > 10000)%>%
+  ggplot(aes(x=x))+
+  geom_line(aes(y = v_func, colour = 'F(x)'), linewidth = 1.1)+
+  geom_line(aes(y = v, colour = 'v' ), linewidth = 1.1)+
+  geom_line(aes(y = v_), linewidth = 1.1, linetype = 'dashed')+
+  geom_line(aes(y = v_max), linewidth = 1.1, linetype = 'dashed', colour = 'red')+
+  #geom_ribbon(data=subset(tester, x>=10000 & x <= 20000), 
+  #            aes(ymin=v_max,ymax=1.8*v), fill="red", alpha=0.5) +
+  geom_ribbon(data=subset(tester, x>=10000 & x <= 14750), 
+              aes(ymin=v,ymax=v_func), fill="red", alpha=0.5) +
+  geom_ribbon(data=subset(tester, x >= 14750 & x>=10000), 
+              aes(ymin=v,ymax=v_func), fill="black", alpha=0.5) +
+  
+  theme_bw()+
+  scale_color_manual(values = c('red', 'black'))+
+  ylab('F(x)')+
+  theme(legend.position = 'bottom')+
+  labs(color=NULL)
+  ggsave(here("visuals/supplementary_visuals/", "Lemma4_zoomed.jpg"))
+
+```
+
+## Illustration Bertrand : v, c and gamma
+In this section, evolution of $v$ to *cease* poaching
+```{r}
+
+gamma = seq(0.01,.99,0.01)*beta 
+c = seq(0, 5000, 20)
+
+tester = expand.grid(gamma, c)
+store = data.frame()
+for(row in seq(1,nrow(tester))){
+  alpha_w = alpha
+  alpha_f = alpha
+  beta_w = beta
+  beta_f = beta
+  # Demand functions parameters
+  gamma = tester[row, 1]
+  c     = tester[row, 2]
+  
+  e   = gamma/(beta_w*beta_f - (gamma^2))
+  a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
+  a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
+  b_f = beta_f/(beta_w*beta_f - (gamma^2))
+  b_w = beta_w/(beta_w*beta_f - (gamma^2))
+  
+  v = 1/(e*b_f)*(c*(2*b_w*b_f-e^2) - e*a_f - 2*a_w*b_f)
+  
+  store = rbind(store, c(tester[row,1], tester[row,2], v))
+}
+colnames(store) = c( 'gamma','c', 'v')
+store %>%
+  subset(gamma>500)%>%
+  ggplot(aes(x = c, y = gamma, fill = v))+
+  geom_tile()+
+    scale_fill_gradient2(low = "darkblue", high = "white", mid='lightblue')+
+  theme_bw()+
+  labs(fill = 'V such that poaching ceases')
+ggsave(here('visuals/supplementary_visuals', 'v_poaching_stop.jpg'))
+```
+

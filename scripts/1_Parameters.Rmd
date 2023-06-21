@@ -1,0 +1,285 @@
+---
+title: "Parameters"
+author: "Lawson et al."
+date: "2023-06-16"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+options(scipen=999)
+
+rm(list = ls())
+
+library(tidyverse)
+library("ggsci")
+library(here)
+library(knitr)
+library(stargazer)
+
+if(!('Fishlife' %in% installed.packages())){
+  devtools::install_github("james-thorson/FishLife")
+}
+library(FishLife)
+library(kableExtra)
+
+```
+
+In this script, we share the code to replicate our parameters.
+
+# 0. File architecture
+
+This still needs to be amended once we have finished all of the architecture in the final repo. 
+
+```{r}
+if(dir.exists(paste0(getwd(),"/scripts/"))==F){
+  dir.create(paste0(getwd(),'/scripts/'))
+}
+if(dir.exists(paste0(getwd(),'/visuals/'))==F){
+  dir.create(paste0(getwd(),'/visuals/'))
+  dir.create(paste0(getwd(),'/visuals/supplementary_visuals/'))
+}
+```
+
+# I. Load data
+ TO DO : COMMENT DATA SOURCE AND WHAT IT CONTAINS
+
+* `dat_p.csv` : price & quantity data from seizures (SOURCE).
+
+* `totoaba_biomass_catch_20230516.csv` : historical biomass and catch (SOURCE).
+
+* `c_par.csv` : cost data from (SOURCE) for (WHAT VARIABLE?).
+
+* `w_par.csv`: cost data from (SOURCE) for poaching costs.
+
+* `v_par.csv`: cost data from (SOURCE) for aquaculture costs.
+
+```{r, Load data}
+dat_p = read.csv(here("data","inputs","dat_p.csv")) #Price-quantity data (OG Paper)
+dat_p = dat_p %>%
+  mutate(price_buche = g*p,
+         price_kg = p*1000, 
+         price_buche_kg = price_buche*1000)
+
+
+dat_b = read.csv(here('data', 'inputs', "totoaba_biomass_catch_20230516.csv")) %>% 
+  rename(y = X) %>% 
+  rename(b = Biomass..Tonnes.) %>% 
+  rename(c = Catch..Tonnes.)
+
+dat_c = read.csv(here("data", 'inputs', "c_par.csv"))
+
+w_par = read.csv(here("data", 'inputs', "w_par.csv"))
+v_par = read.csv(here("data", 'inputs', "v_par.csv")) 
+
+```
+
+# II. Demand
+
+```{r, Demand}
+avg_toto_weight = 25.7
+avg_buche_weight = .5
+
+buche_to_toto = avg_buche_weight/avg_toto_weight
+
+# Merge observed price data with observed catch and biomass data from 2013 to 2017
+new_dat = merge(dat_b %>%
+                  subset(y>2013) %>% 
+                  select(y,
+                         c)%>%
+                  rename(year=y), 
+                dat_p %>% 
+                  select(year, 
+                         price_kg))%>%
+  mutate(price_ton = price_kg * 1000, 
+         price_ton_toto = price_ton * buche_to_toto)
+
+# Graphical output
+new_dat %>%
+  ggplot(aes(x = c, y = price_ton_toto))+
+  geom_point(aes(colour = as.factor(year)))+
+  theme_bw()+
+  theme(legend.position = 'bottom')+
+  xlab('Catch')+
+  ylab('Price per ton of totoaba in USD')
+
+# Model
+model  = lm(price_ton_toto ~ c, data = new_dat)
+summary(model)
+
+# Coefficients
+alpha = model$coefficients[1]
+beta = -model$coefficients[2]
+gamma = 0.9*beta
+
+```
+
+
+# II. Biological parameters
+```{r, Biological}
+# Totoaba macdonaldi is in FishLife database, so prediction for 'r' is informed by species-specific data.
+Predict = Plot_taxa(Search_species(Genus="Totoaba",Species="macdonaldi")$match_taxonomy, mfrow=c(2,2))
+
+Predict[[1]]$Mean_pred %>%
+  kbl() %>%
+  kable_styling()
+
+r = Predict[[1]]$Mean_pred['r']
+
+
+k <- 20226 #carrying capacity (biomass in mt) (source: INAPESCA 2020) 
+
+# Catchability : catch per trip and stock
+max_E = sum(w_par$total_fleet_days_year)
+
+catchability = dat_b %>% 
+  subset(y==2016) %>% 
+  select(c)/(max_E *dat_b %>% subset(y==2016) %>% select(b))
+catchability = pull(catchability)
+```
+
+# III. Poaching costs
+
+```{r calculating cost of poaching}
+
+# W parameter, proportional increase in cost per unit (trip)
+
+#Step one, get all annual operating costs
+# Goal is to calculate cost per vessel trip (we have total fleet days per year which is number of vessels * fishing days per month)
+# First calculate total annual costs for the entire fleet
+
+w_par_ops <- w_par %>% 
+  mutate(cost_crew_earnings = (totoaba_year * price_fishers_per_totoaba * monthly_earnings_paid)) %>% 
+  mutate(cost_food_fuel = (foodfuel_day * total_fleet_days_year)) %>% 
+  mutate(cost_gear = total_fleet_days_year*(gear_loss_day*gear_replacement)) %>% 
+  mutate(revenue_per_month = (totoaba_year*(price_fishers_per_totoaba)) - (cost_crew_earnings-cost_food_fuel-cost_gear))
+
+# Next, divide by total fishing days per year
+
+w_par_val <- w_par_ops %>% 
+  select(vessels, totoaba_day, total_fleet_days_year,cost_crew_earnings,cost_food_fuel,cost_gear,bribes_year,revenue_per_month) %>% 
+  mutate(cost_per_trip = (cost_crew_earnings + cost_food_fuel + cost_gear + bribes_year)/total_fleet_days_year) 
+
+#Adding in gear and vessel confiscation (calculated as a shared cost applied to the entire fleet)
+
+w_pal_val_conf <- w_par_val %>%
+  add_column(net_confs_cost_fleetday=664000/1920) %>% #Total cost as a proportion of reported confiscations averaged over the year (1,920 fishing trips total). 5,720 nets in the water each year (each vessel sets 2-3 nets), and 0.07 of those nets are confiscated (we know that there are 415 gear confiscation events each year). So if we assume that each net costs $1,600, then our total cost to the fleet is $664,000.
+  add_column(vessel_confs_cost_fleetday=1230000/1920) %>% #Total cost as a proportion of reported vessel seizures averaged over the year (1,920 fishing trips total). There are 150 boats in total each year, and 0.546 are confiscated (there are 82 confiscations a year). So we assume each boat is worth $15,000, and therefore the total cost to the fleet is $1,230,000.
+  add_column(fines_cost_fleetday=81675/1920) %>% #Total cost as a proportion of reported vessel seizures averaged over the year (1,920 fishing trips total). There are 11 arrests/convictions where people are fined $7,425/event, which would add an additional cost of $42.54.
+  mutate(cost_per_trip = (cost_crew_earnings + cost_food_fuel + cost_gear + bribes_year)/total_fleet_days_year) %>% 
+  mutate(cost_per_trip_wconf = cost_per_trip + net_confs_cost_fleetday + vessel_confs_cost_fleetday + fines_cost_fleetday)
+
+costs = w_pal_val_conf %>% 
+  select(cost_per_trip_wconf)%>%
+  unique()%>%
+  drop_na()%>%
+  pull()%>%
+  sort()
+# Final estimates of cost per trip (W)
+
+W_low = costs[1] #Low Season 
+W_mid = costs[2] # Mid Season
+W_high = costs[3] # High Season
+```
+
+Find the parameter $W_{quad}$ such that :
+$$
+TotCost(E)=WE^2 \Rightarrow MargCost(E) = 2W_{quad}E
+$$
+
+And 
+
+$$
+MargCost(E_{hist}) = AvgCost(E_{hist})\Rightarrow W_{quad} = \frac{W_{avg}}{2E_{hist}}
+$$
+
+```{r, Quadratic costs}
+W_qlow = W_low/(2*max_E)
+W_qmid = W_mid/(2*max_E)
+W_qhigh = W_high/(2*max_E)
+
+# Recover fixed cost parameter
+cost_ = data.frame(trips = seq(1,1.5*max_E))%>%
+  mutate(trips2 = trips^2,
+         low = W_low*trips, 
+         mid = W_mid*trips,
+         high = W_high*trips,
+         sq_low = W_qlow*trips2,
+         sq_mid = W_qmid*trips2,
+         sq_high = W_qhigh*trips2)
+
+cost_ %>%
+  ggplot(aes(x = trips))+
+  geom_line(aes(y = low, colour = 'low'))+
+  geom_line(aes(y = mid, colour = 'mid'))+
+  geom_line(aes(y = high, colour = 'high'))+
+  geom_line(aes(y = sq_low, colour = 'low'))+
+  geom_line(aes(y = sq_mid, colour = 'mid'))+
+  geom_line(aes(y = sq_high, colour = 'high'))+
+  scale_colour_manual(values = c( 'red','black','grey', 'red', 'black','grey'))+
+  theme_bw()+
+  ylab('Cost')+
+  labs(colour = ' ')
+
+fixed_low = W_low*max_E - W_qlow*(max_E^2)
+fixed_mid = W_mid*max_E - W_qmid*(max_E^2)
+fixed_high = W_high*max_E - W_qhigh*(max_E^2)
+```
+
+
+# IV. Trading costs
+
+```{r trading costs}
+c = 0
+```
+We use `c=` `r c` as trading costs.
+
+# V. Farming costs
+
+```{r calculating cost of farming}
+
+# Farming cost data, from Buche Bros
+
+# Final estimate per tonne of totoaba per year:
+v_ = v_par %>% 
+  select(op_cost_per_t)%>%
+  pull()
+age = 4.5
+v = v_*age
+# Calculating size at harvest
+aqua_par_w <- read.csv(here("data", 'inputs', "aqua_par_wild.csv"))
+aqua_par_f <- read.csv(here("data", 'inputs', "aqua_par_farm.csv"))
+```
+At 4.5 years under farming conditions, a totoaba should have a `r aqua_par_f %>% subset(Totoaba_Age==4.5) %>% select(Weight_Buche_g) %>% pull() %>% round(2)`g swim bladder. At 5 years under farming conditions, a totoaba should have a `r aqua_par_f %>% subset(Totoaba_Age==5) %>% select(Weight_Buche_g) %>% pull() %>% round(2)` g swim bladder
+
+# VI. Save calibration data
+```{r}
+params = c('alpha', 'beta', 'r', 'k', 'sigma', 'W_mid', 'W_low', 'W_high', 'avg_cost', 'age', 'gamma', 'v', 'c')
+value = c(alpha, beta, r, k, catchability, W_qmid, W_qlow, W_qhigh, W_mid, age, gamma, v, c)
+concept = c('Demand model : intercept', 
+            'Demand model : coefficient', 
+            'Intrinsic growth rate', 
+            'Catchability', 
+            'Carrying capacity (in metric tons)',
+            'Parameter cost (MC = Avg) at historical value - middle', 
+            'Parameter cost (MC = Avg) at historical value - low', 
+            'Parameter cost (MC = Avg) at historical value - high', 
+            'Average cost per vessel trip', 
+            'Age of farmed totoaba', 
+            'Substitutability', 
+            'Unit cost of farming', 
+            'Unit cost of trading')
+
+units = c('USD', 'USD/metric ton of biomass', 'unitless',  '% of biomass/vessel trip', 'metric tons of biomass', 'USD',  'USD', 'USD', 'USD', 'Years', 'Unitless', 'USD/metric ton of biomass', 'USD/ metric ton of biomass')
+
+calibration = data.frame(params, value, concept, units)
+write.csv(calibration, here('data', 'outputs', 'calibration_params.csv'))
+```
+
+```{r, calibration2}
+calibration %>%  
+  mutate(value = round(value, 2))%>%
+  kbl() %>%
+  kable_styling()
+```
+
+
