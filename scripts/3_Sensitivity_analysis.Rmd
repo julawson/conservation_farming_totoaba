@@ -17,6 +17,7 @@ library(here)
 library(knitr)
 library(stargazer)
 library(parallel)
+library(wesanderson)
 
 rm(list = ls())
 ```
@@ -100,7 +101,8 @@ for(name in sensitivity_values$var){
   }
 }
 
-c_sens = seq(0.1, 8, by = .2)*c
+# c and v together
+c_sens = seq(0.1, 8000, by = 100)
 v_sens = seq(0.1,1.5, by = .05)*v
 a = expand_grid(c_sens, v_sens)
 colnames(a) = c('c', 'v')
@@ -112,15 +114,27 @@ a = a %>% mutate(spec = 'c and v',
 
 params_sensitivity = rbind(params_sensitivity, a)
 
-c_sens = seq(0.1, 8, by = .4)*c
-v_sens = seq(0.1,1.5, by = .4)*v
-gamma_sens = seq(.1, .9, by = .2)*beta
+# c, v, and gamma together
+c_sens = seq(0.1, 8, by = .2)*c
+v_sens = seq(0.1,1.5, by = .2)*v
+gamma_sens = seq(.1, .9, by = .1)*beta
 a = expand_grid(c_sens, v_sens, gamma_sens)
 colnames(a) = c('c', 'v',"gamma")
 a = cbind(baseline %>% select(-c('c', 'v', 'gamma', 'spec', 'transformation'))%>% slice(rep(1:n(), each = nrow(a))), a)
 a = a %>% mutate(spec = 'c and v and gamma', 
                  transformation = paste(c,' and ', v, 'and', gamma))
 params_sensitivity = rbind(params_sensitivity, a)
+
+#alpha and gamma together
+alpha_sens = seq(0.8,2,.2)*alpha
+
+a = expand_grid(alpha_sens, gamma_sens)
+colnames(a) = c('alpha',"gamma")
+a = cbind(baseline %>% select(-c('alpha', 'gamma', 'spec', 'transformation'))%>% slice(rep(1:n(), each = nrow(a))), a)
+a = a %>% mutate(spec = 'alpha and gamma', 
+                 transformation = paste(alpha,' and ', gamma))
+params_sensitivity = rbind(params_sensitivity, a)
+
 
 rm(a)
 print(paste0('There are ', nrow(params_sensitivity)," combinations to test" ))
@@ -722,6 +736,9 @@ low = 'red'
 mid = 'white'
 high = 'springgreen2'
 
+pal <- wes_palette("Zissou1", 100, type = "continuous")
+
+
 # Set data to long format
 to_keep = c('c', 'v', 'ss_monop1', 'ss_cournot1','ss_bertrand1')
 df_cv = store %>% 
@@ -765,9 +782,10 @@ p = df_cv %>%
   #                     palette = 'RdYlGn',
   #                     direction = 1, 
   #                     name = '% change')+
-  scale_fill_gradient2(low = low, 
-                       mid = mid,
-                       high = high)+
+  #scale_fill_gradient2(low = low, 
+  #                     mid = mid,
+  #                     high = high)+
+  scale_fill_gradientn(colours = wes_palette("Zissou1", 100, type = "continuous"))+
   facet_grid(.~ output2)+
   theme_bw()+
   theme(legend.position = 'bottom')+
@@ -872,4 +890,55 @@ checker = store %>%
   arrange(transformation)
 
 kable(checker)
+
+output3 = function(x){
+  if(x %in% c('ss_monop1', 'ss_monop2', 'ss_monop3')){
+    return('Monopoly')
+  }else if(x %in% c('ss_cournot1', 'ss_cournot2', 'ss_cournot3')){
+    return('Cournot')
+  }else if(x %in% c('ss_bertrand1', 'ss_bertrand2', 'ss_bertrand3')){
+    return('Bertrand')
+  }
+}
+
+ss_mon = store %>% subset(spec == 'baseline') %>% select(ss_monop1) %>% pull()
+checker = store %>% 
+  subset(spec =='alpha and gamma')%>%
+  select(alpha, gamma, ss_monop1, ss_monop2, ss_monop3, ss_cournot1, ss_cournot2, ss_cournot3,
+         ss_bertrand1, ss_bertrand2, ss_bertrand3)%>%
+  pivot_longer(cols = -c('alpha', 'gamma'), 
+               names_to = 'names', 
+               values_to = 'values')%>%
+  mutate(names = sapply(names, output3), 
+         alpha = as.numeric(alpha/calibration$value[which(calibration$params=='alpha')]), 
+         gamma = round(gamma/calibration$value[which(calibration$params=='gamma')],2)*100,
+         values2 = (values/ss_mon - 1)*100)
+
+
+output4 = function(x){
+  x = as.integer(x)
+  if(x<=30){
+    return('Low')
+  }else if(x>30 & x<=65){
+    return('Medium')
+  }else if(x>65){
+    return('Large')
+  }
+}
+checker %>%
+  mutate(gamma = as.integer(gamma))%>%
+  filter(gamma %in% c(11, 56, 100))%>%
+  mutate(gamma = sapply(gamma, output4))%>%
+  mutate(gamma = factor(gamma, levels = c('Low', 'Medium', 'Large')))%>%
+  ggplot(aes(x = names, y=values, colour = as.factor(round(alpha,2))))+
+  geom_point(size = 3 )+
+  geom_hline(yintercept = 10000, linetype='dotted')+
+  geom_hline(yintercept = 2600, linetype='dotted')+
+  facet_wrap(vars(gamma))+
+  scale_color_viridis_d(option='plasma')+
+  theme_bw()+
+  xlab(' ')+
+  ylab(' ')+
+  labs(colour = 'Demand multiplier')
+ggsave(here('visuals/supplementary_visuals', 'sens_alpha_gamma.jpg'))
 ```
