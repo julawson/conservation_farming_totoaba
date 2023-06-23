@@ -911,31 +911,33 @@ checker = store %>%
                values_to = 'values')%>%
   mutate(names = sapply(names, output3), 
          alpha = as.numeric(alpha/calibration$value[which(calibration$params=='alpha')]), 
-         gamma = round(gamma/calibration$value[which(calibration$params=='gamma')],2)*100,
+         gamma = round(gamma/calibration$value[which(calibration$params=='beta')],2)*100,
          values2 = (values/ss_mon - 1)*100)
 
 
 output4 = function(x){
   x = as.integer(x)
   if(x<=30){
-    return('Low')
+    return('Low - 10%')
   }else if(x>30 & x<=65){
-    return('Medium')
+    return('Medium - 50%')
   }else if(x>65){
-    return('Large')
+    return('Large - 90%')
   }
 }
+pal = c("#febd2a", "#f48849", '#db5c68', '#b83289','#8b0aa5', '#9049EE', '#4580CD')
 checker %>%
   mutate(gamma = as.integer(gamma))%>%
-  filter(gamma %in% c(11, 56, 100))%>%
+  filter(gamma %in% c(10, 50, 90))%>%
   mutate(gamma = sapply(gamma, output4))%>%
-  mutate(gamma = factor(gamma, levels = c('Low', 'Medium', 'Large')))%>%
+  mutate(gamma = factor(gamma, levels = c('Low - 10%', 'Medium - 50%', 'Large - 90%')))%>%
+  drop_na()%>%
   ggplot(aes(x = names, y=values, colour = as.factor(round(alpha,2))))+
-  geom_point(size = 3 )+
+  geom_point(size = 3)+
   geom_hline(yintercept = 10000, linetype='dotted')+
-  geom_hline(yintercept = 2600, linetype='dotted')+
+  geom_hline(yintercept = 2450, linetype='dotted')+
   facet_wrap(vars(gamma))+
-  scale_color_viridis_d(option='plasma')+
+  scale_color_manual(values = pal)+
   theme_bw()+
   xlab(' ')+
   ylab(' ')+
