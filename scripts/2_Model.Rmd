@@ -284,7 +284,7 @@ kable(final_, row.names = F)
 
 5. **Best case scenario** with cost parameter c=`r c` is a `r round((dat_cournot$Stock - dat_monop$Stock)/dat_monop$Stock*100,2)` % variation in *population stock* in tonnes or, equivalently, of `r round((dat_cournot$Stock - dat_monop$Stock)*1000/25.7,2)` adult totoabas
 
-6. **Best case scenario** with cost parameter c=`r c` is a difference of `r round(dat_cournot$Harvest- dat_monop$Harvest,2)` (in tons) in harvest in tonnes or, equivalently, of `r  round((dat_monop$Harvest-dat_cournot$Harvest)*1000/25.7,2)` adult totoabas
+6. **Best case scenario** with cost parameter c=`r c` is a difference of `r round(dat_cournot$Harvest- dat_monop$Harvest,2)` ( tons) in *harvest* or, equivalently, of `r  round((dat_monop$Harvest-dat_cournot$Harvest)*1000/25.7,2)` adult totoabas
 
 ```{r, Graphic output}
 actual_steady = steady_states[!is.na(steady_states)]

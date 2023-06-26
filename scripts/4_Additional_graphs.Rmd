@@ -314,13 +314,29 @@ ggsave(here('visuals', 'supplementary_visuals', 'Figure3c.jpg'))
 farmed_VBGF <- read.csv(here("data","inputs","aqua_par_farm.csv")) #Source: Semi-structured interviews
 wild_VBGF <- read.csv(here("data","inputs","aqua_par_wild.csv")) #Source: INAPESCA 2020
 
-ggplot() +
+farmed_VBGF = farmed_VBGF %>% 
+  mutate(spec = 'Farmed')%>%
+  rename(Target_Buche_Weight_g=Target_Buche_Weight_kg)
+wild_VBGF = wild_VBGF %>% mutate(spec = 'Wild')
+dat = rbind(farmed_VBGF, wild_VBGF)
+
+
+buche_weight = 500
+
+dat %>%
+  ggplot(aes(y = Weight_Buche_g, x = Totoaba_Age, colour = spec))+
+  geom_line(linewidth= 1.3)+
+  geom_hline(yintercept = buche_weight, linetype = "dashed")+
+  geom_segment(x =4.5, xend = 4.5, y=0, yend=buche_weight, colour='black', linetype="dashed" )+
+  geom_segment(x =5,   xend = 5,   y=0, yend=buche_weight, colour='black', linetype="dashed" )+
+  geom_segment(x = 8.3, xend=8.3,  y=0, yend=buche_weight, colour='black', linetype = "dashed") +
+  scale_color_aaas()+
   theme_bw()+
-  geom_line(data=farmed_VBGF, aes(x=Totoaba_Age, y=Weight_Buche_g)) +
-  geom_line(data=wild_VBGF, aes(x=Totoaba_Age, y=Weight_Buche_g)) +
-  geom_hline(yintercept = 500, linetype = "dashed") +
-  geom_vline(xintercept = 4.5, linetype = "dashed") +
-  geom_vline(xintercept = 5, linetype = "dashed") +
-  geom_vline(xintercept = 8.3, linetype = "dashed") 
+  labs(colour = 'Growing conditions:')+
+  ylab("Weight of swim bladder (in g)")+
+  xlab('Age')+
+  theme(legend.position='bottom')
+ggsave(here("visuals", 'supplementary_visuals', 'VBGF_growth.jpg'))
+
 
 ```

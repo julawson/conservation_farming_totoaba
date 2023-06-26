@@ -127,7 +127,7 @@ params_sensitivity = rbind(params_sensitivity, a)
 
 #alpha and gamma together
 alpha_sens = seq(0.8,2,.2)*alpha
-
+gamma_sens = seq(.1, .95, by = .05)*beta
 a = expand_grid(alpha_sens, gamma_sens)
 colnames(a) = c('alpha',"gamma")
 a = cbind(baseline %>% select(-c('alpha', 'gamma', 'spec', 'transformation'))%>% slice(rep(1:n(), each = nrow(a))), a)
@@ -736,7 +736,6 @@ low = 'red'
 mid = 'white'
 high = 'springgreen2'
 
-pal <- wes_palette("Zissou1", 100, type = "continuous")
 
 
 # Set data to long format
@@ -827,9 +826,10 @@ df_cv %>%
   mutate(output2 = sapply(output,output2))%>%
   ggplot(aes(x = c, y = v, fill = value))+
   geom_tile()+
-  scale_fill_gradient2(low = low, 
-                       mid = mid,
-                       high = high)+
+  #scale_fill_gradient2(low = low, 
+  #                     mid = mid,
+  #                     high = high)+
+  scale_fill_gradientn(colours = rev(wes_palette("Zissou1", 100, type = "continuous")))+
   facet_grid(vars(gamma_rel),vars(output2))+
   theme_bw()+
   theme(legend.position = 'bottom')+
@@ -882,14 +882,25 @@ ggsave(here('visuals/supplementary_visuals', 'Figure7.png'))
 
 ### How do results evolve with substitutability?
 ```{r}
+Latex = T
+
 checker = store %>%
   subset(spec %in% c('baseline', 'gamma'))%>%
-  mutate(`Cournot normalized` =round((ss_cournot1/ss_baseline - 1)*100,2),
-         `Bertrand normalized` = round((ss_bertrand1/ss_baseline -1)*100,2))%>%
+  mutate(`Cournot normalized` = paste0(round((ss_cournot1/ss_baseline - 1)*100,2), '%'),
+         `Bertrand normalized` = paste0(round((ss_bertrand1/ss_baseline -1)*100,2), '%'))%>%
   select(gamma, transformation, `Cournot normalized`, `Bertrand normalized`)%>%
+  mutate(transformation = paste0(round(as.numeric(gamma)/beta*100,2), '%'), 
+         gamma = round(gamma, 2))%>%
   arrange(transformation)
 
 kable(checker)
+if(Latex==T){
+  checker %>%
+  kable(caption = 'Evolution of steady states with $gamma$', 
+        format = 'latex', 
+        align = 'c')
+}
+
 
 output3 = function(x){
   if(x %in% c('ss_monop1', 'ss_monop2', 'ss_monop3')){
@@ -943,5 +954,7 @@ checker %>%
   ylab(' ')+
   labs(colour = 'Demand multiplier')
 ggsave(here('visuals/supplementary_visuals', 'sens_alpha_gamma.jpg'))
+
+
 ```
 
