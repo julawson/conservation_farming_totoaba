@@ -102,7 +102,7 @@ for(name in sensitivity_values$var){
 }
 
 # c and v together
-c_sens = seq(0.1, 8000, by = 100)
+c_sens = seq(0.1, 15000, by = 100)
 v_sens = seq(0.1,1.5, by = .05)*v
 a = expand_grid(c_sens, v_sens)
 colnames(a) = c('c', 'v')
@@ -785,7 +785,7 @@ p = df_cv %>%
   #scale_fill_gradient2(low = low, 
   #                     mid = mid,
   #                     high = high)+
-  scale_fill_gradientn(colours = wes_palette("Zissou1", 100, type = "continuous"))+
+  scale_fill_gradientn(colours = rev(wes_palette("Zissou1", 100, type = "continuous")))+
   facet_grid(.~ output2)+
   theme_bw()+
   theme(legend.position = 'bottom')+

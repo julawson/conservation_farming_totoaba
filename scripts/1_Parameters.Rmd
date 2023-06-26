@@ -96,12 +96,15 @@ new_dat = merge(dat_b %>%
 # Graphical output
 new_dat %>%
   ggplot(aes(x = c, y = price_ton_toto))+
-  geom_point(aes(colour = as.factor(year)))+
+  geom_point(aes(colour = as.factor(year)), size = 3)+
+  geom_smooth(method = 'lm', colour = 'black')+
   theme_bw()+
   theme(legend.position = 'bottom')+
   xlab('Catch')+
-  ylab('Price per ton of totoaba in USD')
-
+  ylab('Price per ton of totoaba in USD')+
+  scale_color_aaas()+
+  labs(colour = NULL)
+ggsave(here('visuals','supplementary_visuals','demand_data.jpg' ))
 # Model
 model  = lm(price_ton_toto ~ c, data = new_dat)
 summary(model)
@@ -280,6 +283,17 @@ calibration %>%
   mutate(value = round(value, 2))%>%
   kbl() %>%
   kable_styling()
+
+Latex = T
+
+if(Latex==T){
+  calibration %>%
+    mutate(value = round(value, 2))%>%
+    kable(caption = 'Parameters for calibration', 
+          format = 'latex', 
+          align = 'c')%>%
+    kable_minimal(full_width = F)
+}
 ```
 
 
