@@ -72,6 +72,7 @@ sources = read.csv(here("data", 'inputs', "sources.csv"))
 
 ```
 
+
 # II. Demand
 
 ```{r, Demand}
@@ -141,6 +142,9 @@ catchability = pull(catchability)
 
 # III. Poaching costs
 
+
+## A. Calculate W
+
 ```{r calculating cost of poaching}
 
 # W parameter, proportional increase in cost per unit (trip)
@@ -182,6 +186,29 @@ W_low = costs[1] #Low Season
 W_mid = costs[2] # Mid Season
 W_high = costs[3] # High Season
 ```
+
+## B. Export data and sources for W
+
+```{r supplementary materials tables}
+classer = function(x){
+  if(x %in% c(1,6)){
+    return('Low')
+  }else if(x %in% c(2,5)){
+    return('Mid')
+  }else if(x %in% c(3,4)){
+    return('High')
+  }
+}
+w_par_b = w_pal_val_conf %>% 
+  mutate(month = seq(1:nrow(w_pal_val_conf)))%>%
+    subset(vessels>0)%>%
+mutate(season = sapply(month, classer))%>%
+  group_by(season)%>%
+  summarise(across(everything(),mean),
+            .groups= 'drop')%>%
+  t()
+```
+
 
 Find the parameter $W_{quad}$ such that :
 $$
@@ -260,8 +287,8 @@ value = c(alpha, beta, r, k, catchability, W_qmid, W_qlow, W_qhigh, W_mid, age, 
 concept = c('Demand model : intercept', 
             'Demand model : coefficient', 
             'Intrinsic growth rate', 
-            'Catchability', 
             'Carrying capacity (in metric tons)',
+            'Catchability', 
             'Parameter cost (MC = Avg) at historical value - middle', 
             'Parameter cost (MC = Avg) at historical value - low', 
             'Parameter cost (MC = Avg) at historical value - high', 
