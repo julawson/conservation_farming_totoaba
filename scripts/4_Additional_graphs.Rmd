@@ -308,3 +308,19 @@ plot_
 ggsave(here('visuals', 'supplementary_visuals', 'Figure3c.jpg'))
 ```
 
+### How did we estimate growth of totoaba in farms vs in the wild?
+```{r}
+
+farmed_VBGF <- read.csv(here("data","inputs","aqua_par_farm.csv")) #Source: Semi-structured interviews
+wild_VBGF <- read.csv(here("data","inputs","aqua_par_wild.csv")) #Source: INAPESCA 2020
+
+ggplot() +
+  theme_bw()+
+  geom_line(data=farmed_VBGF, aes(x=Totoaba_Age, y=Weight_Buche_g)) +
+  geom_line(data=wild_VBGF, aes(x=Totoaba_Age, y=Weight_Buche_g)) +
+  geom_hline(yintercept = 500, linetype = "dashed") +
+  geom_vline(xintercept = 4.5, linetype = "dashed") +
+  geom_vline(xintercept = 5, linetype = "dashed") +
+  geom_vline(xintercept = 8.3, linetype = "dashed") 
+
+```

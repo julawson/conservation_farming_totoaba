@@ -944,3 +944,4 @@ checker %>%
   labs(colour = 'Demand multiplier')
 ggsave(here('visuals/supplementary_visuals', 'sens_alpha_gamma.jpg'))
 ```
+
