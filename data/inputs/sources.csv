@@ -1,0 +1,27 @@
+﻿parameter,name,source
+W,month,INAPESCA 2020
+W,vessels,INAPESCA 2020
+W,days_permonth,INAPESCA 2020
+W,total_fleet_days_year,INAPESCA 2020
+W,gearset_vessel_perday,INAPESCA 2020
+W,totoaba_gearset,INAPESCA 2020
+W,totoaba_year,INAPESCA 2020
+W,price_fishers_per_totoaba,Semi-Structured Interviews
+W,foodfuel_day,Semi-Structured Interviews
+W,gear_loss_day,Semi-Structured Interviews
+W,gear_replacement,Semi-Structured Interviews
+W,monthly_earnings_paid,Semi-Structured Interviews
+W,crew_size,Semi-Structured Interviews
+W,bribes_year,Semi-Structured Interviews
+W,fleet_gear_confiscation,CITES 2018
+v,sphere,EOF Video
+v,capacity_persphere_kg,EOF Video
+v,capacity_per_sphere_t,EOF Video
+v,maintenance_year,"Felipe Ramirez, InnovaSea, 2018"
+v,cleaning_year,"Felipe Ramirez, InnovaSea, 2018"
+v,vessel_maintenance_year,"Tyler Korte, BlueOcean Mariculture, 2018; Fernando Cavalin, Earth Ocean Farms, 2018"
+v,fuel_year,Author's Calculations
+v,feed,"Tyler Korte, BlueOcean Mariculture, 2018"
+v,labor,TBC
+v,facility_lease,"Cygnus Ocean Farms, 2017"
+v,admin,"Cygnus Ocean Farms, 2017"

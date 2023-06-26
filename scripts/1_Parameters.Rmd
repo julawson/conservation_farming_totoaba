@@ -41,17 +41,14 @@ if(dir.exists(paste0(getwd(),'/visuals/'))==F){
 ```
 
 # I. Load data
- TO DO : COMMENT DATA SOURCE AND WHAT IT CONTAINS
 
-* `dat_p.csv` : price & quantity data from seizures (SOURCE).
+* `dat_p.csv` : price & quantity data from seizures (Source: collated by the Environmental Investigation Agency (EIA) and processed for analysis by authors).
 
-* `totoaba_biomass_catch_20230516.csv` : historical biomass and catch (SOURCE).
+* `totoaba_biomass_catch_20230516.csv` : historical biomass and catch (Source: INAPESCA 2020).
 
-* `c_par.csv` : cost data from (SOURCE) for (WHAT VARIABLE?).
+* `w_par.csv`: cost data from for poaching costs (see Supplementary Materials).
 
-* `w_par.csv`: cost data from (SOURCE) for poaching costs.
-
-* `v_par.csv`: cost data from (SOURCE) for aquaculture costs.
+* `v_par.csv`: cost data from for aquaculture costs (see Supplementary Materials).
 
 ```{r, Load data}
 dat_p = read.csv(here("data","inputs","dat_p.csv")) #Price-quantity data (OG Paper)
@@ -66,10 +63,12 @@ dat_b = read.csv(here('data', 'inputs', "totoaba_biomass_catch_20230516.csv")) %
   rename(b = Biomass..Tonnes.) %>% 
   rename(c = Catch..Tonnes.)
 
-dat_c = read.csv(here("data", 'inputs', "c_par.csv"))
+dat_c = read.csv(here("data", 'inputs', "c_par.csv")) #Delete this file, no longer relevant (we set c to 0)
 
 w_par = read.csv(here("data", 'inputs', "w_par.csv"))
 v_par = read.csv(here("data", 'inputs', "v_par.csv")) 
+
+sources = read.csv(here("data", 'inputs', "sources.csv"))
 
 ```
 
