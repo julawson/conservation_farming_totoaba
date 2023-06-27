@@ -8,9 +8,7 @@ This script runs the various analysis needed to find the parameters to calibrate
 
 Input files are :
 
-**Still missing dates and sources for some files**
-
-* `aqua_par_farm.csv` : von Bertalanffy growth function for *Totoaba macdonaldi* in aquaculture
+* `aqua_par_farm.csv` : von Bertalanffy growth function for *Totoaba macdonaldi* in aquaculture from semi-structured interviews (2017)
 
 * `aqua_par_wild.csv` : von Bertalanffy growth function for *Tototaba macdonaldi* in its natural environment from INAPESCA (2020)
 
@@ -18,9 +16,9 @@ Input files are :
 
 * `totoaba_biomass_catch_20230516.csv` : biomass and catch estimate from INAPESCA (1925-2017)
 
-* `w_par.csv`: costs data related to poaching, from INAPESCA (2020) and semi-structured interviews. 
+* `w_par.csv`: costs data related to poaching, from INAPESCA (2020) and semi-structured interviews (2017)
 
-* `v_par.csv`: costs related to aquaculture, from EOF, InnovaSea, BlueOcean Mariculture.
+* `v_par.csv`: costs related to aquaculture, from EOF, InnovaSea, BlueOcean Mariculture (2017-2018)
 
 Output file : 
 
