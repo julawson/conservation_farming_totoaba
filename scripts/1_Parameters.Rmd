@@ -64,8 +64,6 @@ dat_b = read.csv(here('data', 'inputs', "totoaba_biomass_catch_20230516.csv")) %
   rename(b = Biomass..Tonnes.) %>% 
   rename(c = Catch..Tonnes.)
 
-dat_c = read.csv(here("data", 'inputs', "c_par.csv")) #Delete this file, no longer relevant (we set c to 0)
-
 w_par = read.csv(here("data", 'inputs', "w_par.csv"))
 v_par = read.csv(here("data", 'inputs', "v_par.csv")) 
 

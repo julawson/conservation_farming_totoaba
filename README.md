@@ -1,14 +1,16 @@
-# conservation_farming_totoaba
-Scripts and other files relevant to the totoaba conservation farming study are detailed.
+# Conservation farming for *Totoaba* : low risk, high reward after 50 years of failed regulatory interventions
 
-## External data
+Scripts and other files relevant to *Conservation farming presents a low risk, high reward alternative after fifty years of failed regulatory interventions for totoaba (\textit{Totoaba macdonaldi})* (Lawson et al, 2023) are detailed here. 
 
-Summary of external data files here.
 
 ## Data prep and initial conditions (script: `1_Parameters.Rmd`)
 This script runs the various analysis needed to find the parameters to calibrate our model (biological parameters, cost estimates for poaching and aquaculture, demand structure.)
 
 Input files are : 
+
+* `aqua_par_farm.csv` : life history table for *Totoaba Macdonaldi* in aquaculture
+
+* `aqua_par_wild.csv` : life history table for *Tototaba Macdonaldi* in its natural environment from INAPESCA (2020)
 
 * `dat_p.csv` : seizure data from Environmental Investigation Agency (2014-2017)
 
