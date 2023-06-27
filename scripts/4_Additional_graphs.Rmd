@@ -98,7 +98,7 @@ data.frame(x = seq(1,100))%>%
         axis.ticks.y = element_blank(),
         axis.text.x = element_blank(),
         axis.text.y = element_blank())
-  ggsave(here("visuals/supplementary_visuals/", "equilibria.jpg"))
+  ggsave(here("visuals", "Figure2.jpg"))
 
 ```
 

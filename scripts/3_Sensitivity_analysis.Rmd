@@ -952,9 +952,83 @@ checker %>%
   theme_bw()+
   xlab(' ')+
   ylab(' ')+
+  theme(legend.position= 'bottom')+
   labs(colour = 'Demand multiplier')
 ggsave(here('visuals/supplementary_visuals', 'sens_alpha_gamma.jpg'))
 
 
+```
+
+## Table for equilibria corresponding with above graph
+
+```{r}
+storage = data.frame(0, 0, 0, 0, 0, 0)
+colnames(storage) = c('gamma', 'Monopoly', 'Cournot', 'Bertrand', 'alpha', 'Equilibrium')
+thresh = c(0, 2450, 10000, 500000)
+for(x in c(1, 1.2, 1.4, 1.6)){
+  for( i in seq(1, length(thresh)-1)){
+    a = checker %>%
+    subset(as.character(alpha) ==x)%>%
+    filter(values > thresh[i] & values < thresh[i+1])%>%
+    select(-c(values, alpha))%>%
+    drop_na()%>%
+    pivot_wider(names_from=names, values_from = values2)%>%
+    subset(as.character(gamma) %in% c(10, 50, 90))%>%
+    mutate(alpha = x)
+    
+    if(i == 1){
+      a = a %>%
+        mutate(Equilibrium = 'Low - stable')
+    }else if (i == 2){
+      a = a %>% 
+        mutate(Equilibrium = 'Middle - unstable')
+    }else if (i == 3){
+      a = a %>%
+        mutate(Equilibrium = 'High - stable')
+    }
+  storage = rbind(storage, a)
+  }
+  
+}
+
+storage = storage[-1, c(5,1,6,2,3,4)]
+
+if(Latex == T){
+  storage = as.data.frame(storage) %>%
+    replace(.=='NULL', NA)%>%
+    mutate(gamma = paste0(gamma, '\ %'),
+           Monopoly = round(unlist(Monopoly), 2), 
+           Cournot = round(unlist(Cournot), 2), 
+           Bertrand = round(unlist(Bertrand), 2))
+  
+  colnames(storage) = c('Demand mult. coef.', '$gamma$ (% of $beta$)','Equilibrium', 'Monopoly variation (in %)', 'Cournot variation (in %)', 'Betrand variation (in %)')
+  storage %>%
+    kable(caption = 'Evolution of steady states (in % from baseline monopoly steady state)', 
+          format  = 'latex',
+          align = 'c', 
+          row.names = F)
+  
+}
+```
+
+## Sensitivity analysis for $W$
+
+```{r}
+checker = store %>% 
+  subset(spec =='W')%>%
+  select(W, ss_monop1, ss_monop2, ss_monop3, ss_cournot1, ss_cournot2, ss_cournot3,
+         ss_bertrand1, ss_bertrand2, ss_bertrand3)%>%
+  pivot_longer(cols = -c('W'), 
+               names_to = 'names', 
+               values_to = 'values')%>%
+  mutate(names = sapply(names, output3))%>%
+  drop_na()
+
+checker %>%
+  ggplot(aes(x = W, y = values, colour = names, group = names))+
+  geom_point()+
+  geom_line()+
+  theme_bw()+
+  scale_color_aaas()
 ```
 
