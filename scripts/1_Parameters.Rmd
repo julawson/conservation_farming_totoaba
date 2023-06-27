@@ -22,6 +22,7 @@ if(!('Fishlife' %in% installed.packages())){
 library(FishLife)
 library(kableExtra)
 
+Latex =T
 ```
 
 In this script, we share the code to replicate our parameters.
@@ -199,14 +200,47 @@ classer = function(x){
     return('High')
   }
 }
-w_par_b = w_pal_val_conf %>% 
+#w_par_b = w_pal_val_conf %>% 
+w_par_b = w_par %>% 
   mutate(month = seq(1:nrow(w_pal_val_conf)))%>%
     subset(vessels>0)%>%
-mutate(season = sapply(month, classer))%>%
+  mutate(season = sapply(month, classer))%>%
   group_by(season)%>%
   summarise(across(everything(),mean),
             .groups= 'drop')%>%
-  t()
+  t()%>%
+  as.data.frame()
+
+w_par_b = w_par_b%>%
+  mutate(name = rownames(w_par_b))
+
+sources_w = sources %>% 
+  subset(parameter=='W') %>% 
+  select(-parameter)
+
+w_par_b = merge(w_par_b, sources_w, by = 'name', all=T)
+
+colnames(w_par_b) = c('Variable', 'High', 'Low', 'Mid', 'Source')
+
+order__ = c('vessels', 'days permonth', 'total fleet days year', 'foodfuel day', 'totoaba gearset', 'gear loss day', 'gearset vessel perday', 'gear replacement', 'bribes year', 'Average cost')
+
+w_par_b = w_par_b %>% 
+  drop_na()%>%
+  rbind(append('Average cost', append(round(costs,2), 'Own comp' )))%>%
+  subset(!(Variable %in% c('crew_size','month', 'monthly_earnings_paid', 'price_fishers_per_totoaba',
+                           'totoaba_year')))%>%
+  mutate(Variable = str_replace_all(Variable, '_', ' '), 
+         Source = replace(Source, Source == 'INAPESCA 2020', 'cite{INAPESCA}'))%>%
+  arrange(match(Variable, order__))%>%
+  relocate(Variable, Low, Mid, High, Source)
+
+
+if(Latex==T){
+  w_par_b %>%
+    kable(caption ='Information supporting $W$' ,
+          format = 'latex', 
+          align = 'c')
+}
 ```
 
 
@@ -279,6 +313,32 @@ aqua_par_w <- read.csv(here("data", 'inputs', "aqua_par_wild.csv"))
 aqua_par_f <- read.csv(here("data", 'inputs', "aqua_par_farm.csv"))
 ```
 At 4.5 years under farming conditions, a totoaba should have a `r aqua_par_f %>% subset(Totoaba_Age==4.5) %>% select(Weight_Buche_g) %>% pull() %>% round(2)`g swim bladder. At 5 years under farming conditions, a totoaba should have a `r aqua_par_f %>% subset(Totoaba_Age==5) %>% select(Weight_Buche_g) %>% pull() %>% round(2)` g swim bladder
+
+```{r table for v}
+
+v_par_b = v_par %>% 
+  t() %>% 
+  as.data.frame()
+v_par_b = v_par_b %>%
+  mutate(name = rownames(v_par_b))
+
+order__ = rownames(v_par_b)
+
+sources_v = sources %>% 
+  subset(parameter=='v') %>% 
+  select(-parameter)
+
+v_par_b = merge(v_par_b, sources_v, by='name',  all = T)%>%
+  arrange(match(name, order__))%>%
+  mutate(name = str_replace_all(name, '_', ' '))
+if(Latex==T){
+  v_par_b %>%
+    kable(caption ='Information supporting $v$' ,
+          format = 'latex', 
+          align = 'c')
+}
+```
+
 
 # VI. Save calibration data
 ```{r}
