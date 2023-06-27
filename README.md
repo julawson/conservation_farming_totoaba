@@ -6,7 +6,9 @@ Scripts and other files relevant to *Conservation farming presents a low risk, h
 ## Data prep and initial conditions (script: `1_Parameters.Rmd`)
 This script runs the various analysis needed to find the parameters to calibrate our model (biological parameters, cost estimates for poaching and aquaculture, demand structure.)
 
-Input files are : 
+Input files are :
+
+**Still missing dates and sources for some files**
 
 * `aqua_par_farm.csv` : life history table for *Totoaba Macdonaldi* in aquaculture
 
