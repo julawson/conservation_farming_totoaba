@@ -47,7 +47,7 @@ Input file :
 
 Output file : 
 
-* `sensitivity_analysis.csv` : results of senstivity analysis
+* `sensitivity_analysis.csv` : results of sensitivity analysis
 
 ## Additional graphs (script: `4_Additional_graphs.Rmd`)
 This script draws several other illustrations for Supplementary Materials. 
