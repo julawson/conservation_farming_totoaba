@@ -10,9 +10,9 @@ Input files are :
 
 **Still missing dates and sources for some files**
 
-* `aqua_par_farm.csv` : life history table for *Totoaba Macdonaldi* in aquaculture
+* `aqua_par_farm.csv` : von Bertalanffy growth function for *Totoaba macdonaldi* in aquaculture
 
-* `aqua_par_wild.csv` : life history table for *Tototaba Macdonaldi* in its natural environment from INAPESCA (2020)
+* `aqua_par_wild.csv` : von Bertalanffy growth function for *Tototaba macdonaldi* in its natural environment from INAPESCA (2020)
 
 * `dat_p.csv` : seizure data from Environmental Investigation Agency (2014-2017)
 
@@ -24,7 +24,7 @@ Input files are :
 
 Output file : 
 
-* `parameters.csv`: baselin parameters for model run. 
+* `parameters.csv`: baseline parameters for model run. 
 
 ## Conservation farming analysis (script: `2_Model.Rmd`)
 This script runs the model for our baseline calibration. 
