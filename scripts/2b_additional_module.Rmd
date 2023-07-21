@@ -15,7 +15,7 @@ library("ggsci")
 library(here)
 library(knitr)
 library(stargazer)
-
+library(khroma)
 rm(list = ls())
 ```
 
@@ -36,8 +36,8 @@ for(i in 1:nrow(calibration)){
 Using equation 3 in Section 2.1 of the Supplementary materials : 
 
 ```{r, open access}
-open_access = function(x){
-  y = ((alpha - c)*sigma^2*x^2)/(2*W_mid + beta*sigma^2*x^2)
+open_access = function(x, alpha_ = alpha, sigma_ = sigma, W_ = W_mid, beta_ = beta, c_ = c){
+  y = ((alpha_ - c_)*sigma_^2*x^2)/(2*W_ + beta_*sigma_^2*x^2)
   return(y)
 }
 result1 = result1 %>% mutate(open_access = open_access(x))
@@ -61,32 +61,37 @@ result1 = result1 %>%
 for_graph = result1 %>%
   select(x,
          growth, 
-         monop_harvest, 
          pt_harvest, 
+         comp_aqua,
+         monop_harvest, 
          cournot_harvest, 
          bertrand_harvest, 
-         oa_aqua, 
          open_access,
-         comp_aqua)%>%
+         oa_aqua
+         )%>%
   pivot_longer(cols = -c(x),
                names_to = 'names',
                values_to = 'values')
 
 set1 = function(x){
   if(x %in% c('monop_harvest', 'open_access', 'pt_harvest')){
-    return('baseline')
+    return('Baseline')
+  }else if(x == 'growth'){
+    return('Baseline')
   }else{
-    return('After policy')
+    return('With aquaculture')
   }
 }
 
 set2 = function(x){
   if(x %in% c('pt_harvest', 'comp_aqua')){
     return('Competitive end market')
-  }else if(x %in% c('monop_harvest', 'cournot_harvest', 'betrand_harvest')){
+  }else if(x %in% c('monop_harvest', 'cournot_harvest', 'bertrand_harvest')){
     return('Cartel controls upstream and downstream')
   }else if(x %in% c('oa_aqua', 'open_access')){
     return('Open access')
+  }else{
+    return('Growth')
   }
 }
   
@@ -97,7 +102,7 @@ for_graph = for_graph %>%
 ```
 
 
-```{graphs}
+```{r, graphs}
 
 color1 = 'red'
 color2 = 'blue'
@@ -203,4 +208,50 @@ result1 %>%
   guides(color=guide_legend(nrow=2,byrow=TRUE))+
   theme(legend.position = 'bottom')+
   scale_color_manual(values = c(color3, 'springgreen', 'black'))
+```
+```{r}
+for_graph$set1 = as.factor(unlist(for_graph$set1))
+for_graph$set2 = as.factor(unlist(for_graph$set2))
+
+font_ = 'AppleGothic'
+
+plot_ = for_graph %>%
+  #subset(names != 'growth')%>%
+  ggplot(aes(x = x, 
+             y = values, 
+             color = set2, 
+             group = names,
+             linetype = set1)) +
+  geom_line(size = 0.7) +  # Use geom_line instead of geom_point
+  
+  # Set the linetype scale for different linestyles
+  scale_linetype_manual(values = c("dotted", "solid", "solid")) +
+  
+  # Customize the legend
+  guides(
+    color = guide_legend(
+      title = " ",  # Title for the first column
+      ncol = 2              # Number of columns
+    ),
+    linetype = guide_legend(
+      title = " ",     # Title for the second column
+      ncol = 1              # Number of columns
+    )
+  ) +
+  ylim(0,1250)+
+  # Move the legend to the bottom
+  theme_bw()+
+  ylab('Growth / harvest')+
+  xlab('Population stock')+
+  theme(legend.position = "bottom",
+        axis.title.x  = element_text(family = font_),
+        axis.title.y  = element_text(family = font_),
+        legend.text = element_text(family = font_))+
+  scale_color_manual(values = c('firebrick3','#1f78b4', 'black','forestgreen') )
+
+
+plot_ + annotate("text", x = c(20000,20000), y = c(400,600), 
+         label =  c("Quantity setting", "Price setting"), color="firebrick3", 
+         size=2 , angle=0, fontface="italic")
+
 ```
