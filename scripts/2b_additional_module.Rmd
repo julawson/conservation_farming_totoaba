@@ -97,7 +97,7 @@ for_graph = for_graph %>%
 ```
 
 
-```{graphs}
+```{r graphs}
 
 color1 = 'red'
 color2 = 'blue'
@@ -203,4 +203,22 @@ result1 %>%
   guides(color=guide_legend(nrow=2,byrow=TRUE))+
   theme(legend.position = 'bottom')+
   scale_color_manual(values = c(color3, 'springgreen', 'black'))
+
+```
+
+```{r final graphs}
+
+
+result1 %>%
+  ggplot(aes(x = x))+
+  theme_bw()+
+  geom_line(aes(y = growth), linewidth = 1, color = 'black') +
+  geom_line(aes(y = open_access), linewidth = 1, color='blue') +
+  geom_line(aes(y = monop_harvest), linewidth = 1, color='red') +
+  geom_line(aes(y = cournot_harvest), linewidth  = 1, colour = 'green') +
+  geom_line(aes(y = bertrand_harvest), linewidth = 1, colour = 'pink') +
+  scale_linetype_manual(breaks = c("growth", "open_access", "monop_harvest", "cournot_harvest", "bertrand_harvest"),
+                        values = c("growth"=1, "open_access"=1, "monop_harvest"=2, "cournot_harvest"=2, "bertrand_harvest"=2))
+
+
 ```
