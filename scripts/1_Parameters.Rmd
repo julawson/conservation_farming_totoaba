@@ -16,7 +16,8 @@ library(here)
 library(knitr)
 library(stargazer)
 
-if(!('Fishlife' %in% installed.packages())){
+if(!(all(c('Fishlife', 'devtools') %in% installed.packages()))){
+  install.packages('devtools')
   devtools::install_github("james-thorson/FishLife")
 }
 library(FishLife)

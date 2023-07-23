@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = F)
 
 library(tidyverse)
 library(scales)
+library(colorspace)
 library("ggsci")
 library(here)
 library(knitr)
@@ -745,7 +746,7 @@ df_cv = store %>%
   select(all_of(to_keep))%>%
   drop_na()%>%
   mutate(ss_cournot_norm = (ss_cournot1 - ss_monop1)/ss_monop1*100,
-         ss_bertrand_norm = (ss_bertrand1 - ss_monop1)/ss_monop1*100)
+         ss_bertrand_norm = (ss_bertrand1 - ss_monop1)/ss_monop1*100,)
 
 df_cv = df_cv %>% pivot_longer(cols = !c('c','v'),
                                names_to = 'output',
@@ -800,6 +801,66 @@ ggsave(here('visuals', 'Figure5.jpg'))
 #  geom_point(data = new_v, col = 'blue')
 
 ```
+```{r}
+
+store = as.data.frame(read.csv(here('data', 'outputs', 'sensitivity_analysis.csv')))
+
+# Set data to long format
+to_keep = c('c', 'v', 'price_poachers_cournot1', 'price_poachers_bertrand1', 'ss_monop1', 'ss_cournot1', 'ss_bertrand1')
+
+df_cv = store %>% 
+  subset(spec == 'c and v')%>% 
+  select(all_of(to_keep))%>%
+  drop_na()
+
+df_cv1 = df_cv %>%
+  mutate(ss_bertrand_norm = (ss_bertrand1-ss_monop1)/ss_monop1*100,
+         c_ = cut(c,6), 
+         v_ = cut(v,5))
+
+levels(df_cv1$c_) = c('0 - 2,480', 
+                      '2,480-4,970',
+                      '4,970 - 7,450', 
+                      '7,450 - 9,930', 
+                      '9,930 - 12,400', 
+                      '12,400 - 14,900')
+levels(df_cv1$v_) = c('6,610 - 25,500',
+                      '25,500 - 44,200',
+                      '44,200 - 63,000', 
+                      '63,000 - 81,800', 
+                      '81,800 - 101,500')
+
+font_ = 'AppleGothic'
+
+df_cv1 %>%
+  ggplot(aes(x = price_poachers_bertrand1+c,
+             y = ss_bertrand_norm))+
+  geom_line(aes(color = c_))+
+  geom_hline(aes(yintercept=0), linetype=2)+
+  facet_grid(.~v_)+
+  scale_color_viridis_d()+
+  ylab('Variation from initial equilibrium (in %)')+
+  xlab('Cost for traders (price paid and transaction cost) in USD')+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 60,
+                                   hjust = 1),
+        legend.position = "bottom",
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_))+
+  labs(color = 'Cost of transaction (in USD)')
+
+
+
+ggsave(here('visuals', 'Figure5b.jpg'))
+#  geom_point(data = new_c, col = 'grey')
+#  geom_point(data = new_v, col = 'blue')
+```
+
+
 
 ```{r}
 to_keep = c('c', 'v','gamma', 'ss_monop1', 'ss_cournot1','ss_bertrand1')
