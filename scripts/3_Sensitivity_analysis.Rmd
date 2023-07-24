@@ -1101,7 +1101,7 @@ checker %>%
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_), 
         aspect.ratio = 10/4)
-ggsave(here('visuals/supplementary_visuals', 'sens_alpha_gamma_normalized.jpg'), height = 11)
+ggsave(here('visuals', 'figure_unclear.jpg'), height = 11)
 
 
 ```
