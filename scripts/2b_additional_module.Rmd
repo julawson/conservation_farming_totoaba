@@ -277,3 +277,41 @@ plot_ + annotate("text", x = c(20000,20000), y = c(400,600),
          size=2 , angle=0, fontface="italic")
 
 ```
+
+
+```{r}
+checker = store %>%
+  subset(spec %in% c('alpha', 'baseline'))
+
+ss_baseline = checker %>% subset(spec == 'baseline') %>% select(ss_monop1) %>% pull()
+to_keep = c('alpha','ss_monop1', 'ss_monop3', 'ss_cournot1', 'ss_bertrand1', 'ss_bertrand1_norm', 'ss_cournot1_norm', 'transformation')
+
+output2 = function(x){
+  if(x =='ss_cournot1_norm'){
+    return('Cournot steady state - normalized (in %)')
+  }else if(x == 'ss_bertrand1_norm'){
+    return('Bertrand steady state - normalized (in %)')
+  }
+}
+
+checker = checker %>%
+  mutate(ss_cournot1_norm = (ss_cournot1/ss_baseline -1)*100, 
+         ss_bertrand1_norm = (ss_bertrand1/ss_baseline -1)*100)%>% 
+  select(all_of(to_keep))
+
+checker = checker%>%
+  pivot_longer(cols = !c('alpha', 'transformation'),
+               values_to = 'values', 
+               names_to = 'variables') %>%
+  subset(transformation >=1)
+
+checker %>% 
+  subset(variables %in% c('ss_cournot1_norm', 'ss_bertrand1_norm')) %>%
+  mutate(variables  = sapply(variables,output2))%>%
+  ggplot(aes(x=transformation))+
+  geom_point(aes(y = values, colour = variables ), size=2)+
+  theme_bw()+
+  geom_hline(yintercept = 0)+
+  scale_colour_aaas()
+ggsave(here('visuals/supplementary_visuals', 'Figure7.png'))
+```

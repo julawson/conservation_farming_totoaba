@@ -454,7 +454,7 @@ plot_ = for_graph %>%
              color = set2, 
              group = names,
              linetype = set1)) +
-  geom_line(size = 0.7) +  # Use geom_line instead of geom_point
+  geom_line(linewidth = 0.7) +  # Use geom_line instead of geom_point
   
   # Set the linetype scale for different linestyles
   scale_linetype_manual(values = c("solid", "dotted")) +

@@ -801,7 +801,8 @@ ggsave(here('visuals', 'Figure5.jpg'))
 #  geom_point(data = new_v, col = 'blue')
 
 ```
-```{r}
+
+```{r, Bertrand outcome with c and v}
 
 store = as.data.frame(read.csv(here('data', 'outputs', 'sensitivity_analysis.csv')))
 
@@ -873,9 +874,80 @@ ggsave(here('visuals', 'Figure5b.jpg'))
 #  geom_point(data = new_v, col = 'blue')
 ```
 
+```{r, Cournot outcome with c and v}
+
+store = as.data.frame(read.csv(here('data', 'outputs', 'sensitivity_analysis.csv')))
+
+# Set data to long format
+to_keep = c('c', 'v', 'price_poachers_cournot1', 'price_poachers_bertrand1', 'ss_monop1', 'ss_cournot1', 'ss_bertrand1')
+
+df_cv = store %>% 
+  subset(spec == 'c and v')%>% 
+  select(all_of(to_keep))%>%
+  drop_na()
+
+df_cv1 = df_cv %>%
+  mutate(ss_cournot_norm = (ss_cournot1-ss_monop1)/ss_monop1*100,
+         c_ = cut(c,10), 
+         v_ = cut(v,5))
+
+levels(df_cv1$c_) = c('0 - 1,490',
+                      '1,490 - 2,980',
+                      '2,980-4,470',
+                      '4,470 - 5,960', 
+                      '5,960 - 7,450', 
+                      '7,450 - 8,940', 
+                      '8,940 - 10,400',
+                      '10,400 - 11,900',
+                      '11,900 - 13,400',
+                      '13,400 - 14,900')
+levels(df_cv1$v_) = c('6,610 - 25,500',
+                      '25,500 - 44,200',
+                      '44,200 - 63,000', 
+                      '63,000 - 81,800', 
+                      '81,800 - 101,500')
+
+font_ = 'AppleGothic'
+custom_breaks = c(0, 5000, 10000, 14900)
+df_cv1 %>%
+  ggplot(aes(x = price_poachers_bertrand1+c,
+             y = ss_cournot_norm))+
+  geom_line(aes(color = c))+
+  geom_hline(aes(yintercept=0), linetype=2)+
+  facet_grid(.~v_)+
+  #scale_color_viridis_c()+
+  #scale_color_brewer(palette = 'YlOrRd')+
+  scale_color_gradient(low = "gold1", 
+                       high = "firebrick3", 
+                       breaks = custom_breaks,
+                       labels = custom_breaks, 
+                       limits = c(0, 14900))+
+  #scale_color_gradientn(colours = rev(wes_palette("Zissou1", 100, type = "continuous")))+
+  ylab('Variation from initial equilibrium (in %)')+
+  xlab('Cost for traders (price paid and transaction cost) in USD')+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 60,
+                                   hjust = 1),
+        legend.position = "bottom",
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_),
+        legend.key.width = unit(1.5, "cm"),
+        legend.key.height = unit(0.3, 'cm'))+
+  labs(color = 'Cost of transaction (in USD)')
 
 
-```{r}
+
+ggsave(here('visuals', 'Figure5c.jpg'))
+#  geom_point(data = new_c, col = 'grey')
+#  geom_point(data = new_v, col = 'blue')
+```
+
+
+```{r, c & v & gamma and equilibria}
 to_keep = c('c', 'v','gamma', 'ss_monop1', 'ss_cournot1','ss_bertrand1')
 df_cv = store %>% 
   subset(spec == 'c and v and gamma')
@@ -915,46 +987,10 @@ ggsave(here('visuals/supplementary_visuals', 'Figure6.jpg'))
 
 ## Other analysis
 
-### What demand increase would be needed to offset the positive effects of competition?
-```{r}
-checker = store %>%
-  subset(spec %in% c('alpha', 'baseline'))
+1. What demand increase would be needed to offset the positive effects of competition?
 
-ss_baseline = checker %>% subset(spec == 'baseline') %>% select(ss_monop1) %>% pull()
-to_keep = c('alpha','ss_monop1', 'ss_monop3', 'ss_cournot1', 'ss_bertrand1', 'ss_bertrand1_norm', 'ss_cournot1_norm', 'transformation')
+2. How do results evolve with substitutability?
 
-output2 = function(x){
-  if(x =='ss_cournot1_norm'){
-    return('Cournot steady state - normalized (in %)')
-  }else if(x == 'ss_bertrand1_norm'){
-    return('Bertrand steady state - normalized (in %)')
-  }
-}
-
-checker = checker %>%
-  mutate(ss_cournot1_norm = (ss_cournot1/ss_baseline -1)*100, 
-         ss_bertrand1_norm = (ss_bertrand1/ss_baseline -1)*100)%>% 
-  select(all_of(to_keep))
-
-checker = checker%>%
-  pivot_longer(cols = !c('alpha', 'transformation'),
-               values_to = 'values', 
-               names_to = 'variables') %>%
-  subset(transformation >=1)
-
-checker %>% 
-  subset(variables %in% c('ss_cournot1_norm', 'ss_bertrand1_norm')) %>%
-  mutate(variables  = sapply(variables,output2))%>%
-  ggplot(aes(x=transformation))+
-  geom_point(aes(y = values, colour = variables ), size=2)+
-  theme_bw()+
-  geom_hline(yintercept = 0)+
-  scale_colour_aaas()
-ggsave(here('visuals/supplementary_visuals', 'Figure7.png'))
-```
-
-
-### How do results evolve with substitutability?
 ```{r}
 Latex = T
 
@@ -980,9 +1016,9 @@ output3 = function(x){
   if(x %in% c('ss_monop1', 'ss_monop2', 'ss_monop3')){
     return('Monopoly')
   }else if(x %in% c('ss_cournot1', 'ss_cournot2', 'ss_cournot3')){
-    return('Cournot')
+    return('Qty setting')
   }else if(x %in% c('ss_bertrand1', 'ss_bertrand2', 'ss_bertrand3')){
-    return('Bertrand')
+    return('Price setting')
   }
 }
 
@@ -1010,34 +1046,62 @@ output4 = function(x){
     return('Large - 90%')
   }
 }
-pal = c("#febd2a", "#f48849", '#db5c68', '#b83289','#8b0aa5', '#9049EE', '#4580CD')
+
+output5 = function(x){
+  if(x > -55){
+    return('Large')
+  }else if(x < (-55) & x > (-80)){
+    return('Middle')
+  }else if(x < (-80)){
+    return('Low')
+  }else if(is.na(x)){
+    return(NA)
+  }
+}
+pal = c("mediumseagreen", "black", 'gold1', 'darkorange','orangered', 'firebrick3', 'brown')
+
+checker$values3 = cut(checker$values2, breaks = c(30,-50,-86, -100), include.lowest=T)
+checker$values4 = paste0(checker$values3, checker$alpha)
+
 checker %>%
   mutate(gamma = as.integer(gamma))%>%
   filter(gamma %in% c(10, 50, 90))%>%
   mutate(gamma = sapply(gamma, output4))%>%
-  mutate(gamma = factor(gamma, levels = c('Low - 10%', 'Medium - 50%', 'Large - 90%')))%>%
+  mutate(gamma = factor(gamma, levels = c('Low - 10%', 'Medium - 50%', 'Large - 90%')),
+         alpha2 = factor((round(alpha,2)-1)*100))%>%
   drop_na()%>%
-  ggplot(aes(x = names, y=values, colour = as.factor(round(alpha,2))))+
-  geom_point(size = 3)+
-  geom_hline(yintercept = 10000, linetype='dotted')+
-  geom_hline(yintercept = 2450, linetype='dotted')+
+  ggplot(aes(x = names, 
+             y=values2, 
+             colour = alpha2, 
+             group = values4, 
+             shape = names))+
+  geom_point(size = 2)+
+  geom_line()+
+  #geom_hline(yintercept = 10000, linetype='dotted')+
+  #geom_hline(yintercept = 2450, linetype='dotted')+
   facet_wrap(vars(gamma))+
   scale_color_manual(values = pal)+
   theme_bw()+
+  geom_hline(yintercept = -43, linetype = 'dotted')+
+  geom_hline(yintercept = -86, linetype = 'dotted')+
+  geom_hline(yintercept = 0, linetype = 'dashed', color = 'grey')+
   xlab(' ')+
   ylab(' ')+
-  theme(legend.position= 'bottom')+
-  labs(colour = 'Demand multiplier')+
+  scale_shape_manual(values = c(4, 17, 8))+
+  labs(colour = 'Demand \nvariation (in %)')+
+  guides(shape = 'none',
+         color=guide_legend(nrow=4,byrow=F))+
   theme(axis.text.x = element_text(angle = 60,
                                    hjust = 1),
-        legend.position = "bottom",
+        legend.position = "right",
         strip.text.x  = element_text(family = font_) ,
         axis.title.x  = element_text(family = font_),
         axis.text = element_text(family = font_),
         axis.title.y  = element_text(family = font_),
         legend.text = element_text(family = font_), 
-        legend.title = element_text(family = font_))
-ggsave(here('visuals/supplementary_visuals', 'sens_alpha_gamma.jpg'))
+        legend.title = element_text(family = font_), 
+        aspect.ratio = 10/4)
+ggsave(here('visuals/supplementary_visuals', 'sens_alpha_gamma_normalized.jpg'), height = 11)
 
 
 ```
