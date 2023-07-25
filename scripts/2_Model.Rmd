@@ -448,7 +448,7 @@ for_graph$set2 = as.factor(unlist(for_graph$set2))
 font_ = 'AppleGothic'
 
 plot_ = for_graph %>%
-  #subset(names != 'growth')%>%
+  subset(!(names %in% c('oa_aqua', 'comp_aqua')))%>%
   ggplot(aes(x = x, 
              y = values, 
              color = set2, 
@@ -483,7 +483,7 @@ plot_ = for_graph %>%
 
 
 plot_ + annotate("text", x = c(20000,20000), y = c(400,580), 
-         label =  c("Quantity setting", "Price setting"), color="firebrick3", 
+         label =  c("Quantity adjustment", "Price setting"), color="firebrick3", 
          size=2 , angle=0, fontface="italic")
 ggsave(here('visuals', 'Figure3b.jpg'))
 

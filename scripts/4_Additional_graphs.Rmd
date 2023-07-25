@@ -67,7 +67,12 @@ growth = function(x){
   y = 0.1*x*(1-x/100)
   return(y)
 }
-  
+font_ = 'AppleGothic'
+size_ = 5
+
+points_ = data.frame(x = c(7.9, 30.46, 61.15, 80.75),
+                     y = c(0.75, 2.12 , 2.36, 1.56))
+
 data.frame(x = seq(1,100))%>%
   mutate(monop = qty_monop(x),
          monop2 = qty_monop2(x),
@@ -78,26 +83,34 @@ data.frame(x = seq(1,100))%>%
   geom_line(aes(y = monop2, colour = 'Harvest'), linewidth = 1.2)+
   geom_line(aes(y = monop3, colour = 'Harvest'), linewidth = 1.2)+
   geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1.2)+
+  geom_point(data = points_, aes(x=x, y=y), size=3, shape = 17)+
   scale_color_manual(values = c( 'grey','black'))+
   ylim(0,3)+
-  ylab('Quantity')+
+  ylab('Growth / harvest')+
   xlab('Stock')+
   theme_classic()+
   #geom_segment(x = 8, xend = 8, y = 0, yend= .75, linetype = 2)+
   #geom_segment(x = 31, xend = 31, y = 0, yend= 2.1, linetype = 2)+
   #geom_segment(x = 61, xend = 61, y = 0, yend= 2.35, linetype = 2)+
-  annotate('text', x = 15, y = .7, label= 'stable')+
-  annotate('text', x = 38, y = 2, label= 'unstable')+
-  annotate('text', x = 65, y = 2.5, label= 'stable')+
-  annotate('text', x = 85, y = 1.7, label= 'stable') +
-  annotate('text', x = 103, y = 3, label= 'A') +
-  annotate('text', x = 103, y = 2.45, label= 'B') +
-  annotate('text', x = 103, y = 1.55, label= 'C') +
+  annotate('text', x = 15, y = .7, label= 'stable', family = font_, size = size_)+
+  annotate('text', x = 38, y = 2, label= 'unstable', family = font_, size = size_)+
+  annotate('text', x = 65, y = 2.5, label= 'stable', family = font_, size = size_)+
+  annotate('text', x = 85, y = 1.7, label= 'stable', family = font_, size = size_) +
+  annotate('text', x = 103, y = 3, label= 'A', family = font_, size = size_) +
+  annotate('text', x = 103, y = 2.45, label= 'B', family = font_, size = size_) +
+  annotate('text', x = 103, y = 1.55, label= 'C', family = font_, size = size_) +
   theme(legend.position = "none", 
         axis.ticks.x = element_blank(),
         axis.ticks.y = element_blank(),
         axis.text.x = element_blank(),
-        axis.text.y = element_blank())
+        axis.text.y = element_blank(),
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_))
+
   ggsave(here("visuals", "Figure2.jpg"))
 
 ```

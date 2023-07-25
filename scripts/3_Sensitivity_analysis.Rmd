@@ -829,11 +829,11 @@ levels(df_cv1$c_) = c('0 - 1,490',
                       '10,400 - 11,900',
                       '11,900 - 13,400',
                       '13,400 - 14,900')
-levels(df_cv1$v_) = c('6,610 - 25,500',
-                      '25,500 - 44,200',
-                      '44,200 - 63,000', 
-                      '63,000 - 81,800', 
-                      '81,800 - 101,500')
+levels(df_cv1$v_) = c('6,610 $ - 25,500 $',
+                      '25,500 $ - 44,200 $',
+                      '44,200 $ - 63,000 $', 
+                      '63,000 $ - 81,800 $', 
+                      '81,800 $ - 101,500 $')
 
 font_ = 'AppleGothic'
 custom_breaks = c(0, 5000, 10000, 14900)
@@ -853,25 +853,26 @@ df_cv1 %>%
   #scale_color_gradientn(colours = rev(wes_palette("Zissou1", 100, type = "continuous")))+
   ylab('Variation from initial equilibrium (in %)')+
   xlab('Cost for traders (price paid and transaction cost) in USD')+
+  labs(color = 'Cost of \ntransaction \n(in USD)')+
+  labs(title = 'Normalized steady states in price setting scenario',
+       subtitle = 'With binned farming costs')+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 60,
                                    hjust = 1),
-        legend.position = "bottom",
+        legend.position = "right",
         strip.text.x  = element_text(family = font_) ,
         axis.title.x  = element_text(family = font_),
         axis.text = element_text(family = font_),
         axis.title.y  = element_text(family = font_),
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_),
-        legend.key.width = unit(1.5, "cm"),
-        legend.key.height = unit(0.3, 'cm'))+
-  labs(color = 'Cost of transaction (in USD)')
+        legend.key.width = unit(.3, "cm"),
+        legend.key.height = unit(1, 'cm'),
+        plot.title = element_text(family= font_,),
+        plot.subtitle = element_text(family=font_))
 
+ggsave(here('visuals', 'Figure5b.jpg'), width = 10, height = 8)
 
-
-ggsave(here('visuals', 'Figure5b.jpg'))
-#  geom_point(data = new_c, col = 'grey')
-#  geom_point(data = new_v, col = 'blue')
 ```
 
 ```{r, Cournot outcome with c and v}
@@ -901,16 +902,16 @@ levels(df_cv1$c_) = c('0 - 1,490',
                       '10,400 - 11,900',
                       '11,900 - 13,400',
                       '13,400 - 14,900')
-levels(df_cv1$v_) = c('6,610 - 25,500',
-                      '25,500 - 44,200',
-                      '44,200 - 63,000', 
-                      '63,000 - 81,800', 
-                      '81,800 - 101,500')
+levels(df_cv1$v_) = c('6,610 $- 25,500 $',
+                      '25,500 $ - 44,200 $',
+                      '44,200 $ - 63,000 $', 
+                      '63,000 $ - 81,800 $', 
+                      '81,800 $ - 101,500 $')
 
 font_ = 'AppleGothic'
 custom_breaks = c(0, 5000, 10000, 14900)
 df_cv1 %>%
-  ggplot(aes(x = price_poachers_bertrand1+c,
+  ggplot(aes(x = price_poachers_cournot1+c,
              y = ss_cournot_norm))+
   geom_line(aes(color = c))+
   geom_hline(aes(yintercept=0), linetype=2)+
@@ -925,24 +926,26 @@ df_cv1 %>%
   #scale_color_gradientn(colours = rev(wes_palette("Zissou1", 100, type = "continuous")))+
   ylab('Variation from initial equilibrium (in %)')+
   xlab('Cost for traders (price paid and transaction cost) in USD')+
+  labs(color = 'Cost of \ntransaction \n(in USD)')+
+  labs(title = 'Normalized steady states in quantity adjustment scenario',
+       subtitle = 'With binned farming costs')+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 60,
                                    hjust = 1),
-        legend.position = "bottom",
+        legend.position = "right",
         strip.text.x  = element_text(family = font_) ,
         axis.title.x  = element_text(family = font_),
         axis.text = element_text(family = font_),
         axis.title.y  = element_text(family = font_),
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_),
-        legend.key.width = unit(1.5, "cm"),
-        legend.key.height = unit(0.3, 'cm'))+
-  labs(color = 'Cost of transaction (in USD)')
+        legend.key.width = unit(.3, "cm"),
+        legend.key.height = unit(1, 'cm'),
+        plot.title = element_text(family= font_,),
+        plot.subtitle = element_text(family=font_))
 
-
-
-ggsave(here('visuals', 'Figure5c.jpg'))
-#  geom_point(data = new_c, col = 'grey')
+ggsave(here('visuals', 'Figure5c.jpg'), width = 10, height = 8)
+ #  geom_point(data = new_c, col = 'grey')
 #  geom_point(data = new_v, col = 'blue')
 ```
 
@@ -981,6 +984,7 @@ df_cv %>%
   theme(legend.position = 'bottom')+
   guides(colour = guide_legend(title.position = "top"))+
   labs(fill = '% change compared to steady state monopoly')
+
 ggsave(here('visuals/supplementary_visuals', 'Figure6.jpg'))
 
 ```
@@ -994,10 +998,13 @@ ggsave(here('visuals/supplementary_visuals', 'Figure6.jpg'))
 ```{r}
 Latex = T
 
+ss_mon = store %>% subset(spec == 'baseline') %>% select(ss_monop1) %>% pull()
+
+
 checker = store %>%
   subset(spec %in% c('baseline', 'gamma'))%>%
-  mutate(`Cournot normalized` = paste0(round((ss_cournot1/ss_baseline - 1)*100,2), '%'),
-         `Bertrand normalized` = paste0(round((ss_bertrand1/ss_baseline -1)*100,2), '%'))%>%
+  mutate(`Cournot normalized` = paste0(round((ss_cournot1/ss_mon - 1)*100,2), '%'),
+         `Bertrand normalized` = paste0(round((ss_bertrand1/ss_mon -1)*100,2), '%'))%>%
   select(gamma, transformation, `Cournot normalized`, `Bertrand normalized`)%>%
   mutate(transformation = paste0(round(as.numeric(gamma)/beta*100,2), '%'), 
          gamma = round(gamma, 2))%>%
@@ -1014,9 +1021,9 @@ if(Latex==T){
 
 output3 = function(x){
   if(x %in% c('ss_monop1', 'ss_monop2', 'ss_monop3')){
-    return('Monopoly')
+    return('Vertical monopoly')
   }else if(x %in% c('ss_cournot1', 'ss_cournot2', 'ss_cournot3')){
-    return('Qty setting')
+    return('Qty adjustment')
   }else if(x %in% c('ss_bertrand1', 'ss_bertrand2', 'ss_bertrand3')){
     return('Price setting')
   }
@@ -1073,10 +1080,9 @@ checker %>%
   ggplot(aes(x = names, 
              y=values2, 
              colour = alpha2, 
-             group = values4, 
-             shape = names))+
+             group = values4))+
   geom_point(size = 2)+
-  geom_line()+
+  #geom_line()+
   #geom_hline(yintercept = 10000, linetype='dotted')+
   #geom_hline(yintercept = 2450, linetype='dotted')+
   facet_wrap(vars(gamma))+
@@ -1086,7 +1092,7 @@ checker %>%
   geom_hline(yintercept = -86, linetype = 'dotted')+
   geom_hline(yintercept = 0, linetype = 'dashed', color = 'grey')+
   xlab(' ')+
-  ylab(' ')+
+  ylab('Deviation (in %) from vertical \nmonopoly equilibrium population')+
   scale_shape_manual(values = c(4, 17, 8))+
   labs(colour = 'Demand \nvariation (in %)')+
   guides(shape = 'none',
@@ -1097,7 +1103,7 @@ checker %>%
         strip.text.x  = element_text(family = font_) ,
         axis.title.x  = element_text(family = font_),
         axis.text = element_text(family = font_),
-        axis.title.y  = element_text(family = font_),
+        axis.title.y  = element_text(family = font_, size = 9),
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_), 
         aspect.ratio = 10/4)
