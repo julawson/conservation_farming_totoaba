@@ -16,10 +16,11 @@ library(here)
 library(knitr)
 library(stargazer)
 
-if(!(all(c('Fishlife', 'devtools') %in% installed.packages()))){
-  install.packages('devtools')
-  devtools::install_github("james-thorson/FishLife")
-}
+#if(!(all(c('Fishlife', 'devtools') %in% installed.packages()))){
+#  install.packages('devtools')
+#  devtools::install_github("james-thorson/FishLife")
+#}
+
 library(FishLife)
 library(kableExtra)
 
