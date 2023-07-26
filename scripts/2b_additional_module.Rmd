@@ -16,7 +16,7 @@ library(here)
 library(knitr)
 library(stargazer)
 library(khroma)
-rm(list = ls())
+#rm(list = ls())
 ```
 
 ## Modify original model to include other counterfactuals
@@ -102,11 +102,7 @@ for_graph = for_graph %>%
 ```
 
 
-<<<<<<< HEAD
 ```{r, graphs}
-=======
-```{r graphs}
->>>>>>> 2d33c316e982831d57fe509ce690f1aa784de6be
 
 color1 = 'red'
 color2 = 'blue'

@@ -20,7 +20,7 @@ library(stargazer)
 library(parallel)
 library(wesanderson)
 
-rm(list = ls())
+#rm(list = ls())
 ```
 
 

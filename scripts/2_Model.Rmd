@@ -21,7 +21,7 @@ library(here)
 library(knitr)
 library(stargazer)
 
-rm(list = ls())
+#rm(list = ls())
 ```
 
 # I. Load parameters
