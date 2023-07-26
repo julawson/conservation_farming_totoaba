@@ -482,9 +482,9 @@ plot_ = for_graph %>%
   scale_color_manual(values = c('firebrick3','#1f78b4', 'black','forestgreen') )
 
 
-plot_ + annotate("text", x = c(20000,20000), y = c(400,580), 
-         label =  c("Quantity adjustment", "Price setting"), color="firebrick3", 
-         size=2 , angle=0, fontface="italic")
+plot_ + annotate("text", x = c(19000, 20000), y = c(410,580), 
+         label =  c("Quantity adjustment", "Price setting"), color="forestgreen", 
+         size=3 , angle=0, fontface="italic")
 ggsave(here('visuals', 'Figure3b.jpg'))
 
 ```
