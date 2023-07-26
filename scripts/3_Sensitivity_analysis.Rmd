@@ -1222,20 +1222,53 @@ ggsave(here('visuals', 'figure_unclear_last.jpg'), height = 11)
 ## Table for equilibria corresponding with above graph
 
 ```{r}
+Latex = F
+# Reinitiate data
+checker = store %>% 
+  subset(spec =='alpha and gamma')%>%
+  select(alpha, gamma, ss_monop1, ss_monop2, ss_monop3, ss_cournot1, ss_cournot2, ss_cournot3,
+         ss_bertrand1, ss_bertrand2, ss_bertrand3)%>%
+  pivot_longer(cols = -c('alpha', 'gamma'), 
+               names_to = 'names', 
+               values_to = 'values')%>%
+  mutate(names = sapply(names, output3), 
+         alpha = as.numeric(alpha/calibration$value[which(calibration$params=='alpha')]), 
+         gamma = round(gamma/calibration$value[which(calibration$params=='beta')],2)*100,
+         values2 = (values/ss_mon - 1)*100, 
+         gamma = as.integer(gamma))%>%
+  drop_na()
+
+# Set storage
 storage = data.frame(0, 0, 0, 0, 0, 0)
-colnames(storage) = c('gamma', 'Monopoly', 'Cournot', 'Bertrand', 'alpha', 'Equilibrium')
 thresh = c(0, 2450, 10000, 500000)
-for(x in c(1, 1.2, 1.4, 1.6)){
+colnames(storage) = c("gamma",
+                      "Vertical monopoly",
+                      "Qty adjustment",
+                      "Price setting",
+                      "alpha",
+                      "Equilibrium" )
+
+for(x in c(1, 1.2, 1.4, 1.6, 1.8)){
+  # Loop for all demand multipliers
   for( i in seq(1, length(thresh)-1)){
+    # Loop over threshold values for different types of equilibria
+    
     a = checker %>%
-    subset(as.character(alpha) ==x)%>%
+    filter(alpha < x+.05 & alpha > x - .05 )%>% # Filter with bandwidth otherwise does not match
     filter(values > thresh[i] & values < thresh[i+1])%>%
-    select(-c(values, alpha))%>%
-    drop_na()%>%
-    pivot_wider(names_from=names, values_from = values2)%>%
+    select(-c(values))%>%
+    drop_na()
+    
+    # If there are values in a certain type of equilibrium, export values in wide format
+    if(nrow(a)>0){
+    a = a %>%
+    pivot_wider(names_from=names, 
+                values_from = values2,
+                values_fn = list)%>%
     subset(as.character(gamma) %in% c(10, 50, 90))%>%
     mutate(alpha = x)
-    
+      
+    # Clean labeling of equilibria
     if(i == 1){
       a = a %>%
         mutate(Equilibrium = 'Low - stable')
@@ -1248,23 +1281,31 @@ for(x in c(1, 1.2, 1.4, 1.6)){
     }
   storage = rbind(storage, a)
   }
-  
 }
-
+}
+# Formating of table
 storage = storage[-1, c(5,1,6,2,3,4)]
 
-if(Latex == T){
-  storage = as.data.frame(storage) %>%
+storage = as.data.frame(storage) %>%
     replace(.=='NULL', NA)%>%
     mutate(gamma = paste0(gamma, '\ %'),
-           Monopoly = round(unlist(Monopoly), 2), 
-           Cournot = round(unlist(Cournot), 2), 
-           Bertrand = round(unlist(Bertrand), 2))
+           `Vertical monopoly` = round(unlist(`Vertical monopoly`), 2), 
+           `Qty adjustment` = round(unlist(`Qty adjustment`), 2), 
+           `Price setting` = round(unlist(`Price setting`), 2))
   
   colnames(storage) = c('Demand mult. coef.', '$gamma$ (% of $beta$)','Equilibrium', 'Monopoly variation (in %)', 'Cournot variation (in %)', 'Betrand variation (in %)')
+if(Latex == T){
+  
   storage %>%
     kable(caption = 'Evolution of steady states (in % from baseline monopoly steady state)', 
           format  = 'latex',
+          align = 'c', 
+          row.names = F)
+  
+}else{
+  storage %>%
+    kable(caption = 'Evolution of steady states (in % from baseline monopoly steady state)', 
+          format  = 'html',
           align = 'c', 
           row.names = F)
   
