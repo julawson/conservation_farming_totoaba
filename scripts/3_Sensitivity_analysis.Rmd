@@ -9,6 +9,7 @@ output: html_document
 
 ```{r setup, include = F}
 knitr::opts_chunk$set(echo = F)
+options(scipen=999)
 
 library(tidyverse)
 library(scales)
@@ -1286,24 +1287,24 @@ for(x in c(1, 1.2, 1.4, 1.6, 1.8)){
 # Formating of table
 storage = storage[-1, c(5,1,6,2,3,4)]
 
-storage = as.data.frame(storage) %>%
+storage2 = as.data.frame(storage) %>%
     replace(.=='NULL', NA)%>%
     mutate(gamma = paste0(gamma, '\ %'),
            `Vertical monopoly` = round(unlist(`Vertical monopoly`), 2), 
            `Qty adjustment` = round(unlist(`Qty adjustment`), 2), 
            `Price setting` = round(unlist(`Price setting`), 2))
   
-  colnames(storage) = c('Demand mult. coef.', '$gamma$ (% of $beta$)','Equilibrium', 'Monopoly variation (in %)', 'Cournot variation (in %)', 'Betrand variation (in %)')
+  colnames(storage2) = c('Demand mult. coef.', '$gamma$ (% of $beta$)','Equilibrium', 'Monopoly variation (in %)', 'Cournot variation (in %)', 'Betrand variation (in %)')
 if(Latex == T){
   
-  storage %>%
+  storage2 %>%
     kable(caption = 'Evolution of steady states (in % from baseline monopoly steady state)', 
           format  = 'latex',
           align = 'c', 
           row.names = F)
   
 }else{
-  storage %>%
+  storage2 %>%
     kable(caption = 'Evolution of steady states (in % from baseline monopoly steady state)', 
           format  = 'html',
           align = 'c', 
@@ -1311,6 +1312,50 @@ if(Latex == T){
   
 }
 ```
+
+```{r, numbers for manuscript}
+growth = function(x){
+    y = r*x*(1-x/k)
+    return(y)
+}
+ss_bertrand_baseline = store %>% subset(spec == 'baseline')%>%select(ss_bertrand1) %>% pull()
+
+# Increased demand by 40% with substitutability = 90% for price setting - poaching
+l = storage %>%
+  subset(alpha == as.character(1.4))%>%
+  subset(gamma == 90)%>%
+  select(`Price setting`)%>%
+  pull()%>%
+  unlist()
+
+# Increased demand by 60% with substitutability = 50% for both scenarios - stocks
+l2 = storage %>%
+  subset(alpha == as.character(1.8))%>%
+  subset(gamma == 50)%>%
+  subset(Equilibrium == 'High - stable')%>%
+  select(`Qty adjustment`, `Price setting`)
+
+l3 = storage %>%
+  subset(alpha == as.character(1.8))%>%
+  subset(gamma == 50)%>%
+  subset(Equilibrium == 'Low - stable')%>%
+  select(`Qty adjustment`, `Price setting`)
+```
+
+1. In the case where demand increases by 40%, and substitutability is 90%, poaching increases by `r round(growth(ss_mon*(1+l/100))-growth(ss_bertrand_baseline),2)` mt in the price setting scenario
+
+2. In the case where demand increases by 60%, and substitutability is 50%, *high* equilibrium stock is:
+
+  * `r ss_mon*(1 + unlist(pull(l2[1]))/100)` mt in the qty adjustment scenario
+
+  * `r ss_mon*(1 + unlist(pull(l2[2]))/100)`, mt in the price setting scenario
+  
+3. In the case where demand increases by 60%, and substitutability is 50%, *low* equilibrium stock is:
+
+  * `r ss_mon*(1 + unlist(pull(l3[1]))/100)` mt in the qty adjustment scenario
+
+  * `r ss_mon*(1 + unlist(pull(l3[2]))/100)`, mt in the price setting scenario
+
 
 ## Sensitivity analysis for $W$
 
