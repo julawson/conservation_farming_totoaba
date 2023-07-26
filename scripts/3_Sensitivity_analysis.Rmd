@@ -1017,8 +1017,9 @@ if(Latex==T){
         format = 'latex', 
         align = 'c')
 }
+```
 
-
+```{r, graph}
 output3 = function(x){
   if(x %in% c('ss_monop1', 'ss_monop2', 'ss_monop3')){
     return('Vertical monopoly')
@@ -1028,20 +1029,6 @@ output3 = function(x){
     return('Price setting')
   }
 }
-
-ss_mon = store %>% subset(spec == 'baseline') %>% select(ss_monop1) %>% pull()
-checker = store %>% 
-  subset(spec =='alpha and gamma')%>%
-  select(alpha, gamma, ss_monop1, ss_monop2, ss_monop3, ss_cournot1, ss_cournot2, ss_cournot3,
-         ss_bertrand1, ss_bertrand2, ss_bertrand3)%>%
-  pivot_longer(cols = -c('alpha', 'gamma'), 
-               names_to = 'names', 
-               values_to = 'values')%>%
-  mutate(names = sapply(names, output3), 
-         alpha = as.numeric(alpha/calibration$value[which(calibration$params=='alpha')]), 
-         gamma = round(gamma/calibration$value[which(calibration$params=='beta')],2)*100,
-         values2 = (values/ss_mon - 1)*100)
-
 
 output4 = function(x){
   x = as.integer(x)
@@ -1065,18 +1052,75 @@ output5 = function(x){
     return(NA)
   }
 }
-pal = c("mediumseagreen", "black", 'gold1', 'darkorange','orangered', 'firebrick3', 'brown')
+
+pal = c("mediumseagreen", "black", 'gold1', 'darkorange','orangered', 'firebrick3', 'brown', 'grey')
+font_ = 'AppleGothic'
+
+ss_mon = store %>% subset(spec == 'baseline') %>% select(ss_monop1) %>% pull()
+checker = store %>% 
+  subset(spec =='alpha and gamma')%>%
+  select(alpha, gamma, ss_monop1, ss_monop2, ss_monop3, ss_cournot1, ss_cournot2, ss_cournot3,
+         ss_bertrand1, ss_bertrand2, ss_bertrand3)%>%
+  pivot_longer(cols = -c('alpha', 'gamma'), 
+               names_to = 'names', 
+               values_to = 'values')%>%
+  mutate(names = sapply(names, output3), 
+         alpha = as.numeric(alpha/calibration$value[which(calibration$params=='alpha')]), 
+         gamma = round(gamma/calibration$value[which(calibration$params=='beta')],2)*100,
+         values2 = (values/ss_mon - 1)*100)
+
 
 checker$values3 = cut(checker$values2, breaks = c(30,-50,-86, -100), include.lowest=T)
 checker$values4 = paste0(checker$values3, checker$alpha)
 
-checker %>%
+checker = checker %>%
   mutate(gamma = as.integer(gamma))%>%
   filter(gamma %in% c(10, 50, 90))%>%
   mutate(gamma = sapply(gamma, output4))%>%
   mutate(gamma = factor(gamma, levels = c('Low - 10%', 'Medium - 50%', 'Large - 90%')),
          alpha2 = factor((round(alpha,2)-1)*100))%>%
-  drop_na()%>%
+  drop_na()
+
+levels(checker$alpha2) = c(levels(checker$alpha2), -50)
+checker$alpha2[checker$names=='Vertical monopoly'] <- -50
+
+checker %>%
+  ggplot(aes(x = names, 
+             y=values2, 
+             colour = alpha2, 
+             group = values4))+
+  geom_point(size = 2)+
+  #geom_line()+
+  #geom_hline(yintercept = 10000, linetype='dotted')+
+  #geom_hline(yintercept = 2450, linetype='dotted')+
+  facet_wrap(vars(gamma))+
+  scale_color_manual(values = pal, breaks = c("-20", "0", "20", "40", "60","80", "100"))+
+  theme_bw()+
+  geom_hline(yintercept = -43, linetype = 'dotted')+
+  geom_hline(yintercept = -86, linetype = 'dotted')+
+  geom_hline(yintercept = 0, linetype = 'dashed', color = 'grey')+
+  xlab(' ')+
+  ylab('Deviation (in %) from vertical \nmonopoly equilibrium population')+
+  scale_shape_manual(values = c(4, 17, 8))+
+  labs(colour = 'Demand \nvariation (in %)')+
+  guides(shape = 'none',
+         color=guide_legend(nrow=4,byrow=F))+
+  theme(axis.text.x = element_text(angle = 60,
+                                   hjust = 1),
+        legend.position = "right",
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_, size = 9),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_), 
+        aspect.ratio = 10/4)
+ggsave(here('visuals', 'figure_unclear.jpg'), height = 11)
+
+```
+```{r, alternative proposal}
+checker %>%
+  subset(names != 'Vertical monopoly')%>%
   ggplot(aes(x = names, 
              y=values2, 
              colour = alpha2, 
@@ -1107,11 +1151,74 @@ checker %>%
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_), 
         aspect.ratio = 10/4)
-ggsave(here('visuals', 'figure_unclear.jpg'), height = 11)
+ggsave(here('visuals', 'figure_unclear_without_monopoly.jpg'), height = 11)
 
 
 ```
 
+```{r, yet another idea}
+# Remove the monopoly and gray out the intermediary equilibria.
+checker = store %>% 
+  subset(spec =='alpha and gamma')%>%
+  select(alpha, gamma, ss_monop1, ss_monop2, ss_monop3, ss_cournot1, ss_cournot2, ss_cournot3,
+         ss_bertrand1, ss_bertrand2, ss_bertrand3)%>%
+  pivot_longer(cols = -c('alpha', 'gamma'), 
+               names_to = 'names', 
+               values_to = 'values')%>%
+  mutate(names = sapply(names, output3), 
+         alpha = as.numeric(alpha/calibration$value[which(calibration$params=='alpha')]), 
+         gamma = round(gamma/calibration$value[which(calibration$params=='beta')],2)*100,
+         values2 = (values/ss_mon - 1)*100, 
+         gamma = as.integer(gamma))%>%
+  filter(gamma %in% c(10, 50, 90))%>%
+  mutate(gamma = sapply(gamma, output4))%>%
+  mutate(gamma = factor(gamma, levels = c('Low - 10%', 'Medium - 50%', 'Large - 90%')),
+         alpha2 = factor((round(alpha,2)-1)*100))%>%
+  drop_na()
+
+
+checker$values3 = cut(checker$values2, breaks = c(30,-50,-86, -100), include.lowest=T)
+checker$values4 = paste0(checker$values3, checker$alpha)
+
+levels(checker$alpha2) = c(levels(checker$alpha2), -50)
+checker$alpha2[checker$names=='Vertical monopoly'] <- -50
+checker$alpha2[checker$values3 == '(-86,-50]'] <- -50
+
+# Graph itself
+checker %>%
+  subset(names != 'Vertical monopoly')%>%
+  ggplot(aes(x = names, 
+             y=values2, 
+             colour = alpha2, 
+             group = values4))+
+  geom_point(size = 2)+
+  #geom_line()+
+  #geom_hline(yintercept = 10000, linetype='dotted')+
+  #geom_hline(yintercept = 2450, linetype='dotted')+
+  facet_wrap(vars(gamma))+
+  scale_color_manual(values = pal, breaks = c("-20", "0", "20", "40", "60","80", "100"))+
+  theme_bw()+
+  geom_hline(yintercept = -43, linetype = 'dotted')+
+  geom_hline(yintercept = -86, linetype = 'dotted')+
+  geom_hline(yintercept = 0, linetype = 'dashed', color = 'grey')+
+  xlab(' ')+
+  ylab('Deviation (in %) from vertical \nmonopoly equilibrium population')+
+  scale_shape_manual(values = c(4, 17, 8))+
+  labs(colour = 'Demand \nvariation (in %)')+
+  guides(shape = 'none',
+         color=guide_legend(nrow=4,byrow=F))+
+  theme(axis.text.x = element_text(angle = 60,
+                                   hjust = 1),
+        legend.position = "right",
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_, size = 9),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_), 
+        aspect.ratio = 10/4)
+ggsave(here('visuals', 'figure_unclear_last.jpg'), height = 11)
+```
 ## Table for equilibria corresponding with above graph
 
 ```{r}
