@@ -484,7 +484,7 @@ plot_ = for_graph %>%
 
 plot_ + annotate("text", x = c(19000, 20000), y = c(410,580), 
          label =  c("Quantity adjustment", "Price setting"), color="forestgreen", 
-         size=3 , angle=0, fontface="italic")
+         size=3 , angle=0, family = font_)
 ggsave(here('visuals', 'Figure3b.jpg'))
 
 ```
