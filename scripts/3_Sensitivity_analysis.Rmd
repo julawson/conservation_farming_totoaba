@@ -1116,51 +1116,12 @@ checker %>%
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_), 
         aspect.ratio = 10/4)
-ggsave(here('visuals', 'figure_unclear.jpg'), height = 11)
-
-```
-```{r, alternative proposal}
-
-checker %>%
-  mutate(shape_ = if_else(alpha == 1 & gamma == 'Large - 90%', "base", "mod"))%>%
-  subset(names != 'Vertical monopoly')%>%
-  ggplot(aes(x = names, 
-             y=values2, 
-             colour = alpha2, 
-             group = values4, 
-             shape = shape_))+
-  geom_point(size = 2)+
-  #geom_line()+
-  #geom_hline(yintercept = 10000, linetype='dotted')+
-  #geom_hline(yintercept = 2450, linetype='dotted')+
-  facet_wrap(vars(gamma))+
-  scale_color_manual(values = pal)+
-  theme_bw()+
-  geom_hline(yintercept = -43, linetype = 'dotted')+
-  geom_hline(yintercept = -86, linetype = 'dotted')+
-  geom_hline(yintercept = 0, linetype = 'dashed', color = 'grey')+
-  xlab(' ')+
-  ylab('Deviation (in %) from vertical \nmonopoly equilibrium population')+
-  scale_shape_manual(values = c(4, 17, 8))+
-  labs(colour = 'Demand \nvariation (in %)')+
-  guides(shape = 'none',
-         color=guide_legend(nrow=4,byrow=F))+
-  theme(axis.text.x = element_text(angle = 60,
-                                   hjust = 1),
-        legend.position = "right",
-        strip.text.x  = element_text(family = font_) ,
-        axis.title.x  = element_text(family = font_),
-        axis.text = element_text(family = font_),
-        axis.title.y  = element_text(family = font_, size = 9),
-        legend.text = element_text(family = font_), 
-        legend.title = element_text(family = font_), 
-        aspect.ratio = 10/4)
-ggsave(here('visuals', 'figure_unclear_without_monopoly.jpg'), height = 11)
-
+ggsave(here('visuals', 'figure_4_attempt1.jpg'), height = 11)
 
 ```
 
-```{r, yet another idea}
+
+```{r, Strategic responses and gray intermediary equilibria}
 # Remove the monopoly and gray out the intermediary equilibria.
 checker = store %>% 
   subset(spec =='alpha and gamma')%>%
@@ -1232,7 +1193,7 @@ checker %>%
                                     hjust = 0.5,
                                     size = 13),
         aspect.ratio = 10/4)
-ggsave(here('visuals', 'figure_unclear_last.jpg'), height = 11)
+ggsave(here('visuals', 'figure_4_clean.jpg'), height = 11)
 ```
 ## Table for equilibria corresponding with above graph
 
