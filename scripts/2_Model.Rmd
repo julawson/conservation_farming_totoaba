@@ -423,7 +423,7 @@ set1 = function(x){
   }else if(x == 'growth'){
     return('Baseline')
   }else{
-    return('With aquaculture')
+    return('With farming')
   }
 }
 
@@ -473,18 +473,22 @@ plot_ = for_graph %>%
   ylim(0,1250)+
   # Move the legend to the bottom
   theme_bw()+
-  ylab('Growth / harvest')+
-  xlab('Population stock')+
+  ylab('Growth / Harvest')+
+  xlab('Population')+
   theme(legend.position = "bottom",
         axis.title.x  = element_text(family = font_),
         axis.title.y  = element_text(family = font_),
         legend.text = element_text(family = font_))+
-  scale_color_manual(values = c('firebrick3','#1f78b4', 'black','forestgreen') )
+  scale_color_manual(values = c('black','firebrick3','#1f78b4', 'forestgreen') )
 
 
-plot_ + annotate("text", x = c(19000, 20000), y = c(410,580), 
+plot_ + annotate("text", x = c(17000,17000), y = c(400,580), 
          label =  c("Quantity adjustment", "Price setting"), color="forestgreen", 
+<<<<<<< HEAD
          size=3 , angle=0, family = font_)
+=======
+         size=4 , angle=0, fontface="italic")
+>>>>>>> f8ef91e109b268e81c44c1246df76d464b14e21a
 ggsave(here('visuals', 'Figure3b.jpg'))
 
 ```
