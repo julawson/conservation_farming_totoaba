@@ -1158,10 +1158,10 @@ checker %>%
              colour = alpha2, 
              group = values4, 
              shape = shape_))+
-  geom_point(size = 2)+
+  geom_point(size = 2.5)+
   facet_wrap(vars(gamma))+
   # Set the shapes
-  scale_shape_manual(values=c(2, 19))+
+  scale_shape_manual(values=c(17, 19))+
   # Set the colors
   scale_color_manual(values = pal, breaks = c("-20", "0", "20", "40", "60","80", "100"))+
   theme_bw()+
@@ -1193,7 +1193,7 @@ checker %>%
                                     hjust = 0.5,
                                     size = 13),
         aspect.ratio = 10/4)
-ggsave(here('visuals', 'figure_4_clean.jpg'), height = 11)
+ggsave(here('visuals', 'figure_4_clean.jpg'))
 ```
 ## Table for equilibria corresponding with above graph
 
