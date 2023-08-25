@@ -182,7 +182,7 @@ run_model = function(){
   }
   result1 = result1 %>% mutate(q_cournot_harvest = q_cournot_wild_own(x))
   
-  # Run Betrand : 
+  # Run Bertrand : 
   e   = gamma/(beta_w*beta_f - (gamma^2))
   a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
   a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
@@ -277,7 +277,7 @@ run_model_ss = function(){
   }
   result1 = result1 %>% mutate(q_cournot_harvest = q_cournot_wild_own(x))
   
-  # Run Betrand : 
+  # Run Bertrand : 
   e   = gamma/(beta_w*beta_f - (gamma^2))
   a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
   a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
@@ -386,7 +386,7 @@ run_model_par = function(params){
   result1 = result1 %>% mutate(q_cournot_harvest = q_cournot_wild_own(x),
                                q_cournot_farmed = q_farmed_cournot(s_c_own(x)))
   
-  # Run Betrand : 
+  # Run Bertrand : 
   e   = gamma/(beta_w*beta_f - (gamma^2))
   a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
   a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
@@ -1269,7 +1269,7 @@ storage2 = as.data.frame(storage) %>%
            `Qty adjustment` = round(unlist(`Qty adjustment`), 2), 
            `Price setting` = round(unlist(`Price setting`), 2))
   
-  colnames(storage2) = c('Demand mult. coef.', '$gamma$ (% of $beta$)','Equilibrium', 'Monopoly variation (in %)', 'Cournot variation (in %)', 'Betrand variation (in %)')
+  colnames(storage2) = c('Demand mult. coef.', '$gamma$ (% of $beta$)','Equilibrium', 'Monopoly variation (in %)', 'Cournot variation (in %)', 'Bertrand variation (in %)')
 if(Latex == T){
   
   storage2 %>%
@@ -1352,4 +1352,5 @@ checker %>%
   theme_bw()+
   scale_color_aaas()
 ```
+
 

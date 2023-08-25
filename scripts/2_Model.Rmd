@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = F)
 options(scipen=999)
 
-required_packages = c('here', 'knitr', 'stargazer', 'tidyverse') 
+required_packages = c('here', 'knitr', 'stargazer', 'tidyverse', 'stringi') 
 
 if(!(all(required_packages %in% installed.packages()))){
   install.packages(required_packages)
@@ -486,5 +486,29 @@ plot_ + annotate("text", x = c(17000,17000), y = c(400,580),
          label =  c("Quantity adjustment", "Price setting"), color="forestgreen", 
          size=3 , angle=0, family = font_)
 ggsave(here('visuals', 'Figure3b.jpg'))
+
+```
+
+## Fishing effort evolution 
+
+ 
+```{r, Fishing effort}
+dats = c('dat_oa', 'dat_oa_aqua', 'dat_q_pt', 'dat_comp_aqua', 'dat_monop', 'dat_cournot', 'dat_bertrand')
+
+for(dats_ in dats){
+  a = get(dats_)
+  a$effort = a$Harvest/(sigma*a$Stock)
+  assign(dats_, a)
+}
+
+final_ = rbind(dat_oa, 
+               dat_oa_aqua, 
+               dat_q_pt, 
+               dat_comp_aqua, 
+               dat_monop, 
+               dat_cournot, 
+               dat_bertrand)
+kable(final_,
+      row.names = F)
 
 ```

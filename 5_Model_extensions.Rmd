@@ -1,0 +1,285 @@
+---
+title: "5_Model_extensions"
+author: "S. Jean"
+date: "2023-08-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+
+library(dplyr)
+library(tidyr)
+library(stringi)
+library(ggplot2)
+
+```
+
+
+# I. Oligopoly extension
+## A. Define functions
+
+Define : 
+
+-  `q_(x, N, M, ...)` : Cournot harvest with `N` traders and `M` farmers (in metric tons)
+
+-  `cournot_harvest(x, ...)` : Cournot harvest with 1 trader and 1 farmer (in metric tons)
+
+-  `monop_harvest(x, ...)`: Monopoly harvest (in metric tons)
+
+-  `growth(x, ...)` : ogistic growth function, yields growth of population (in metric tons) 
+
+```{r}
+q_ = function(N,M,x,
+             alpha_f. = alpha_f,
+             alpha_w. = alpha_w, 
+             beta_f. = beta_f,
+             beta_w. = beta_w,
+             gamma. = gamma,
+             c. = c, 
+             v. = v, 
+             sigma. = sigma,
+             W. = W){
+  num = N*sigma.^2*x^2*(beta_f. * (M+1)*(alpha_w. - c.) - gamma.*M*(alpha_f.-v.))
+  det = sigma.^2 * x^2 * (beta_f. * beta_w.* (N+1) * (M+1) - gamma.^2 * N * M) + 2*W*N*(M+1)*beta_f.
+  y = num/det
+  return(y)
+}
+
+
+cournot_harvest = function(x, 
+                           alpha_f. = alpha_f, 
+                           alpha_w. = alpha_w, 
+                           beta_f. = beta_f, 
+                           beta_w. = beta_w, 
+                           gamma. = gamma, 
+                           sigma. = sigma, 
+                           c. = c, 
+                           v. = v, 
+                           W. = W_mid){
+  y = ((sigma.^2)*(x^2)*(2*beta_f.*(alpha_w. - c.) - gamma.*(alpha_f. - v.)))/(4*beta_f.*W. + (sigma.^2)*(x^2)*(4*beta_f.*beta_w. - (gamma.^2)))
+  return(y)
+}
+
+monop_harvest = function(x, 
+                         alpha. = alpha, 
+                         c. = c, 
+                         sigma. = sigma, 
+                         beta. = beta, 
+                         W. = W_mid){
+  y = ((alpha. - c.)*sigma.^2 * x^2) / (2*beta.* sigma.^2 * x^2 + 2*W.)
+  return(y)
+}
+
+growth = function(x, 
+                  k.=k, 
+                  r.=r){
+  y = r.*x*(1-x/k.)
+  return(y)
+}
+
+
+```
+
+
+## B. Set data for analysis
+
+```{r, data & analysis}
+# set data : population
+data = data.frame(x = seq(1,k))
+
+data = data %>% 
+  mutate("Monopoly" = monop_harvest(x_),
+         #
+         "1 trader - 1 farmer" = cournot_harvest(x_), 
+         growth = growth(x_),
+         '1 trader - 2 farmers' = q_(1,2,x_),
+         '1 trader - 5 farmers' = q_(1, 5, x_),
+         '1 trader - 10 farmers' = q_(1, 10, x_),
+         '1 trader - 50 farmers' = q_(1, 50, x_),
+         #
+         '2 traders - 1 farmer' = q_(2, 1, x_),
+         '2 traders - 2 farmers' = q_(2, 2, x_),
+         '2 traders - 5 farmers'  = q_(2,5, x_),
+         '2 traders - 10 farmers' = q_(2, 10, x_),
+         '2 traders - 50 farmers' = q_(2, 50, x_),
+         #
+         '5 traders - 1 farmer' = q_(5, 1, x_),
+         '5 traders - 2 farmers'  = q_(5, 2, x_),
+         '5 traders - 5 farmers'  = q_(5,5,x_),
+         '5 traders - 10 farmers' = q_(5,10, x_),
+         '5 traders - 50 farmers' = q_(5, 50, x_),
+         #
+         '10 traders - 1 farmer' = q_(10, 1, x_),
+         '10 traders - 2 farmers' = q_(10, 2, x_),
+         '10 traders - 5 farmers' = q_(10, 5, x_),
+         '10 traders - 10 farmers'= q_(10, 10, x_),
+         '10 traders - 50 farmers'= q_(10, 50, x_),
+         #
+         '50 traders - 1 farmer' = q_(50, 1, x_),
+         '50 traders - 2 farmers' = q_(50, 2, x_),
+         '50 traders - 5 farmers' = q_(50, 5, x_),
+         '50 traders - 10 farmers' = q_(50, 10, x_),
+         '50 traders - 50 farmers' = q_(50, 50, x_))%>%
+  pivot_longer(cols = -c('x'), # Set to long format for ggplot
+              names_to = 'name', 
+              values_to = 'values')%>%
+  mutate(ss_ = values - growth(x))
+
+levels(data$name) = c('Monopoly',
+                      '1 trader - 1 farmer', 
+                      '1 trader - 2 farmers',
+                      '1 trader - 5 farmers',
+                      '1 trader - 10 farmers',
+                      '1 trader - 50 farmers',
+                      #
+                      '2 traders - 1 farmer',
+                      "2 traders - 2 farmers",
+                      '2 traders - 5 farmers',
+                      '2 traders - 10 farmers',
+                      '2 traders - 50 farmers',
+                      #
+                      '5 traders - 1 farmer', 
+                      '5 traders - 2 farmers',
+                      '5 traders - 5 farmers',
+                      '5 traders - 10 farmers',
+                      '5 traders - 50 farmers',
+                      ###
+                      "10 traders - 1 farmer",
+                      '10 traders - 2 farmers',
+                      '10 traders - 5 farmers',
+                      '10 traders - 10 farmers',
+                      '10 traders - 50 farmers',
+                      #
+                      '50 traders - 1 farmer',
+                      '50 traders - 2 farmers',
+                      '50 traders - 5 farmers',
+                      '50 traders - 10 farmers',
+                      '50 traders - 50 farmers')
+
+
+data = data %>% mutate(name2 = sapply(strsplit(name, " - "), `[`, 1),
+                       name3 = sapply(strsplit(name, " - "), `[`, 2))
+
+
+# Smaller dataset 
+data2 = data %>%
+  subset(!(name %in% c('growth')))%>%
+  filter(ss_ < .08 & ss_ > -.08)
+
+# function to create the two groups : less trader or more trader
+grouper = function(x){
+  if(x %in% c('growth', 'Monopoly', '1 trader - 1 farmer')){
+    return('Baseline')
+  }else{ # Extract number of farmers and traders and compare them
+    a = as.numeric(stri_extract_first_regex(strsplit(x, ' - ')[[1]][1], '[0-9]+'))
+    b = as.numeric(stri_extract_first_regex(strsplit(x, ' - ')[[1]][2], '[0-9]+'))
+    if(a < b){
+      return('More farmers than traders')
+    }else if(a >= b){
+      return('More traders than farmers')
+    }
+  }
+}
+
+#
+
+data2$grouper = sapply(data2$name, grouper)
+data2$order = factor(paste0(data2$name, data2$grouper), c(paste0(levels(data2$name), 'Baseline'),
+                                                          paste0(levels(data2$name), 'More farmers than traders'),
+                                                          paste0(levels(data2$name), 'More traders than farmers')))
+
+
+```
+
+## C. Graphical output
+
+```{r, graph1}
+palette = c('paleturquoise3', 'steelblue1', 'royalblue1', 'mediumblue', 'navyblue')
+
+monopoly_ss = data2 %>%
+  subset(name == 'Monopoly')%>%
+  select(x)%>%
+  pull()
+
+font_ =  'AppleGothic'
+
+data2 %>%
+  subset(!(grouper %in% c('Baseline')))%>%
+  ggplot(aes(x = order, y = x, colour = name3, shape = name2))+
+  facet_grid(~ grouper, scales = 'free')+
+  geom_point()+
+  geom_hline(yintercept =monopoly_ss, 
+             linetype = "dashed")+
+  #scale_x_discrete(limits = levels(data$name))+
+  scale_x_discrete(breaks=data2$order, labels=data2$name)+
+  #scale_colour_brewer()+
+  scale_colour_manual(values = palette)+
+  scale_shape_discrete()+
+  theme_bw()+
+  ylab('Steady state population')+
+  xlab('')+
+  guides(
+    color = guide_legend(
+      title = " ",  # Title for the first column
+      ncol = 1              # Number of columns
+    ),
+    shape = guide_legend(
+      title = " ",     # Title for the second column
+      ncol = 1              # Number of columns
+    )
+  ) +
+  theme(axis.text.x = element_text(angle = 70, 
+                                   hjust = 1, 
+                                   family = font_),
+        axis.text.y = element_text(family = font_),
+        axis.title.y = element_text(family = font_), 
+        strip.text = element_text(family = font_),
+        legend.position = 'right',
+        legend.text = element_text(family = font_)
+        )
+```
+```{r, graph2}
+
+data2$name3 = as.factor(data2$name3)
+levels(data2$name3) = c('1 farmer', '2 farmers', '5 farmers', '10 farmers', '50 farmers')
+
+data2$name2 = as.factor(data2$name2)
+levels(data2$name2) = c('1 trader', '2 traders', '5 traders', '10 traders', '50 traders', 'Monopoly')
+
+data2$order2 = factor(paste0(data2$name3, data2$name2), c(paste0(levels(data2$name3), '1 trader'),
+                                                          paste0(levels(data2$name3), '2 traders'),
+                                                          paste0(levels(data2$name3), '5 traders'),
+                                                          paste0(levels(data2$name3), '10 traders'),
+                                                          paste0(levels(data2$name3), '50 traders')))
+
+data2 %>%
+  subset(!(name %in% c('Monopoly')))%>%
+  ggplot(aes(x = order2, y = x, colour = name3))+
+  facet_grid(~ name2, scales = 'free')+
+  geom_point()+
+  geom_hline(yintercept =monopoly_ss, 
+             linetype = "dashed")+
+  #scale_x_discrete(limits = levels(data$name))+
+  scale_x_discrete(breaks=data2$order2, labels=data2$name3)+
+  #scale_colour_brewer(palette = 'GnBu')+
+  scale_colour_manual(values = palette)+
+  theme_bw()+
+  guides(
+    color = guide_legend(
+      title = " ",  # Title for the first column
+      ncol = 1              # Number of columns
+  ))+
+  ylab('Steady state population')+
+  xlab('')+
+  theme(axis.text.x = element_text(angle = 70, 
+                                   hjust = 1, 
+                                   family = font_),
+        axis.text.y = element_text(family = font_),
+        axis.title.y = element_text(family = font_), 
+        strip.text = element_text(family = font_),
+        legend.position = 'right',
+        legend.text = element_text(family = font_)
+        )
+
+```

@@ -381,5 +381,3 @@ if(Latex==T){
     kable_minimal(full_width = F)
 }
 ```
-
-
