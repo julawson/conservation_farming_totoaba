@@ -86,9 +86,31 @@ growth = function(x,
 ## B. Set data for analysis
 
 ```{r, data & analysis}
+# Load parameters
+calibration = read.csv(here("data", 'outputs', "calibration_params.csv"))
+
+for(i in 1:nrow(calibration)){
+  assign(calibration$params[i], calibration$value[i])
+}  
+
+
+# Build the 2nd order parameters from parameter list
+  # Differentiate parameters for Wild and Farmed inverse demands
+alpha_w = alpha
+alpha_f = alpha
+beta_w = beta
+beta_f = beta
+  # Demand functions parameters
+e   = gamma/(beta_w*beta_f - (gamma^2))
+a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
+a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
+b_f = beta_f/(beta_w*beta_f - (gamma^2))
+b_w = beta_w/(beta_w*beta_f - (gamma^2))
+
+W = W_mid
 # set data : population
 data = data.frame(x = seq(1,k))
-
+x_ = seq(1,k)
 data = data %>% 
   mutate("Monopoly" = monop_harvest(x_),
          #
