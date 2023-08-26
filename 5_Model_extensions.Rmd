@@ -270,11 +270,11 @@ levels(data2$name3) = c('1 farmer', '2 farmers', '5 farmers', '10 farmers', '50 
 data2$name2 = as.factor(data2$name2)
 levels(data2$name2) = c('1 trader', '2 traders', '5 traders', '10 traders', '50 traders', 'Monopoly')
 
-data2$order2 = factor(paste0(data2$name3, data2$name2), c(paste0(levels(data2$name3), '1 trader'),
-                                                          paste0(levels(data2$name3), '2 traders'),
-                                                          paste0(levels(data2$name3), '5 traders'),
-                                                          paste0(levels(data2$name3), '10 traders'),
-                                                          paste0(levels(data2$name3), '50 traders')))
+data2$order2 = factor(paste0(data2$name3, data2$name2), c(paste0(levels(data2$name2), '1 farmer'),
+                                                          paste0(levels(data2$name2), '2 farmer'),
+                                                          paste0(levels(data2$name2), '5 farmer'),
+                                                          paste0(levels(data2$name2), '10 farmer'),
+                                                          paste0(levels(data2$name2), '50 farmer')))
 
 data2 %>%
   subset(!(name %in% c('Monopoly')))%>%
@@ -284,7 +284,7 @@ data2 %>%
   geom_hline(yintercept =monopoly_ss, 
              linetype = "dashed")+
   #scale_x_discrete(limits = levels(data$name))+
-  scale_x_discrete(breaks=data2$order2, labels=data2$name3)+
+  scale_x_discrete(breaks=data2$order2, labels=data2$name2)+
   #scale_colour_brewer(palette = 'GnBu')+
   scale_colour_manual(values = palette)+
   theme_bw()+
