@@ -12,6 +12,7 @@ library(dplyr)
 library(tidyr)
 library(stringi)
 library(ggplot2)
+library(here)
 
 ```
 
@@ -281,5 +282,77 @@ data2 %>%
         legend.position = 'right',
         legend.text = element_text(family = font_)
         )
+
+```
+
+# II. Extended cartel model 
+In this section, we investigate the effect of a 'vertical monopoly' take over the aquaculture facility. See supplementary materials section ??? for derivation and discussions. 
+## A. Define harvest
+```{r, extended cartel}
+q_w = function(x,
+               alpha_f. = alpha_f, 
+               alpha_w. = alpha_w, 
+               beta_f.  = beta_f, 
+               beta_w.  = beta_w, 
+               gamma.   = gamma, 
+               W.       = W_mid,
+               c.       = c,
+               v.       = v,
+               sigma.   = sigma){
+  num = sigma.^2 * x^2 * (beta_f.*(alpha_w. - c.) - gamma.*(alpha_f. - v.))
+  den = 2*(beta_f.*W. + sigma.^2 * x^2 *(beta_f. * beta_w. - gamma.^2))
+  y = num/den
+  return(y)
+}
+
+```
+
+## B. Run scenario
+
+```{r, extended cartel run}
+x_ = seq(1,k)
+data = data.frame(x = x_)
+data = data %>%
+  mutate(Growth = growth(x_),
+         'Vertical Monopoly' = monop_harvest(x_),
+         Cournot = cournot_harvest(x_),
+         'Cartel takeover' = q_w(x_))%>%
+  pivot_longer(cols = -c('x'),
+               names_to = 'name',
+               values_to = 'values')
+
+```
+
+## C. Graphical output
+```{r, extended cartel graph}
+data %>%
+  ggplot(aes(x = x, y = values, color = name))+
+  geom_line()+
+  guides(
+    color = guide_legend(
+      title = " ",  # Title for the first column
+      ncol = 1              # Number of columns
+    ),
+    shape = guide_legend(
+      title = " ",     # Title for the second column
+      ncol = 1              # Number of columns
+    )
+  ) +
+  scale_color_manual(values = c('purple', 'lightgreen','black', 'forestgreen'))+
+  scale_linetype_manual(values = c("solid", "solid",'solid', 'dotted' )) +
+  ylab('Growth / Harvest')+
+  xlab('Population')+  
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 70, 
+                                   hjust = 1, 
+                                   family = font_),
+        axis.title.x = element_text(family = font_),
+        axis.text.y = element_text(family = font_),
+        axis.title.y = element_text(family = font_), 
+        strip.text = element_text(family = font_),
+        legend.position = 'right',
+        legend.text = element_text(family = font_)
+        )
+  ggsave(here("visuals", "Figure_cartel_takeover.jpg"))
 
 ```

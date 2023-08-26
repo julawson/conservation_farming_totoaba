@@ -139,17 +139,29 @@ result1 = result1 %>% mutate(q_bertrand_harvest = bertrand_harvest(x),
                              q_bertrand_harvest_c_illustration = bertrand_harvest(x, c. = 10*c))
 
 result1 %>%
-  ggplot(aes(x = x))+
-  geom_line(aes(y = monop_harvest, colour = 'Monopoly harvest'), linewidth = 1.1)+
-  #geom_line(aes(y = growth, colour = 'Growth'))+
-  geom_line(aes(y = bertrand_harvest, colour = 'Betrand harvest'), linewidth = 1.1)+
-  geom_line(aes(y = q_bertrand_harvest_illustration, colour = 'Betrand with lower v'), linewidth = 1.1, linetype = 'dashed')+
-  #geom_line(aes(y = q_bertrand_farmed, colour = 'Bertrand farmed'))+
-  scale_color_manual(values = c( 'red','red','black'))+
+  select(x, q_bertrand_harvest, q_bertrand_harvest_illustration, monop_harvest)%>%
+  pivot_longer(cols = -c('x'), 
+               names_to = 'names',
+               values_to = 'values')%>%
+  ggplot(aes(x = x, y = values, colour = names, linetype = factor(names)))+
+  geom_line()+
+  scale_color_manual(values = c( 'mediumseagreen','mediumseagreen','forestgreen'),
+                     labels = c('Price setting quantity', 'Price setting quantity with lower v (dotted)', 'Vertical monopoly'))+
+  scale_linetype_manual(values = c('solid', 'solid', 'dotdash'))+
+  guides(linetype = 'none')+
   ylab('Harvest')+
   xlab('Population stock')+
   theme_bw()+
-  theme(legend.position = 'bottom')+
+  theme(legend.position = 'bottom',
+        axis.text.x = element_text(angle = 70, 
+                                   hjust = 1, 
+                                   family = font_),
+        axis.title.x = element_text(family = font_),
+        axis.text.y = element_text(family = font_),
+        axis.title.y = element_text(family = font_), 
+        strip.text = element_text(family = font_),
+        legend.text = element_text(family = font_)
+        )+
   labs(color=NULL)
   ggsave(here("visuals/supplementary_visuals/", "monopoly_bertrand_harvest.jpg"))
 
@@ -354,3 +366,11 @@ ggsave(here("visuals", 'supplementary_visuals', 'VBGF_growth.jpg'))
 
 
 ```
+
+## Figure X : Harvest functions for monopoly v. price taker
+
+## Figure X : Bertrand v. Monopoly following Damania and Bulte
+
+## Figure X : Comparison between monopoly and Bertrand behavior on monopolistic and duopolistic markets following Damania and Bulte
+
+## Figure X : F (x) and v summarise when Bertrand harvest is larger or lower than in monopoly.
