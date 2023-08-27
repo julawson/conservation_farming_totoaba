@@ -362,44 +362,7 @@ With a realistic market structure, i.e, full control over the value chain by the
 
 3.   **Best case scenario** with cost parameter c=`r c` is a `r round((dat_cournot$Stock - dat_monop$Stock)/dat_monop$Stock*100,2)` % variation in *population stock* in tonnes or, equivalently, of `r round((dat_cournot$Stock - dat_monop$Stock)*1000/25.7,2)` adult totoabas and a difference of `r round(dat_cournot$Harvest- dat_monop$Harvest,2)` ( tons) in *harvest* or, equivalently, of `r  round((dat_monop$Harvest-dat_cournot$Harvest)*1000/25.7,2)` adult totoabas
 
-```{r, Graphic output}
-actual_steady = steady_states[!is.na(steady_states)]
 
-lines_ = F
-
-plot_ = result1 %>%
-  subset(x < 1.5*max(actual_steady))%>%
-  #subset(x<500)%>%
-  ggplot(aes(x=x))+
-  geom_line(aes(y = growth), linewidth = 1)+
-  geom_line(aes(y = monop_harvest, colour = 'Monopoly'), linewidth = 1)+
-  geom_line(aes(y = cournot_harvest, colour = 'Cournot'), linewidth = 1)+
-  geom_line(aes(y = bertrand_harvest, colour = 'Bertrand'), linewidth = 1)+
-  geom_line(aes(y = pt_harvest, colour = 'Price taker'), linewidth = 1) +
-  theme_bw()+
-  ylab('Growth / harvest')+
-  xlab('Population stock')+
-  scale_color_aaas()+
-  labs(colour = ' ')+
-  theme(legend.position = 'bottom')
-
-if(lines_ == T){
-  plot_ = plot_ + 
-    # Vertical lines
-  geom_segment(x = actual_steady[1], xend = actual_steady[1], y=0, yend=growth(actual_steady[1]), linetype = 2)+
-  geom_segment(x = actual_steady[2], xend = actual_steady[2], y=0, yend=growth(actual_steady[2]), linetype = 2)+
-  geom_segment(x = actual_steady[3], xend = actual_steady[3], y=0, yend=growth(actual_steady[3]), linetype = 2)+
-  geom_segment(x = actual_steady[4], xend = actual_steady[4], y=0, yend=growth(actual_steady[4]), linetype = 2)+
-
-  # Horizontal lines
-  geom_segment(x = 0, xend = actual_steady[1], y=growth(actual_steady[1]), yend=growth(actual_steady[1]), linetype = 2)+
-  geom_segment(x = 0, xend = actual_steady[2], y=growth(actual_steady[2]), yend=growth(actual_steady[2]), linetype = 2)+
-  geom_segment(x = 0, xend = actual_steady[3], y=growth(actual_steady[3]), yend=growth(actual_steady[3]), linetype = 2)+
-  geom_segment(x = 0, xend = actual_steady[4], y=growth(actual_steady[4]), yend=growth(actual_steady[4]), linetype = 2)
-}
-plot_ 
-ggsave(here('visuals', 'Figure3.jpg'))
-```
 ```{r, graph2}
 ### Better yet : 
 for_graph = result1 %>%

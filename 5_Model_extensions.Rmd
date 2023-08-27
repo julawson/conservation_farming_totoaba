@@ -231,7 +231,7 @@ data2 %>%
   subset(!(grouper %in% c('Baseline')))%>%
   ggplot(aes(x = order, y = x, colour = name3, shape = name2))+
   facet_grid(~ grouper, scales = 'free')+
-  geom_point()+
+  geom_point(size = 2.5)+
   geom_hline(yintercept =monopoly_ss, 
              linetype = "dashed")+
   #scale_x_discrete(limits = levels(data$name))+
@@ -252,9 +252,12 @@ data2 %>%
       ncol = 1              # Number of columns
     )
   ) +
-  theme(axis.text.x = element_text(angle = 70, 
-                                   hjust = 1, 
-                                   family = font_),
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+    #axis.text.x = element_text(angle = 70, 
+    #                               hjust = 1, 
+    #                               family = font_),
         axis.text.y = element_text(family = font_),
         axis.title.y = element_text(family = font_), 
         strip.text = element_text(family = font_),
@@ -262,6 +265,7 @@ data2 %>%
         legend.text = element_text(family = font_)
         )
 ```
+
 ```{r, graph2}
 
 data2$name3 = as.factor(data2$name3)
@@ -295,9 +299,12 @@ data2 %>%
   ))+
   ylab('Steady state population')+
   xlab('')+
-  theme(axis.text.x = element_text(angle = 70, 
-                                   hjust = 1, 
-                                   family = font_),
+  theme(#axis.text.x = element_text(angle = 70, 
+        #                           hjust = 1, 
+        #                           family = font_),
+        axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
         axis.text.y = element_text(family = font_),
         axis.title.y = element_text(family = font_), 
         strip.text = element_text(family = font_),
