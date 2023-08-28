@@ -76,7 +76,7 @@ dat_b %>%
         legend.text = element_text(family = font_)
         )+
   labs(color=NULL)
-    ggsave(here("visuals/supplementary_visuals/", "fig1_trends_stock_catch.png"))
+    ggsave(here("visuals/supplementary_visuals/", "Figure1_trends_stock_catch.png"))
 ```
 
 ## Figure 2 (SM) and 1 in Main : Hypothetical schematic of equilibrium points under different poaching harvest functions

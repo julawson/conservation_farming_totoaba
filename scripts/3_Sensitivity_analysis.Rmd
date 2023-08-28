@@ -794,9 +794,23 @@ p = df_cv %>%
   xlab('Unit cost of transaction for traders ($USD/ton)')+
   guides(colour = guide_legend(title.position = "top"))
 
+
+tester = df_cv %>% filter(output == 'ss_bertrand_norm',)
+tester = tester %>% filter(value < .1 & value > -.1)
+
 p + 
   labs(fill = '% change compared to steady state monopoly')+
-  geom_point(data = init_eq, col = 'black', shape=4)
+  geom_point(data = init_eq, col = 'black', shape=4)+
+  theme(axis.text.x = element_text(angle = 70, 
+                                   hjust = 1, 
+                                   family = font_),
+        axis.title.x = element_text(family = font_),
+        axis.text.y = element_text(family = font_),
+        axis.title.y = element_text(family = font_), 
+        strip.text = element_text(family = font_),
+        legend.position = 'bottom',
+        legend.text = element_text(family = font_)
+        )
 ggsave(here('visuals', 'Figure5.jpg'))
 #  geom_point(data = new_c, col = 'grey')
 #  geom_point(data = new_v, col = 'blue')
@@ -872,7 +886,7 @@ df_cv1 %>%
         plot.title = element_text(family= font_,),
         plot.subtitle = element_text(family=font_))
 
-ggsave(here('visuals', 'Figure5b.jpg'), width = 10, height = 8)
+ggsave(here('visuals/supplementary_visuals/', 'Figure12a.jpg'), width = 10, height = 8)
 
 ```
 
@@ -945,7 +959,7 @@ df_cv1 %>%
         plot.title = element_text(family= font_,),
         plot.subtitle = element_text(family=font_))
 
-ggsave(here('visuals', 'Figure5c.jpg'), width = 10, height = 8)
+ggsave(here('visuals/supplementary_visuals', 'Figure12b.jpg'), width = 10, height = 8)
  #  geom_point(data = new_c, col = 'grey')
 #  geom_point(data = new_v, col = 'blue')
 ```
@@ -986,7 +1000,7 @@ df_cv %>%
   guides(colour = guide_legend(title.position = "top"))+
   labs(fill = '% change compared to steady state monopoly')
 
-ggsave(here('visuals/supplementary_visuals', 'Figure6.jpg'))
+ggsave(here('visuals/supplementary_visuals', 'Figure_not_included_c_v_gamma.jpg'))
 
 ```
 
@@ -1116,7 +1130,7 @@ checker %>%
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_), 
         aspect.ratio = 10/4)
-ggsave(here('visuals', 'figure_4_attempt1.jpg'), height = 11)
+#ggsave(here('visuals', 'figure_4_attempt1.jpg'), height = 11)
 
 ```
 
@@ -1193,7 +1207,7 @@ checker %>%
                                     hjust = 0.5,
                                     size = 13),
         aspect.ratio = 10/4)
-ggsave(here('visuals', 'figure_4_clean.jpg'))
+ggsave(here('visuals', 'Figure4.jpg'))
 ```
 ## Table for equilibria corresponding with above graph
 
@@ -1271,7 +1285,6 @@ storage2 = as.data.frame(storage) %>%
   
   colnames(storage2) = c('Demand mult. coef.', '$gamma$ (% of $beta$)','Equilibrium', 'Monopoly variation (in %)', 'Cournot variation (in %)', 'Bertrand variation (in %)')
 if(Latex == T){
-  
   storage2 %>%
     kable(caption = 'Evolution of steady states (in % from baseline monopoly steady state)', 
           format  = 'latex',
