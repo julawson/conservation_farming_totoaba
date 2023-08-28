@@ -46,7 +46,6 @@ if(dir.exists(here('visuals/supplementary_visuals'))==F){
 ```
 
 ## Figure 1 (SM):
-
 ```{r, Fig1}
 dat_b = read.csv(here('data', 'inputs', "totoaba_biomass_catch_20230516.csv")) %>% 
   rename(y = X) %>% 
@@ -79,11 +78,7 @@ dat_b %>%
     ggsave(here("visuals/supplementary_visuals/", "fig1_trends_stock_catch.png"))
 ```
 
-
-
-
 ## Figure 2 (SM) and 1 in Main : Hypothetical schematic of equilibrium points under different poaching harvest functions
-
 ```{r}
 qty_monop = function(x){
  y = (400 - 4)*.02^2 * x^2 / (2*80* 0.02^2 * x^2 + 2*5)
@@ -285,7 +280,6 @@ ggsave(here('visuals', 'supplementary_visuals', 'Figure4_bertrand_monop_DB.jpg')
 ```
 
 ## Figure 5 : Comparison between monopoly and Bertrand behavior on monopolistic and duopolistic markets following Damania and Bulte
-
 ```{r, fig 5}
 lemma = data.frame(x, # Growth
                    "Monopoly on a duopolistic market" = harvest_monop_direct(a_w, b_w, c, W, sigma_min, x), # Monopoly using the duopolistic market assumption
@@ -329,7 +323,6 @@ ggsave(here('visuals', 'supplementary_visuals', 'Figure5_monop_duopoly.jpg'))
 ```
 
 ## Figure 6 : F (x) and v summarise when Bertrand harvest is larger or lower than in monopoly
-
 ```{r}
 for(i in 1:nrow(calibration)){
   assign(calibration$params[i], calibration$value[i])
