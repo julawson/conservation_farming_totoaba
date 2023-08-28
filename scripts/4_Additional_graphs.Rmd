@@ -26,6 +26,7 @@ for(i in 1:nrow(calibration)){
   assign(calibration$params[i], calibration$value[i])
 }  
 
+font_ = 'AppleGothic'
 
 # Build the 2nd order parameters from parameter list
   # Differentiate parameters for Wild and Farmed inverse demands
@@ -143,7 +144,7 @@ data.frame(x = seq(1,100))%>%
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_))
 
-  ggsave(here("visuals", "Figure2_potential_equilibria.jpg"))
+  ggsave(here("visuals/supplementary_visuals/", "Figure2_potential_equilibria.jpg"))
 ```
 
 ## Figure 3 : Different equilibria
@@ -241,7 +242,9 @@ plot_ = result1 %>%
         axis.text = element_text(family = font_),
         axis.title.y  = element_text(family = font_),
         legend.text = element_text(family = font_), 
-        legend.title = element_text(family = font_))plot_
+        legend.title = element_text(family = font_))
+
+plot_
 ggsave(here('visuals', 'supplementary_visuals', 'Figure3c.jpg'))
 
 
@@ -250,8 +253,62 @@ ggsave(here('visuals', 'supplementary_visuals', 'Figure3c.jpg'))
 ## Figure 4 : Bertrand v. Monopoly following Damania and Bulte
 ```{r, fig 4}
 
+# Define functions
+a_m = alpha/beta
+b_m = 1/beta
+W = W_mid
+
+
+harvest_monop_direct = function(x, 
+                                a_m. = a_m, 
+                                b_m. = b_m, 
+                                c.  = c, 
+                                W. = W, 
+                                sigma. = sigma){
+  y = (a_m. - b_m. *c.)*(sigma.^2)*(x^2)/(2*sigma.^2*x^2 + 2*b_m.*W.)
+  return(y)
+}
+
+
+q_b_paper = function(x, 
+                     a_f. = a_f,
+                     a_w. = a_w,
+                     b_f. = b_f,
+                     b_w. = b_w,
+                     c. = c,
+                     e. = e,
+                     v. = v,
+                     W. = W,
+                     sigma. = sigma){
+  y = ((sigma.^2)*(x^2)*b_w.*(b_f.*(2*a_w.+e.*v. - 2*b_w.*c.) + e.*(c.+a_f.)))/((sigma.^2)*(x^2)*(4*b_f.*b_w. - (e.^2)) + W.*b_w.*(2*b_f.*b_w. - (e.^2)))
+  return(y)
+}
+
+bertrand_harvest = function(x,
+                              sigma. = sigma, 
+                              a_f. = a_f, 
+                              a_w. = a_w, 
+                              b_f. = b_f, 
+                              b_w. = b_w, 
+                              e. = e, 
+                              v. = v, 
+                              c. = c, 
+                              W. = W_mid){
+  y = ((sigma.^2)*(x^2)*b_w.*(b_f.*(2*a_w.+e.*v.) + c.*((e.^2)- 2*b_f.*b_w.) + e.*a_f.))/((sigma.^2)*(x^2)*(4*b_w.*b_f. - (e.^2)) + 2*W.*b_w.*(2*b_f.*b_w. - (e.^2)))
+  return(y)
+}
+
+
+
+results = data.frame(x = seq(1,k))%>%
+  mutate('Bertrand wild harvest' = q_b_paper(x),
+         'Vertical monopoly' = harvest_monop_direct(x, a_m. = a_m,
+                                                    b_m. = b_m))%>%
+  pivot_longer(cols = -c('x'),
+               names_to = 'names',
+               values_to = 'values')
+
 results %>% 
-  subset(!(names %in% c("Bertrand wild harvest (own)")))%>%
   ggplot(aes(x = x, 
              y = values, 
              color = names))+
@@ -281,24 +338,29 @@ ggsave(here('visuals', 'supplementary_visuals', 'Figure4_bertrand_monop_DB.jpg')
 
 ## Figure 5 : Comparison between monopoly and Bertrand behavior on monopolistic and duopolistic markets following Damania and Bulte
 ```{r, fig 5}
-lemma = data.frame(x, # Growth
-                   "Monopoly on a duopolistic market" = harvest_monop_direct(a_w, b_w, c, W, sigma_min, x), # Monopoly using the duopolistic market assumption
-                   "Monopoly on a monopolistic market" = harvest_monop_direct(a_m, b_m, c, W, sigma_min, x), # Monopoly using the monopolistic market assumption
-                   "Bertrand on a duopolistic market" = q_b_paper(a_f, a_w, b_f, b_w, c, e, v, W, sigma_min, x)) %>% # Bertrand harvest using the article's formula
+lemma = data.frame(x = seq(1,k))%>% # Growth
+                   mutate("Vertical monopoly on a duopolistic market" = harvest_monop_direct(x, 
+                                                                                    a_m. = a_w,
+                                                                                    b_m = b_w), # Monopoly using the duopolistic market assumption
+                   "Vertical monopoly on a monopolistic market" = harvest_monop_direct(x), # Monopoly using the monopolistic market assumption
+                   "Price setting (Bertrand) on a duopolistic market" = bertrand_harvest(x),
+                   'Price setting (Bertrand) on a duopolistic market and large c' = bertrand_harvest(x, c.= 100000)) %>% # Bertrand harvest using the article's formula
   pivot_longer(cols = -c('x'),
                values_to = 'values',
                names_to = 'names')
 
-colors = c('royalblue1','chartreuse','forestgreen' )
+
+colors = c('royalblue1','royalblue4','chartreuse','forestgreen')
 # Plot
 
 lemma %>% 
   ggplot(aes(x=x, y = values, color = names))+
   geom_line()+
   scale_color_manual(values = colors, 
-                     labels = c("Bertrand on a duopolistic market",
-                                "Monopoly on a duopolistic market",
-                                "Monopoly on a monopolistic market"
+                     labels = c("Price setting (Betrand) a duopolistic market",
+                                'Price setting (Bertrand) on a duopolistic market and large c',
+                                "Vertical monopoly on a duopolistic market",
+                                "Vertical monopoly on a monopolistic market"
                                 ))+
   theme_bw()+
   xlab('Population ')+
@@ -342,7 +404,7 @@ tester = data.frame(x = seq(1,k))%>%
   mutate(v_func = v_func(x,c),
          v_func2 = v_func(x, 5*c),
          v = v, 
-         v_ = 3*v,
+         v_ = 3.5*v,
          v_max = .1*v)
 
 
@@ -353,13 +415,13 @@ tester %>%
   ggplot(aes(x=x))+
   geom_line(aes(y = v_func, colour = 'F(Population)'), linewidth = 1.1)+
   geom_line(aes(y = v, colour = 'v' ), linewidth = 1.1)+
-  geom_line(aes(y = v_), linewidth = 1.1, linetype = 'dotted')+
+  geom_line(aes(y = v_), linewidth = 1.1, linetype = 'dotted', colour = 'red')+
   geom_line(aes(y = v_max), linewidth = 1.1, linetype = 'dotted', colour = 'lightgreen')+
   #geom_ribbon(data=subset(tester, x>=10000 & x <= 20000), 
   #            aes(ymin=v_max,ymax=1.8*v), fill="red", alpha=0.5) +
-  geom_ribbon(data=subset(tester,  x>5000 & x <= 9000), 
+  geom_ribbon(data=subset(tester,  x>5000 & x <= 11300), 
               aes(ymin=v,ymax=v_func), fill="lightgreen", alpha=0.5) +
-  geom_ribbon(data=subset(tester, x>=9000), 
+  geom_ribbon(data=subset(tester, x>=11300), 
               aes(ymin=v_func,ymax=v), fill="red", alpha=0.5) +
   
   theme_bw()+
@@ -424,13 +486,15 @@ store %>%
         axis.title.y = element_text(family = font_), 
         strip.text = element_text(family = font_),
         legend.position = 'bottom',
-        legend.text = element_text(family = font_)
+        legend.text = element_text(family = font_),
+        legend.title = element_text(family = font_),
+        legend.key.width= unit(2, 'cm')
         )+
   labs(fill = 'V such that poaching ceases')
 ggsave(here('visuals/supplementary_visuals', 'Figure7_v_poaching_stop.jpg'))
 ```
 
-## Figure 8 : Price per ton of totoaba and catch from 2014 to 2017
+## Figure 10 : Price per ton of totoaba and catch from 2014 to 2017
 ```{r, fig 8}
 dat_p = read.csv(here("data","inputs","dat_p.csv")) #Price-quantity data (OG Paper)
 dat_p = dat_p %>%
@@ -454,13 +518,17 @@ new_dat = merge(dat_b %>%
 new_dat %>%
   mutate(year = as.factor(year))%>%
   ggplot(aes(x = c,
-             y = price_ton, 
-             color = year))+
-  geom_point()+
+             y = price_ton 
+             ))+
+  geom_point(aes(color = year))+
+  geom_smooth(method = "lm",
+              formula = y ~ x, 
+              se = T,
+              color = 'black')+
   theme_bw()+
   scale_color_aaas()+
   xlab('Catch of totoaba (metric tons)')+
-  ylab('Price per ton of totoaba (in USD)')+
+  ylab('Price per ton of totoaba buche (in USD)')+
   labs(color = NULL)+
   theme(axis.text.x = element_text(angle = 70, 
                                    hjust = 1, 
@@ -472,11 +540,11 @@ new_dat %>%
         legend.position = 'bottom',
         legend.text = element_text(family = font_)
         )
-ggsave(here('visuals/supplementary_visuals', 'Figure8_price_data.jpg'))
+ggsave(here('visuals/supplementary_visuals', 'Figure10_price_data.jpg'))
 
 ```
 
-## Figure 9 : Von Bertlaffery Growth curves
+## Figure 11 : Von Bertlaffery Growth curves
 ```{r}
 farmed_VBGF <- read.csv(here("data","inputs","aqua_par_farm.csv")) #Source: Semi-structured interviews
 wild_VBGF <- read.csv(here("data","inputs","aqua_par_wild.csv")) #Source: INAPESCA 2020
@@ -515,7 +583,7 @@ dat %>%
         legend.title = element_text(family = font_)
         )
   
-ggsave(here("visuals", 'supplementary_visuals', 'Figure9_VBGF_growth.jpg'))
+ggsave(here("visuals", 'supplementary_visuals', 'Figure11_VBGF_growth.jpg'))
 
 
 ```
