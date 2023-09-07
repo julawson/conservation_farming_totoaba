@@ -40,17 +40,23 @@ alpha_w = alpha
 alpha_f = alpha
 beta_w = beta
 beta_f = beta
-  # Demand functions parameters
+# Demand functions parameters
 e   = gamma/(beta_w*beta_f - (gamma^2))
 a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
 a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
 b_f = beta_f/(beta_w*beta_f - (gamma^2))
 b_w = beta_w/(beta_w*beta_f - (gamma^2))
 
+#  Styling
+font_ = 'Helvetica'
+font = 
+
 calibration %>% 
   select(-X)%>%
   mutate(value = round(value,2))%>%
   kable(row.names = F)
+
+
 ```
 
 # II. Define functions
@@ -408,7 +414,6 @@ for_graph = for_graph %>%
 for_graph$set1 = as.factor(unlist(for_graph$set1))
 for_graph$set2 = as.factor(unlist(for_graph$set2))
 
-font_ = 'AppleGothic'
 
 plot_ = for_graph %>%
   subset(!(names %in% c('oa_aqua', 'comp_aqua')))%>%

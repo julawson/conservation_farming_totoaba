@@ -14,6 +14,11 @@ library(stringi)
 library(ggplot2)
 library(here)
 
+# Styling
+
+font_ = 'Helvetica'
+
+
 ```
 
 
@@ -225,7 +230,6 @@ monopoly_ss = data2 %>%
   select(x)%>%
   pull()
 
-font_ =  'AppleGothic'
 
 data2 %>%
   subset(!(grouper %in% c('Baseline')))%>%
@@ -383,6 +387,6 @@ data %>%
         legend.position = 'right',
         legend.text = element_text(family = font_)
         )
-  ggsave(here("visuals", "Figure_cartel_takeover.jpg"))
+  ggsave(here("visuals/supplementary_visuals/", "Figure9_cartel_takeover.jpg"))
 
 ```

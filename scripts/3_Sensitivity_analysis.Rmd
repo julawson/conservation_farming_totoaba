@@ -34,6 +34,10 @@ calibration = read.csv(here('data', 'outputs', 'calibration_params.csv'))
 for(i in 1:nrow(calibration)){
   assign(calibration$params[i], calibration$value[i])
 }
+
+# Styling
+font_ = 'Helvetica'
+
 ```
 
 ## B. Define the parameters for sensitivity analysis
@@ -850,7 +854,6 @@ levels(df_cv1$v_) = c('6,610 $ - 25,500 $',
                       '63,000 $ - 81,800 $', 
                       '81,800 $ - 101,500 $')
 
-font_ = 'AppleGothic'
 custom_breaks = c(0, 5000, 10000, 14900)
 df_cv1 %>%
   ggplot(aes(x = price_poachers_bertrand1+c,
@@ -923,7 +926,6 @@ levels(df_cv1$v_) = c('6,610 $- 25,500 $',
                       '63,000 $ - 81,800 $', 
                       '81,800 $ - 101,500 $')
 
-font_ = 'AppleGothic'
 custom_breaks = c(0, 5000, 10000, 14900)
 df_cv1 %>%
   ggplot(aes(x = price_poachers_cournot1+c,
@@ -1068,8 +1070,8 @@ output5 = function(x){
   }
 }
 
-pal = c("mediumseagreen", "black", 'gold1', 'darkorange','orangered', 'firebrick3', 'brown', 'grey')
-font_ = 'AppleGothic'
+#pal = c("mediumseagreen", "black", 'gold1', 'darkorange','orangered', 'firebrick3', 'brown', 'grey')
+pal = c('#fde725', 'black','#7ad151', '#22a884', '#2a788e', '#414487','#440154', 'grey')
 
 ss_mon = store %>% subset(spec == 'baseline') %>% select(ss_monop1) %>% pull()
 checker = store %>% 

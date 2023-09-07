@@ -50,4 +50,6 @@ Output file :
 ## Additional graphs (script: `4_Additional_graphs.Rmd`)
 This script draws several other illustrations for Supplementary Materials. 
 
+## Model extensions (script : `5_model_extensions.Rmd`)
+This script examines the results for the oligopoly case (i.e, N identical traders, M identical farmers) and the 'extended cartel' case, where the trader takes over aquaculture. 
 

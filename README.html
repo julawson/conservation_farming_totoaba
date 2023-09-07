@@ -297,23 +297,17 @@ overflow-y: auto;
 border: 1px solid #ddd;
 border-radius: 4px;
 }
-.tabset-dropdown > .nav-tabs > li.active:before {
-content: "";
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+content: "\e259";
 font-family: 'Glyphicons Halflings';
 display: inline-block;
 padding: 10px;
 border-right: 1px solid #ddd;
 }
 .tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
-content: "";
-border: none;
-}
-.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
-content: "";
+content: "\e258";
 font-family: 'Glyphicons Halflings';
-display: inline-block;
-padding: 10px;
-border-right: 1px solid #ddd;
+border: none;
 }
 .tabset-dropdown > .nav-tabs > li.active {
 display: block;
@@ -358,14 +352,13 @@ display: none;
 </div>
 
 
-<div id="conservation_farming_totoaba" class="section level1">
-<h1>conservation_farming_totoaba</h1>
-<p>Scripts and other files relevant to the totoaba conservation farming
-study are detailed.</p>
-<div id="external-data" class="section level2">
-<h2>External data</h2>
-<p>Summary of external data files here.</p>
-</div>
+<div id="conservation-farming-for-totoaba-low-risk-high-reward-after-50-years-of-failed-regulatory-interventions" class="section level1">
+<h1>Conservation farming for <em>Totoaba</em> : low risk, high reward
+after 50 years of failed regulatory interventions</h1>
+<p>Scripts and other files relevant to <em>Conservation farming presents
+a low risk, high reward alternative after fifty years of failed
+regulatory interventions for totoaba (Totoaba macdonaldi)</em> (Lawson
+et al, 2023) are detailed here.</p>
 <div id="data-prep-and-initial-conditions-script-1_parameters.rmd" class="section level2">
 <h2>Data prep and initial conditions (script:
 <code>1_Parameters.Rmd</code>)</h2>
@@ -374,29 +367,67 @@ to calibrate our model (biological parameters, cost estimates for
 poaching and aquaculture, demand structure.)</p>
 <p>Input files are :</p>
 <ul>
+<li><p><code>aqua_par_farm.csv</code> : von Bertalanffy growth function
+for <em>Totoaba macdonaldi</em> in aquaculture from semi-structured
+interviews (2017)</p></li>
+<li><p><code>aqua_par_wild.csv</code> : von Bertalanffy growth function
+for <em>Tototaba macdonaldi</em> in its natural environment from
+INAPESCA (2020)</p></li>
 <li><p><code>dat_p.csv</code> : seizure data from Environmental
 Investigation Agency (2014-2017)</p></li>
 <li><p><code>totoaba_biomass_catch_20230516.csv</code> : biomass and
 catch estimate from INAPESCA (1925-2017)</p></li>
 <li><p><code>w_par.csv</code>: costs data related to poaching, from
-INAPESCA (2020) and semi-structured interviews.</p></li>
+INAPESCA (2020) and semi-structured interviews (2017)</p></li>
 <li><p><code>v_par.csv</code>: costs related to aquaculture, from EOF,
-InnovaSea, BlueOcean Mariculture.</p></li>
+InnovaSea, BlueOcean Mariculture (2017-2018)</p></li>
 </ul>
 <p>Output file :</p>
 <ul>
-<li><code>parameters.csv</code>: set of parameters for model run.</li>
+<li><code>parameters.csv</code>: baseline parameters for model run.</li>
 </ul>
 </div>
-<div id="conservation-farming-analysis-script-2_model" class="section level2">
-<h2>Conservation farming analysis (script: <code>2_Model</code>)</h2>
+<div id="conservation-farming-analysis-script-2_model.rmd" class="section level2">
+<h2>Conservation farming analysis (script:
+<code>2_Model.Rmd</code>)</h2>
+<p>This script runs the model for our baseline calibration.</p>
+<p>Input file:</p>
+<ul>
+<li><code>parameters.csv</code> : baseline parameters for model run</li>
+</ul>
+<p>Output file :</p>
+<ul>
+<li><code>result1.csv</code> : results from model run including
+population, harvest &amp; farming, prices for different market
+structures.</li>
+</ul>
 </div>
-<div id="sensitivity-analysis-script-3_sensitivity_analysis" class="section level2">
+<div id="sensitivity-analysis-script-3_sensitivity_analysis.rmd" class="section level2">
 <h2>Sensitivity analysis (script:
-<code>3_Sensitivity_analysis</code>)</h2>
+<code>3_Sensitivity_analysis.Rmd</code>)</h2>
+<p>This script runs sensitivity analysis, for parameters holding other
+constants, as well as groups of parameters together.</p>
+<p>Input file :</p>
+<ul>
+<li><code>parameters.csv</code>: baseline parameters for model run</li>
+</ul>
+<p>Output file :</p>
+<ul>
+<li><code>sensitivity_analysis.csv</code> : results of sensitivity
+analysis</li>
+</ul>
 </div>
-<div id="additional-graphs-script-4_additional_graphs" class="section level2">
-<h2>Additional graphs (script: <code>4_Additional_graphs</code>)</h2>
+<div id="additional-graphs-script-4_additional_graphs.rmd" class="section level2">
+<h2>Additional graphs (script:
+<code>4_Additional_graphs.Rmd</code>)</h2>
+<p>This script draws several other illustrations for Supplementary
+Materials.</p>
+</div>
+<div id="model-extensions-script-5_model_extensions.rmd" class="section level2">
+<h2>Model extensions (script : <code>5_model_extensions.Rmd</code>)</h2>
+<p>This script examines the results for the oligopoly case (i.e, N
+identical traders, M identical farmers) and the ‘extended cartel’ case,
+where the trader takes over aquaculture.</p>
 </div>
 </div>
 
