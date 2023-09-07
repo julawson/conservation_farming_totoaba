@@ -268,7 +268,7 @@ data2 %>%
         legend.position = 'right',
         legend.text = element_text(family = font_)
         )
-ggsave(here('visuals/supplementary_visuals', 'Figure7_v_poaching_stop.jpg'))
+ggsave(here('visuals/supplementary_visuals', 'Figure8_cournot_oligopoly.jpg'))
 ```
 
 ```{r, graph2}

@@ -56,9 +56,9 @@ dat_b = read.csv(here('data', 'inputs', "totoaba_biomass_catch_20230516.csv")) %
   rename(b = Biomass..Tonnes.) %>% 
   rename(c = Catch..Tonnes.)
 
-#scale = 10
-#dat_b %>% 
-#  ggplot(aes(x=y))+
+scale = 10
+dat_b %>% 
+  ggplot(aes(x=y))+
   geom_line(aes(y = c, color = 'Catch (metric tons)'), linewidth = 1.1)+
   geom_line(aes(y = b/scale, color = 'Biomass (metric tons)'), linewidth = 1.1)+
   scale_y_continuous(sec.axis = sec_axis(~.*scale, name='Biomass (metric tons)'))+
@@ -79,7 +79,7 @@ dat_b = read.csv(here('data', 'inputs', "totoaba_biomass_catch_20230516.csv")) %
         legend.text = element_text(family = font_)
         )+
   labs(color=NULL)
-    ggsave(here("visuals/supplementary_visuals/", "Figure1_trends_stock_catch.png"))
+   # ggsave(here("visuals/supplementary_visuals/", "Figure1_trends_stock_catch.png"))
 ```
 
 ## Figure (SM) and 1 in Main : Hypothetical schematic of equilibrium points under different poaching harvest functions
@@ -147,7 +147,7 @@ data.frame(x = seq(1,100))%>%
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_))
 
-  #ggsave(here("visuals/supplementary_visuals/", "Figure2_potential_equilibria.jpg"))
+ggsave(here("visuals/supplementary_visuals/", "Figure2_potential_equilibria.jpg"))
 ```
 
 ## Figure : Different equilibria
