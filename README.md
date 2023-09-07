@@ -1,4 +1,5 @@
-# Conservation farming for *Totoaba* : low risk, high reward after 50 years of failed regulatory interventions
+# Substantial gains and little downside from farming of *Totoaba macdonaldi*
+
 
 Scripts and other files relevant to *Conservation farming presents a low risk, high reward alternative after fifty years of failed regulatory interventions for totoaba (Totoaba macdonaldi)* (Lawson et al, 2023) are detailed here. 
 
