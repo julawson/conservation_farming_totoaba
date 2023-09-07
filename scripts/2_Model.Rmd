@@ -400,7 +400,7 @@ set2 = function(x){
   if(x %in% c('pt_harvest', 'comp_aqua')){
     return('Multiple traders')
   }else if(x %in% c('monop_harvest', 'cournot_harvest', 'bertrand_harvest')){
-    return('Vertical monopoly')
+    return('Monopoly')
   }else if(x %in% c('oa_aqua', 'open_access')){
     return('Open access')
   }else{
@@ -447,13 +447,13 @@ plot_ = for_graph %>%
         axis.title.x  = element_text(family = font_),
         axis.title.y  = element_text(family = font_),
         legend.text = element_text(family = font_))+
-  scale_color_manual(values = c('black','firebrick3','#1f78b4', 'forestgreen') )
+  scale_color_manual(values = c('black','forestgreen','#1f78b4', 'firebrick3') )
 
 
 plot_ + annotate("text", x = c(17000,17000), y = c(400,580), 
          label =  c("Quantity adjustment", "Price setting"), color="forestgreen", 
          size=3 , angle=0, family = font_)
-ggsave(here('visuals', 'Figure3b.jpg'))
+ggsave(here('visuals', 'Figure3.jpg'))
 
 ```
 
