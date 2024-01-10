@@ -1,0 +1,377 @@
+---
+title: "5_Post Review"
+author: "Simon"
+date: "2024-01-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+options(scipen=999)
+
+rm(list = ls())
+
+library(tidyverse)
+library("ggsci")
+library(here)
+library(knitr)
+library(stargazer)
+
+if(!('Fishlife' %in% installed.packages())){
+  devtools::install_github("james-thorson/FishLife")
+}
+library(FishLife)
+library(kableExtra)
+
+Latex =T
+```
+
+# Model with linear quadratic costs
+
+## I. Recover W
+### A. Load data
+```{r, Load data}
+dat_p = read.csv(here("data","inputs","dat_p.csv")) #Price-quantity data (OG Paper)
+dat_p = dat_p %>%
+  mutate(price_buche = g*p,
+         price_kg = p*1000, 
+         price_buche_kg = price_buche*1000)
+
+
+dat_b = read.csv(here('data', 'inputs', "totoaba_biomass_catch_20230516.csv")) %>% 
+  rename(y = X) %>% 
+  rename(b = Biomass..Tonnes.) %>% 
+  rename(c = Catch..Tonnes.)
+
+w_par = read.csv(here("data", 'inputs', "w_par.csv"))
+v_par = read.csv(here("data", 'inputs', "v_par.csv")) 
+
+sources = read.csv(here("data", 'inputs', "sources.csv"))
+
+```
+
+
+### B. Calculate W
+
+```{r calculating cost of poaching}
+
+# W parameter, proportional increase in cost per unit (trip)
+
+#Step one, get all annual operating costs
+# Goal is to calculate cost per vessel trip (we have total fleet days per year which is number of vessels * fishing days per month)
+# First calculate total annual costs for the entire fleet
+
+w_par_ops <- w_par %>% 
+  mutate(cost_crew_earnings = (totoaba_year * price_fishers_per_totoaba * monthly_earnings_paid)) %>% 
+  mutate(cost_food_fuel = (foodfuel_day * total_fleet_days_year)) %>% 
+  mutate(cost_gear = total_fleet_days_year*(gear_loss_day*gear_replacement)) %>% 
+  mutate(revenue_per_month = (totoaba_year*(price_fishers_per_totoaba)) - (cost_crew_earnings-cost_food_fuel-cost_gear))
+
+# Next, divide by total fishing days per year
+
+w_par_val <- w_par_ops %>% 
+  select(vessels, totoaba_day, total_fleet_days_year,cost_crew_earnings,cost_food_fuel,cost_gear,bribes_year,revenue_per_month) %>% 
+  mutate(cost_per_trip = (cost_crew_earnings + cost_food_fuel + cost_gear + bribes_year)/total_fleet_days_year) 
+
+#Adding in gear and vessel confiscation (calculated as a shared cost applied to the entire fleet)
+
+w_pal_val_conf <- w_par_val %>%
+  add_column(net_confs_cost_fleetday=664000/1920) %>% #Total cost as a proportion of reported confiscations averaged over the year (1,920 fishing trips total). 5,720 nets in the water each year (each vessel sets 2-3 nets), and 0.07 of those nets are confiscated (we know that there are 415 gear confiscation events each year). So if we assume that each net costs $1,600, then our total cost to the fleet is $664,000.
+  add_column(vessel_confs_cost_fleetday=1230000/1920) %>% #Total cost as a proportion of reported vessel seizures averaged over the year (1,920 fishing trips total). There are 150 boats in total each year, and 0.546 are confiscated (there are 82 confiscations a year). So we assume each boat is worth $15,000, and therefore the total cost to the fleet is $1,230,000.
+  add_column(fines_cost_fleetday=81675/1920) %>% #Total cost as a proportion of reported vessel seizures averaged over the year (1,920 fishing trips total). There are 11 arrests/convictions where people are fined $7,425/event, which would add an additional cost of $42.54.
+  mutate(cost_per_trip = (cost_crew_earnings + cost_food_fuel + cost_gear + bribes_year)/total_fleet_days_year) %>% 
+  mutate(cost_per_trip_wconf = cost_per_trip + net_confs_cost_fleetday + vessel_confs_cost_fleetday + fines_cost_fleetday)
+
+costs = w_pal_val_conf %>% 
+  select(cost_per_trip_wconf)%>%
+  unique()%>%
+  drop_na()%>%
+  pull()%>%
+  sort()
+# Final estimates of cost per trip (W)
+
+W_low = costs[1] #Low Season 
+W_mid = costs[2] # Mid Season
+W_high = costs[3] # High Season
+
+max_E = sum(w_par$total_fleet_days_year)
+
+```
+
+### C. Attempt to recover W1 and W2:
+
+Notice that we operate under the condition that the marginal cost equals the average cost to find $W$. Now, we are trying to find a linear quadratic function in effort : 
+$$
+W_1 + 2W_2 E_{hist} = AC
+$$
+
+Given the lack of accurate data, we need to run a variety of analysis such that $W_1>0$, $W_2>0$ and $W_1 - AC + 2W_2  E_{Hist} = 0$, eg $W_2 = \frac{AC - W1}{2E_{Hist}}$.
+
+```{r, recover W1 W2}
+W_lq = data.frame(0,0,0)
+colnames(W_lq) = c('Cost', 'W1', 'W2')
+
+for(cost in costs){
+  W1 = quantile(seq(0, cost), probs = seq(0,1,.1))
+  W2 = quantile((cost - W1)/(2*max_E), probs = seq(0,1,.1))
+
+  W_storage = data.frame(rep(cost, length(W1)), W1, W2)
+  
+
+  colnames(W_storage) = colnames(W_lq)
+  W_lq = rbind(W_lq, W_storage)
+}
+
+W_lq = W_lq %>%
+  cbind(quantiles = rownames(W_lq))%>%
+  subset(W1>0)
+
+to_keep = function(x){
+  return(strsplit(x, '%')[[1]][1])
+}
+
+W_lq['quantiles'] = apply(W_lq['quantiles'],1, to_keep)
+
+```
+
+
+
+
+```{r, Load Params}
+calibration = read.csv(here("data", 'outputs', "calibration_params.csv"))
+
+for(i in 1:nrow(calibration)){
+  assign(calibration$params[i], calibration$value[i])
+}  
+
+
+# Build the 2nd order parameters from parameter list
+  # Differentiate parameters for Wild and Farmed inverse demands
+alpha_w = alpha
+alpha_f = alpha
+beta_w = beta
+beta_f = beta
+  # Demand functions parameters
+e   = gamma/(beta_w*beta_f - (gamma^2))
+a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
+a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
+b_f = beta_f/(beta_w*beta_f - (gamma^2))
+b_w = beta_w/(beta_w*beta_f - (gamma^2))
+
+calibration %>% 
+  select(-X)%>%
+  mutate(value = round(value,2))%>%
+  kable(row.names = F)
+```
+
+## II. Define functions
+Define function where variable is either `x` i.e population stock, or `s` i.e price paid to poachers. All the parameters take default values specified in the global environment.  
+
+* `growth(x, ...)` : logistic growth function, yields growth of population (in metric tons) 
+
+* `pt_harvest(x,...)` : harvest (in metric tons) when trader is price taker
+
+* `monop_harvest(x, ...)`: harvest (in metric tons) when trader is a monopolist
+
+* `monop_harvest_lq(x, ...)`: harvest (in metric tons) when trader is a monopolist and cost structure is linear quadratic
+
+* `cournot_harvest(x, ...)`, `bertrand_harvest(x, ...)`: harvest (in metric tons) when trader and farmer compete in *Cournot*, i.e, set quantities strategically, and *Bertrand*, i.e, set prices strategically. 
+
+* `cournot_harvest_lq(x, ...)`, `bertrand_harvest_lq(x, ...)` : harvest  (in metric tons) when trader and farmer compete in *Cournot* i.e, set quantities strategically, and *Bertrand* i.e, set prices strategically and cost structure is linear quadratic
+
+* `price_poachers_cournot(x, ...)`, `price_poachers_bertrand(x, ...)`: price paid to poachers (in USD/metric tons) when trader and farmer compete in *Cournot* and *Bertrand*
+
+* `cournot_farmed(s, ...)`, `bertrand_farmed(s, ...)`: quantity farmed (in metric tons) when trader and farmer compete in *Cournot* and *Bertrand*
+
+
+```{r}
+growth = function(x, 
+                  k.=k, 
+                  r.=r){
+  y = r.*x*(1-x/k.)
+  return(y)
+}
+
+# I. Price taker
+pt_harvest = function(x, 
+                      alpha. = alpha, 
+                      beta. = beta, 
+                      W. = W_mid, 
+                      c. = c, 
+                      sigma. = sigma){
+  y = ((alpha.-c.) * x^2 * sigma.^2)/(4*W. + beta. * sigma.^2 * x^2)
+  return(y)
+}
+
+# II. Monopoly
+monop_harvest = function(x, 
+                         alpha. = alpha, 
+                         c. = c, 
+                         sigma. = sigma, 
+                         beta. = beta, 
+                         W. = W_mid){
+ y = ((alpha. - c.)*sigma.^2 * x^2) / (2*beta.* sigma.^2 * x^2 + 2*W.)
+ return(y)
+}
+
+monop_harvest_lq = function(x,
+                            alpha. = alpha, 
+                            c. = c, 
+                            sigma. = sigma, 
+                            beta. = beta,
+                            W1. = W1,
+                            W2. = w2){
+  y = (sigma.^2 * x^2 * (alpha. - c.) - W1.*sigma.*x)/(2*(beta.*sigma.^2 * x^2 + W2.))
+  return(y)
+}
+
+
+# III. Cournot
+
+cournot_harvest = function(x, 
+                             alpha_f. = alpha_f, 
+                             alpha_w. = alpha_w, 
+                             beta_f. = beta_f, 
+                             beta_w. = beta_w, 
+                             gamma. = gamma, 
+                             sigma. = sigma, 
+                             c. = c, 
+                             v. = v, 
+                             W. = W_mid){
+  y = ((sigma.^2)*(x^2)*(2*beta_f.*(alpha_w. - c.) - gamma.*(alpha_f. - v.)))/(4*beta_f.*W. + (sigma.^2)*(x^2)*(4*beta_f.*beta_w. - (gamma.^2)))
+  return(y)
+}
+
+cournot_harvest_lq = function(x, 
+                              alpha_f. = alpha_f, 
+                              alpha_w. = alpha_w, 
+                              beta_f. = beta_f, 
+                              beta_w. = beta_w, 
+                              gamma. = gamma, 
+                              sigma. = sigma, 
+                              c. = c, 
+                              v. = v, 
+                              W1. = W1, 
+                              W2. = W2){
+ y = ((2*beta_f. * (alpha_w. - c.) - gamma. * (alpha_w. -v.))*sigma.^2 * x^2 - 2*beta_f.*W1.*sigma.*x)/(4*beta_f.*W2. + (4*beta_f.*beta_w. - gamma.^2)*sigma.^2 * x^2)
+ return(y)
+}
+
+price_poachers_cournot = function(x,
+                                  alpha_f. = alpha_f, 
+                                  alpha_w. = alpha_w, 
+                                  beta_f. = beta_f, 
+                                  beta_w. = beta_w, 
+                                  gamma. = gamma, 
+                                  sigma. = sigma, 
+                                  c. = c, 
+                                  v. = v, 
+                                  W. = W_mid){
+  y = (2*W.*(2*beta_f.*(alpha_w. - c.) - gamma.*(alpha_f. - v.)))/((sigma.^2)*(x^2)*(4*beta_f.*beta_w. - gamma.^2) + 4*beta_f.*W.)
+  return(y)
+}
+
+cournot_farmed = function(s, 
+                            alpha_f. = alpha_f, 
+                            alpha_w. = alpha_w, 
+                            beta_f. = beta_f, 
+                            beta_w. = beta_w, 
+                            gamma. = gamma, 
+                            sigma. = sigma, 
+                            c. = c, 
+                            v. = v){
+  y = (2 * beta_w. * (alpha_f. - v.) - gamma.* (alpha_w. - (s + c.)) )/(4*beta_w.*beta_f. - gamma.^2)
+  return(y)
+}
+
+# IV. Bertrand
+
+price_poachers_bertrand = function(x, 
+                                   a_f. = a_f, 
+                                   a_w. = a_w, 
+                                   b_f. = b_f, 
+                                   b_w. = b_w, 
+                                   e.  = e, 
+                                   c. = c, 
+                                   v. = v, 
+                                   sigma. = sigma, 
+                                   W. = W_mid){
+  y = (2*W.*b_w.*( b_f.*(2*a_w. + e.*v.) + c.*((e.^2) - 2*b_f.*b_w.) + e.*a_f.))/((sigma.^2)*(x^2)*(4*b_f.*b_w. - (e.^2)) + 2*W.*b_w.*(2*b_w.*b_f. - (e.^2)))
+  return(y)
+}
+
+bertrand_harvest = function(x,
+                              sigma. = sigma, 
+                              a_f. = a_f, 
+                              a_w. = a_w, 
+                              b_f. = b_f, 
+                              b_w. = b_w, 
+                              e. = e, 
+                              v. = v, 
+                              c. = c, 
+                              W. = W_mid){
+  y = ((sigma.^2)*(x^2)*b_w.*(b_f.*(2*a_w.+e.*v.) + c.*((e.^2)- 2*b_f.*b_w.) + e.*a_f.))/((sigma.^2)*(x^2)*(4*b_w.*b_f. - (e.^2)) + 2*W.*b_w.*(2*b_f.*b_w. - (e.^2)))
+  return(y)
+}
+
+bertrand_harvest_lq = function(x,
+                               sigma. = sigma, 
+                               a_f. = a_f, 
+                               a_w. = a_w, 
+                               b_f. = b_f, 
+                               b_w. = b_w, 
+                               e. = e, 
+                               v. = v, 
+                               c. = c, 
+                               W1. = W1, 
+                               W2. = W2){
+  y1 = b_w./(2*W2.*b_w.*(2*b_w.*b_f. - e.^2) + (4*b_f.*b_w. - e.^2)*sigma.*x^2)
+  y2 = ((2*a_w. + e.*v.)*b_f. + e. * a_f. + (c+ W1.*sigma.*x)(e.^2 - 2*b_f. *b_w.))
+  return(y1*y2)
+}
+
+
+bertrand_farmed = function(s, 
+                             a_f. = a_f, 
+                             a_w. = a_w, 
+                             b_f. = b_f, 
+                             b_w. = b_w, 
+                             e. = e, 
+                             c. = c, 
+                             v. = v){
+  y = b_f. *(2*b_w.*a_f. + v.*(e.^2 - 2*b_w.*b_f.) + e.*(a_w. + (s+c.)*b_w.))/(4*b_f.*b_w. - e.^2)
+  return(y)
+}
+
+```
+
+## III. Generate results
+
+Generate results saved at `~/data/outputs/results_post_review.csv` :
+
+* Set cost variables using `W_lq`: each row corresponds to a cost parameter $W$, $W_1$ and $W_2$
+```{r, Results}
+
+result1 = data.frame(x = seq(1,k))%>%
+  mutate(growth = growth(x),
+         # Price_taker
+         pt_harvest = pt_harvest(x),
+         ss_pt = growth - pt_harvest,
+         # Monopoly
+         monop_harvest = monop_harvest(x),
+         ss_monop = growth - monop_harvest,
+         # Cournot
+         cournot_harvest = cournot_harvest(x),
+         price_poachers_cournot = price_poachers_cournot(x),
+         cournot_farmed = cournot_farmed(price_poachers_cournot),
+         ss_cournot = growth - cournot_harvest,
+         # Bertrand
+         bertrand_harvest = bertrand_harvest(x),
+         price_poachers_bertrand = price_poachers_bertrand(x),
+         bertrand_farmed = bertrand_farmed(price_poachers_bertrand), 
+         ss_bertrand = growth - bertrand_harvest
+         )
+head(result1)
+```
+
+
