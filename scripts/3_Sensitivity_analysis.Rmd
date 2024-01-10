@@ -9,9 +9,11 @@ output: html_document
 
 ```{r setup, include = F}
 knitr::opts_chunk$set(echo = F)
+options(scipen=999)
 
 library(tidyverse)
 library(scales)
+library(colorspace)
 library("ggsci")
 library(here)
 library(knitr)
@@ -19,7 +21,7 @@ library(stargazer)
 library(parallel)
 library(wesanderson)
 
-rm(list = ls())
+#rm(list = ls())
 ```
 
 
@@ -32,6 +34,10 @@ calibration = read.csv(here('data', 'outputs', 'calibration_params.csv'))
 for(i in 1:nrow(calibration)){
   assign(calibration$params[i], calibration$value[i])
 }
+
+# Styling
+font_ = 'Helvetica'
+
 ```
 
 ## B. Define the parameters for sensitivity analysis
@@ -180,7 +186,7 @@ run_model = function(){
   }
   result1 = result1 %>% mutate(q_cournot_harvest = q_cournot_wild_own(x))
   
-  # Run Betrand : 
+  # Run Bertrand : 
   e   = gamma/(beta_w*beta_f - (gamma^2))
   a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
   a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
@@ -275,7 +281,7 @@ run_model_ss = function(){
   }
   result1 = result1 %>% mutate(q_cournot_harvest = q_cournot_wild_own(x))
   
-  # Run Betrand : 
+  # Run Bertrand : 
   e   = gamma/(beta_w*beta_f - (gamma^2))
   a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
   a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
@@ -384,7 +390,7 @@ run_model_par = function(params){
   result1 = result1 %>% mutate(q_cournot_harvest = q_cournot_wild_own(x),
                                q_cournot_farmed = q_farmed_cournot(s_c_own(x)))
   
-  # Run Betrand : 
+  # Run Bertrand : 
   e   = gamma/(beta_w*beta_f - (gamma^2))
   a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
   a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
@@ -745,7 +751,7 @@ df_cv = store %>%
   select(all_of(to_keep))%>%
   drop_na()%>%
   mutate(ss_cournot_norm = (ss_cournot1 - ss_monop1)/ss_monop1*100,
-         ss_bertrand_norm = (ss_bertrand1 - ss_monop1)/ss_monop1*100)
+         ss_bertrand_norm = (ss_bertrand1 - ss_monop1)/ss_monop1*100,)
 
 df_cv = df_cv %>% pivot_longer(cols = !c('c','v'),
                                names_to = 'output',
@@ -792,16 +798,176 @@ p = df_cv %>%
   xlab('Unit cost of transaction for traders ($USD/ton)')+
   guides(colour = guide_legend(title.position = "top"))
 
+
+tester = df_cv %>% filter(output == 'ss_bertrand_norm',)
+tester = tester %>% filter(value < .1 & value > -.1)
+
 p + 
   labs(fill = '% change compared to steady state monopoly')+
-  geom_point(data = init_eq, col = 'black', shape=4)
+  geom_point(data = init_eq, col = 'black', shape=4)+
+  theme(axis.text.x = element_text(angle = 70, 
+                                   hjust = 1, 
+                                   family = font_),
+        axis.title.x = element_text(family = font_),
+        axis.text.y = element_text(family = font_),
+        axis.title.y = element_text(family = font_), 
+        strip.text = element_text(family = font_),
+        legend.position = 'bottom',
+        legend.text = element_text(family = font_)
+        )
 ggsave(here('visuals', 'Figure5.jpg'))
 #  geom_point(data = new_c, col = 'grey')
 #  geom_point(data = new_v, col = 'blue')
 
 ```
 
-```{r}
+```{r, Bertrand outcome with c and v}
+
+store = as.data.frame(read.csv(here('data', 'outputs', 'sensitivity_analysis.csv')))
+
+# Set data to long format
+to_keep = c('c', 'v', 'price_poachers_cournot1', 'price_poachers_bertrand1', 'ss_monop1', 'ss_cournot1', 'ss_bertrand1')
+
+df_cv = store %>% 
+  subset(spec == 'c and v')%>% 
+  select(all_of(to_keep))%>%
+  drop_na()
+
+df_cv1 = df_cv %>%
+  mutate(ss_bertrand_norm = (ss_bertrand1-ss_monop1)/ss_monop1*100,
+         c_ = cut(c,10), 
+         v_ = cut(v,5))
+
+levels(df_cv1$c_) = c('0 - 1,490',
+                      '1,490 - 2,980',
+                      '2,980-4,470',
+                      '4,470 - 5,960', 
+                      '5,960 - 7,450', 
+                      '7,450 - 8,940', 
+                      '8,940 - 10,400',
+                      '10,400 - 11,900',
+                      '11,900 - 13,400',
+                      '13,400 - 14,900')
+levels(df_cv1$v_) = c('6,610 $ - 25,500 $',
+                      '25,500 $ - 44,200 $',
+                      '44,200 $ - 63,000 $', 
+                      '63,000 $ - 81,800 $', 
+                      '81,800 $ - 101,500 $')
+
+custom_breaks = c(0, 5000, 10000, 14900)
+df_cv1 %>%
+  ggplot(aes(x = price_poachers_bertrand1+c,
+             y = ss_bertrand_norm))+
+  geom_line(aes(color = c))+
+  geom_hline(aes(yintercept=0), linetype=2)+
+  facet_grid(.~v_)+
+  #scale_color_viridis_c()+
+  #scale_color_brewer(palette = 'YlOrRd')+
+  scale_color_gradient(low = "gold1", 
+                       high = "firebrick3", 
+                       breaks = custom_breaks,
+                       labels = custom_breaks, 
+                       limits = c(0, 14900))+
+  #scale_color_gradientn(colours = rev(wes_palette("Zissou1", 100, type = "continuous")))+
+  ylab('Variation from initial equilibrium (in %)')+
+  xlab('Cost for traders (price paid and transaction cost) in USD')+
+  labs(color = 'Cost of \ntransaction \n(in USD)')+
+  labs(title = 'Normalized steady states in price setting scenario',
+       subtitle = 'With binned farming costs')+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 60,
+                                   hjust = 1),
+        legend.position = "right",
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_),
+        legend.key.width = unit(.3, "cm"),
+        legend.key.height = unit(1, 'cm'),
+        plot.title = element_text(family= font_,),
+        plot.subtitle = element_text(family=font_))
+
+ggsave(here('visuals/supplementary_visuals/', 'Figure12a.jpg'), width = 10, height = 8)
+
+```
+
+```{r, Cournot outcome with c and v}
+
+store = as.data.frame(read.csv(here('data', 'outputs', 'sensitivity_analysis.csv')))
+
+# Set data to long format
+to_keep = c('c', 'v', 'price_poachers_cournot1', 'price_poachers_bertrand1', 'ss_monop1', 'ss_cournot1', 'ss_bertrand1')
+
+df_cv = store %>% 
+  subset(spec == 'c and v')%>% 
+  select(all_of(to_keep))%>%
+  drop_na()
+
+df_cv1 = df_cv %>%
+  mutate(ss_cournot_norm = (ss_cournot1-ss_monop1)/ss_monop1*100,
+         c_ = cut(c,10), 
+         v_ = cut(v,5))
+
+levels(df_cv1$c_) = c('0 - 1,490',
+                      '1,490 - 2,980',
+                      '2,980-4,470',
+                      '4,470 - 5,960', 
+                      '5,960 - 7,450', 
+                      '7,450 - 8,940', 
+                      '8,940 - 10,400',
+                      '10,400 - 11,900',
+                      '11,900 - 13,400',
+                      '13,400 - 14,900')
+levels(df_cv1$v_) = c('6,610 $- 25,500 $',
+                      '25,500 $ - 44,200 $',
+                      '44,200 $ - 63,000 $', 
+                      '63,000 $ - 81,800 $', 
+                      '81,800 $ - 101,500 $')
+
+custom_breaks = c(0, 5000, 10000, 14900)
+df_cv1 %>%
+  ggplot(aes(x = price_poachers_cournot1+c,
+             y = ss_cournot_norm))+
+  geom_line(aes(color = c))+
+  geom_hline(aes(yintercept=0), linetype=2)+
+  facet_grid(.~v_)+
+  #scale_color_viridis_c()+
+  #scale_color_brewer(palette = 'YlOrRd')+
+  scale_color_gradient(low = "gold1", 
+                       high = "firebrick3", 
+                       breaks = custom_breaks,
+                       labels = custom_breaks, 
+                       limits = c(0, 14900))+
+  #scale_color_gradientn(colours = rev(wes_palette("Zissou1", 100, type = "continuous")))+
+  ylab('Variation from initial equilibrium (in %)')+
+  xlab('Cost for traders (price paid and transaction cost) in USD')+
+  labs(color = 'Cost of \ntransaction \n(in USD)')+
+  labs(title = 'Normalized steady states in quantity adjustment scenario',
+       subtitle = 'With binned farming costs')+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 60,
+                                   hjust = 1),
+        legend.position = "right",
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_),
+        legend.key.width = unit(.3, "cm"),
+        legend.key.height = unit(1, 'cm'),
+        plot.title = element_text(family= font_,),
+        plot.subtitle = element_text(family=font_))
+
+ggsave(here('visuals/supplementary_visuals', 'Figure12b.jpg'), width = 10, height = 8)
+ #  geom_point(data = new_c, col = 'grey')
+#  geom_point(data = new_v, col = 'blue')
+```
+
+
+```{r, c & v & gamma and equilibria}
 to_keep = c('c', 'v','gamma', 'ss_monop1', 'ss_cournot1','ss_bertrand1')
 df_cv = store %>% 
   subset(spec == 'c and v and gamma')
@@ -835,59 +1001,27 @@ df_cv %>%
   theme(legend.position = 'bottom')+
   guides(colour = guide_legend(title.position = "top"))+
   labs(fill = '% change compared to steady state monopoly')
-ggsave(here('visuals/supplementary_visuals', 'Figure6.jpg'))
+
+ggsave(here('visuals/supplementary_visuals', 'Figure_not_included_c_v_gamma.jpg'))
 
 ```
 
 ## Other analysis
 
-### What demand increase would be needed to offset the positive effects of competition?
-```{r}
-checker = store %>%
-  subset(spec %in% c('alpha', 'baseline'))
+1. What demand increase would be needed to offset the positive effects of competition?
 
-ss_baseline = checker %>% subset(spec == 'baseline') %>% select(ss_monop1) %>% pull()
-to_keep = c('alpha','ss_monop1', 'ss_monop3', 'ss_cournot1', 'ss_bertrand1', 'ss_bertrand1_norm', 'ss_cournot1_norm', 'transformation')
+2. How do results evolve with substitutability?
 
-output2 = function(x){
-  if(x =='ss_cournot1_norm'){
-    return('Cournot steady state - normalized (in %)')
-  }else if(x == 'ss_bertrand1_norm'){
-    return('Bertrand steady state - normalized (in %)')
-  }
-}
-
-checker = checker %>%
-  mutate(ss_cournot1_norm = (ss_cournot1/ss_baseline -1)*100, 
-         ss_bertrand1_norm = (ss_bertrand1/ss_baseline -1)*100)%>% 
-  select(all_of(to_keep))
-
-checker = checker%>%
-  pivot_longer(cols = !c('alpha', 'transformation'),
-               values_to = 'values', 
-               names_to = 'variables') %>%
-  subset(transformation >=1)
-
-checker %>% 
-  subset(variables %in% c('ss_cournot1_norm', 'ss_bertrand1_norm')) %>%
-  mutate(variables  = sapply(variables,output2))%>%
-  ggplot(aes(x=transformation))+
-  geom_point(aes(y = values, colour = variables ), size=2)+
-  theme_bw()+
-  geom_hline(yintercept = 0)+
-  scale_colour_aaas()
-ggsave(here('visuals/supplementary_visuals', 'Figure7.png'))
-```
-
-
-### How do results evolve with substitutability?
 ```{r}
 Latex = T
 
+ss_mon = store %>% subset(spec == 'baseline') %>% select(ss_monop1) %>% pull()
+
+
 checker = store %>%
   subset(spec %in% c('baseline', 'gamma'))%>%
-  mutate(`Cournot normalized` = paste0(round((ss_cournot1/ss_baseline - 1)*100,2), '%'),
-         `Bertrand normalized` = paste0(round((ss_bertrand1/ss_baseline -1)*100,2), '%'))%>%
+  mutate(`Cournot normalized` = paste0(round((ss_cournot1/ss_mon - 1)*100,2), '%'),
+         `Bertrand normalized` = paste0(round((ss_bertrand1/ss_mon -1)*100,2), '%'))%>%
   select(gamma, transformation, `Cournot normalized`, `Bertrand normalized`)%>%
   mutate(transformation = paste0(round(as.numeric(gamma)/beta*100,2), '%'), 
          gamma = round(gamma, 2))%>%
@@ -900,17 +1034,44 @@ if(Latex==T){
         format = 'latex', 
         align = 'c')
 }
+```
 
-
+```{r, graph}
 output3 = function(x){
   if(x %in% c('ss_monop1', 'ss_monop2', 'ss_monop3')){
-    return('Monopoly')
+    return('Vertical monopoly')
   }else if(x %in% c('ss_cournot1', 'ss_cournot2', 'ss_cournot3')){
-    return('Cournot')
+    return('Qty adjustment')
   }else if(x %in% c('ss_bertrand1', 'ss_bertrand2', 'ss_bertrand3')){
-    return('Bertrand')
+    return('Price setting')
   }
 }
+
+output4 = function(x){
+  x = as.integer(x)
+  if(x<=30){
+    return('Low - 10%')
+  }else if(x>30 & x<=65){
+    return('Medium - 50%')
+  }else if(x>65){
+    return('Large - 90%')
+  }
+}
+
+output5 = function(x){
+  if(x > -55){
+    return('Large')
+  }else if(x < (-55) & x > (-80)){
+    return('Middle')
+  }else if(x < (-80)){
+    return('Low')
+  }else if(is.na(x)){
+    return(NA)
+  }
+}
+
+#pal = c("mediumseagreen", "black", 'gold1', 'darkorange','orangered', 'firebrick3', 'brown', 'grey')
+pal = c('#fde725', 'black','#7ad151', '#22a884', '#2a788e', '#414487','#440154', 'grey')
 
 ss_mon = store %>% subset(spec == 'baseline') %>% select(ss_monop1) %>% pull()
 checker = store %>% 
@@ -926,56 +1087,180 @@ checker = store %>%
          values2 = (values/ss_mon - 1)*100)
 
 
-output4 = function(x){
-  x = as.integer(x)
-  if(x<=30){
-    return('Low - 10%')
-  }else if(x>30 & x<=65){
-    return('Medium - 50%')
-  }else if(x>65){
-    return('Large - 90%')
-  }
-}
-pal = c("#febd2a", "#f48849", '#db5c68', '#b83289','#8b0aa5', '#9049EE', '#4580CD')
-checker %>%
+checker$values3 = cut(checker$values2, breaks = c(30,-50,-86, -100), include.lowest=T)
+checker$values4 = paste0(checker$values3, checker$alpha)
+
+checker = checker %>%
   mutate(gamma = as.integer(gamma))%>%
   filter(gamma %in% c(10, 50, 90))%>%
   mutate(gamma = sapply(gamma, output4))%>%
-  mutate(gamma = factor(gamma, levels = c('Low - 10%', 'Medium - 50%', 'Large - 90%')))%>%
-  drop_na()%>%
-  ggplot(aes(x = names, y=values, colour = as.factor(round(alpha,2))))+
-  geom_point(size = 3)+
-  geom_hline(yintercept = 10000, linetype='dotted')+
-  geom_hline(yintercept = 2450, linetype='dotted')+
-  facet_wrap(vars(gamma))+
-  scale_color_manual(values = pal)+
-  theme_bw()+
-  xlab(' ')+
-  ylab(' ')+
-  theme(legend.position= 'bottom')+
-  labs(colour = 'Demand multiplier')
-ggsave(here('visuals/supplementary_visuals', 'sens_alpha_gamma.jpg'))
+  mutate(gamma = factor(gamma, levels = c('Large - 90%', 'Low - 10%', 'Medium - 50%')),
+         alpha2 = factor((round(alpha,2)-1)*100))%>%
+  drop_na()
 
+levels(checker$alpha2) = c(levels(checker$alpha2), -50)
+checker$alpha2[checker$names=='Vertical monopoly'] <- -50
+
+checker %>%
+  ggplot(aes(x = names, 
+             y=values2, 
+             colour = alpha2, 
+             group = values4))+
+  geom_point(size = 2)+
+  #geom_line()+
+  #geom_hline(yintercept = 10000, linetype='dotted')+
+  #geom_hline(yintercept = 2450, linetype='dotted')+
+  facet_wrap(vars(gamma))+
+  scale_color_manual(values = pal, breaks = c("-20", "0", "20", "40", "60","80", "100"))+
+  theme_bw()+
+  geom_hline(yintercept = -43, linetype = 'dotted')+
+  geom_hline(yintercept = -86, linetype = 'dotted')+
+  geom_hline(yintercept = 0, linetype = 'dashed', color = 'grey')+
+  xlab(' ')+
+  ylab('Deviation (in %) from vertical \nmonopoly equilibrium population')+
+  scale_shape_manual(values = c(4, 17, 8))+
+  labs(colour = 'Demand \nvariation (in %)')+
+  guides(shape = 'none',
+         color=guide_legend(nrow=4,byrow=F))+
+  theme(axis.text.x = element_text(angle = 60,
+                                   hjust = 1),
+        legend.position = "right",
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_, size = 9),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_), 
+        aspect.ratio = 10/4)
+#ggsave(here('visuals', 'figure_4_attempt1.jpg'), height = 11)
 
 ```
 
+
+```{r, Strategic responses and gray intermediary equilibria}
+# Remove the monopoly and gray out the intermediary equilibria.
+checker = store %>% 
+  subset(spec =='alpha and gamma')%>%
+  select(alpha, gamma, ss_monop1, ss_monop2, ss_monop3, ss_cournot1, ss_cournot2, ss_cournot3,
+         ss_bertrand1, ss_bertrand2, ss_bertrand3)%>%
+  pivot_longer(cols = -c('alpha', 'gamma'), 
+               names_to = 'names', 
+               values_to = 'values')%>%
+  mutate(names = sapply(names, output3), 
+         alpha = as.numeric(alpha/calibration$value[which(calibration$params=='alpha')]), 
+         gamma = round(gamma/calibration$value[which(calibration$params=='beta')],2)*100,
+         values2 = (values/ss_mon - 1)*100, 
+         gamma = as.integer(gamma))%>%
+  filter(gamma %in% c(10, 50, 90))%>%
+  mutate(gamma = sapply(gamma, output4))%>%
+  mutate(gamma = factor(gamma, levels = c('Large - 90%', 'Medium - 50%', 'Low - 10%')),
+         alpha2 = factor((round(alpha,2)-1)*100))%>%
+  drop_na()
+
+
+checker$values3 = cut(checker$values2, breaks = c(30,-50,-86, -100), include.lowest=T)
+checker$values4 = paste0(checker$values3, checker$alpha)
+
+levels(checker$alpha2) = c(levels(checker$alpha2), -50)
+checker$alpha2[checker$names=='Vertical monopoly'] <- -50
+checker$alpha2[checker$values3 == '(-86,-50]'] <- -50
+
+# Graph itself
+checker %>%
+  mutate(shape_ = if_else(alpha == 1 & gamma == 'Large - 90%', "base", "mod"))%>%
+  subset(names != 'Vertical monopoly')%>%
+  ggplot(aes(x = names, 
+             y=values2, 
+             colour = alpha2, 
+             group = values4, 
+             shape = shape_))+
+  geom_point(size = 2.5)+
+  facet_wrap(vars(gamma))+
+  # Set the shapes
+  scale_shape_manual(values=c(17, 19))+
+  # Set the colors
+  scale_color_manual(values = pal, breaks = c("-20", "0", "20", "40", "60","80", "100"))+
+  theme_bw()+
+  # Set lines to delineate equilibria
+  geom_hline(yintercept = -43, linetype = 'dotted')+
+  geom_hline(yintercept = -86, linetype = 'dotted')+
+  geom_hline(yintercept = 0, linetype = 'dotted')+
+  # Axis titles and labs
+  xlab(' ')+
+  ylab('Deviation (in %) from vertical \nmonopoly equilibrium population')+
+  labs(colour = 'Demand \nvariation (in %)', 
+       title = "Substitutability",
+       caption = 'Trader response')+
+  guides(shape = 'none',
+         color=guide_legend(nrow=4,byrow=F))+
+  # Styling
+  theme(legend.position = "right",
+        axis.text.x = element_text(angle = 60,
+                                   hjust = 1),
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_, size = 9),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_), 
+        plot.title = element_text(family = font_, 
+                                  hjust = 0.5),
+        plot.caption = element_text(family = font_, 
+                                    hjust = 0.5,
+                                    size = 13),
+        aspect.ratio = 10/4)
+ggsave(here('visuals', 'Figure4.jpg'))
+```
 ## Table for equilibria corresponding with above graph
 
 ```{r}
+Latex = F
+# Reinitiate data
+checker = store %>% 
+  subset(spec =='alpha and gamma')%>%
+  select(alpha, gamma, ss_monop1, ss_monop2, ss_monop3, ss_cournot1, ss_cournot2, ss_cournot3,
+         ss_bertrand1, ss_bertrand2, ss_bertrand3)%>%
+  pivot_longer(cols = -c('alpha', 'gamma'), 
+               names_to = 'names', 
+               values_to = 'values')%>%
+  mutate(names = sapply(names, output3), 
+         alpha = as.numeric(alpha/calibration$value[which(calibration$params=='alpha')]), 
+         gamma = round(gamma/calibration$value[which(calibration$params=='beta')],2)*100,
+         values2 = (values/ss_mon - 1)*100, 
+         gamma = as.integer(gamma))%>%
+  drop_na()
+
+# Set storage
 storage = data.frame(0, 0, 0, 0, 0, 0)
-colnames(storage) = c('gamma', 'Monopoly', 'Cournot', 'Bertrand', 'alpha', 'Equilibrium')
 thresh = c(0, 2450, 10000, 500000)
-for(x in c(1, 1.2, 1.4, 1.6)){
+colnames(storage) = c("gamma",
+                      "Vertical monopoly",
+                      "Qty adjustment",
+                      "Price setting",
+                      "alpha",
+                      "Equilibrium" )
+
+for(x in c(1, 1.2, 1.4, 1.6, 1.8)){
+  # Loop for all demand multipliers
   for( i in seq(1, length(thresh)-1)){
+    # Loop over threshold values for different types of equilibria
+    
     a = checker %>%
-    subset(as.character(alpha) ==x)%>%
+    filter(alpha < x+.05 & alpha > x - .05 )%>% # Filter with bandwidth otherwise does not match
     filter(values > thresh[i] & values < thresh[i+1])%>%
-    select(-c(values, alpha))%>%
-    drop_na()%>%
-    pivot_wider(names_from=names, values_from = values2)%>%
+    select(-c(values))%>%
+    drop_na()
+    
+    # If there are values in a certain type of equilibrium, export values in wide format
+    if(nrow(a)>0){
+    a = a %>%
+    pivot_wider(names_from=names, 
+                values_from = values2,
+                values_fn = list)%>%
     subset(as.character(gamma) %in% c(10, 50, 90))%>%
     mutate(alpha = x)
-    
+      
+    # Clean labeling of equilibria
     if(i == 1){
       a = a %>%
         mutate(Equilibrium = 'Low - stable')
@@ -988,28 +1273,79 @@ for(x in c(1, 1.2, 1.4, 1.6)){
     }
   storage = rbind(storage, a)
   }
-  
 }
-
+}
+# Formating of table
 storage = storage[-1, c(5,1,6,2,3,4)]
 
-if(Latex == T){
-  storage = as.data.frame(storage) %>%
+storage2 = as.data.frame(storage) %>%
     replace(.=='NULL', NA)%>%
     mutate(gamma = paste0(gamma, '\ %'),
-           Monopoly = round(unlist(Monopoly), 2), 
-           Cournot = round(unlist(Cournot), 2), 
-           Bertrand = round(unlist(Bertrand), 2))
+           `Vertical monopoly` = round(unlist(`Vertical monopoly`), 2), 
+           `Qty adjustment` = round(unlist(`Qty adjustment`), 2), 
+           `Price setting` = round(unlist(`Price setting`), 2))
   
-  colnames(storage) = c('Demand mult. coef.', '$gamma$ (% of $beta$)','Equilibrium', 'Monopoly variation (in %)', 'Cournot variation (in %)', 'Betrand variation (in %)')
-  storage %>%
+  colnames(storage2) = c('Demand mult. coef.', '$gamma$ (% of $beta$)','Equilibrium', 'Monopoly variation (in %)', 'Cournot variation (in %)', 'Bertrand variation (in %)')
+if(Latex == T){
+  storage2 %>%
     kable(caption = 'Evolution of steady states (in % from baseline monopoly steady state)', 
           format  = 'latex',
           align = 'c', 
           row.names = F)
   
+}else{
+  storage2 %>%
+    kable(caption = 'Evolution of steady states (in % from baseline monopoly steady state)', 
+          format  = 'html',
+          align = 'c', 
+          row.names = F)
+  
 }
 ```
+
+```{r, numbers for manuscript}
+growth = function(x){
+    y = r*x*(1-x/k)
+    return(y)
+}
+ss_bertrand_baseline = store %>% subset(spec == 'baseline')%>%select(ss_bertrand1) %>% pull()
+
+# Increased demand by 40% with substitutability = 90% for price setting - poaching
+l = storage %>%
+  subset(alpha == as.character(1.4))%>%
+  subset(gamma == 90)%>%
+  select(`Price setting`)%>%
+  pull()%>%
+  unlist()
+
+# Increased demand by 60% with substitutability = 50% for both scenarios - stocks
+l2 = storage %>%
+  subset(alpha == as.character(1.8))%>%
+  subset(gamma == 50)%>%
+  subset(Equilibrium == 'High - stable')%>%
+  select(`Qty adjustment`, `Price setting`)
+
+l3 = storage %>%
+  subset(alpha == as.character(1.8))%>%
+  subset(gamma == 50)%>%
+  subset(Equilibrium == 'Low - stable')%>%
+  select(`Qty adjustment`, `Price setting`)
+```
+
+1. In the case where demand increases by 40%, and substitutability is 90%, poaching increases by `r round(growth(ss_mon*(1+l/100))-growth(ss_bertrand_baseline),2)` mt in the price setting scenario
+
+2. In the case where demand increases by 60%, and substitutability is 50%, *high* equilibrium stock is:
+
+  * `r ss_mon*(1 + unlist(pull(l2[1]))/100)` mt in the qty adjustment scenario
+
+  * `r ss_mon*(1 + unlist(pull(l2[2]))/100)`, mt in the price setting scenario
+  
+3. In the case where demand increases by 60%, and substitutability is 50%, *low* equilibrium stock is:
+
+  * `r ss_mon*(1 + unlist(pull(l3[1]))/100)` mt in the qty adjustment scenario
+
+  * `r ss_mon*(1 + unlist(pull(l3[2]))/100)`, mt in the price setting scenario
+
 
 ## Sensitivity analysis for $W$
 
@@ -1031,4 +1367,5 @@ checker %>%
   theme_bw()+
   scale_color_aaas()
 ```
+
 

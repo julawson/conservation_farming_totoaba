@@ -8,7 +8,7 @@ output: html_document
 knitr::opts_chunk$set(echo = F)
 options(scipen=999)
 
-rm(list = ls())
+#rm(list = ls())
 
 library(tidyverse)
 library("ggsci")
@@ -16,9 +16,11 @@ library(here)
 library(knitr)
 library(stargazer)
 
-if(!('Fishlife' %in% installed.packages())){
-  devtools::install_github("james-thorson/FishLife")
-}
+#if(!(all(c('Fishlife', 'devtools') %in% installed.packages()))){
+#  install.packages('devtools')
+#  devtools::install_github("james-thorson/FishLife")
+#}
+
 library(FishLife)
 library(kableExtra)
 
@@ -379,5 +381,3 @@ if(Latex==T){
     kable_minimal(full_width = F)
 }
 ```
-
-

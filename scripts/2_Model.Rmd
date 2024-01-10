@@ -4,9 +4,16 @@ author: "Lawson et al."
 date: "2023-06-19"
 output: html_document
 ---
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F)
 options(scipen=999)
+
+required_packages = c('here', 'knitr', 'stargazer', 'tidyverse', 'stringi') 
+
+if(!(all(required_packages %in% installed.packages()))){
+  install.packages(required_packages)
+}
 
 library(tidyverse)
 library("ggsci")
@@ -14,10 +21,11 @@ library(here)
 library(knitr)
 library(stargazer)
 
-rm(list = ls())
+#rm(list = ls())
 ```
 
 # I. Load parameters
+
 ```{r, Load Params}
 calibration = read.csv(here("data", 'outputs', "calibration_params.csv"))
 
@@ -32,35 +40,52 @@ alpha_w = alpha
 alpha_f = alpha
 beta_w = beta
 beta_f = beta
-  # Demand functions parameters
+# Demand functions parameters
 e   = gamma/(beta_w*beta_f - (gamma^2))
 a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
 a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
 b_f = beta_f/(beta_w*beta_f - (gamma^2))
 b_w = beta_w/(beta_w*beta_f - (gamma^2))
 
+#  Styling
+font_ = 'Helvetica'
+font = 
+
 calibration %>% 
   select(-X)%>%
   mutate(value = round(value,2))%>%
   kable(row.names = F)
+
+
 ```
 
 # II. Define functions
-Define function where variable is either `x` i.e population stock, or `s` i.e price paid to poachers. All the parameters take default values specified in the global environment.  
 
-* `growth(x, ...)` : logistic growth function, yields growth of population (in metric tons) 
+Define function where variable is either `x` i.e population stock, or `s` i.e price paid to poachers. All the parameters take default values specified in the global environment.
 
-* `pt_harvest(x,...)` : harvest (in metric tons) when trader is price taker
+Functions for the baseline model are :
 
-* `monop_harvest(x, ...)`: harvest (in metric tons) when trader is a monopolist
+-   `growth(x, ...)` : logistic growth function, yields growth of population (in metric tons)
 
-* `cournot_harvest(x, ...)`, `bertrand_harvest(x, ...)`: harvest (in metric tons) when trader and farmer compete in *Cournot*, i.e, set quantities strategically, and *Bertrand*, i.e, set prices strategically. 
+-   `open_access(x,...)`: harvest (in metric tons) when fishery is in open-access
 
-* `price_poachers_cournot(x, ...)`, `price_poachers_bertrand(x, ...)`: price paid to poachers (in USD/metric tons) when trader and farmer compete in *Cournot* and *Bertrand*
+-   `pt_harvest(x,...)` : harvest (in metric tons) when trader controls the upstream market and operates on a competitive downstream market (i.e., she is price taker)
 
-* `cournot_farmed(s, ...)`, `bertrand_farmed(s, ...)`: quantity farmed (in metric tons) when trader and farmer compete in *Cournot* and *Bertrand*
+-   `monop_harvest(x, ...)`: harvest (in metric tons) when trader is a monopolist
 
-*
+Then, once aquaculture is introduced :
+
+-   `oa_aqua(x, ...)`: harvest (in metric tons) in the open access fishery following the introduction of aquaculture
+
+-   `comp_aqua(x, ...)` : harvest (in metric tons) when a trader controls the upstream market and operates on a competitive downstream market, following the introduction of aquaculture.
+
+-   `cournot_harvest(x, ...)`, `bertrand_harvest(x, ...)`: harvest (in metric tons) when trader and farmer compete in *Cournot*, i.e, set quantities strategically, and *Bertrand*, i.e, set prices strategically.
+
+-   `price_poachers_cournot(x, ...)`, `price_poachers_bertrand(x, ...)`: price paid to poachers (in USD/metric tons) when trader and farmer compete in *Cournot* and *Bertrand*
+
+-   `cournot_farmed(s, ...)`, `bertrand_farmed(s, ...)`: quantity farmed (in metric tons) when trader and farmer compete in *Cournot* and *Bertrand*
+
+-   
 
 ```{r}
 growth = function(x, 
@@ -70,7 +95,27 @@ growth = function(x,
   return(y)
 }
 
-# I. Price taker
+# I. Open access
+open_access = function(x, 
+                       alpha. = alpha, 
+                       sigma. = sigma, 
+                       W. = W_mid, 
+                       beta. = beta, 
+                       c. = c){
+  y = ((alpha. - c.)*sigma.^2*x^2)/(2*W. + beta.*sigma.^2*x^2)
+  return(y)
+}
+
+oa_aqua = function(x,
+                   v. = v, 
+                   c. = c, 
+                   sigma. = sigma, 
+                   W. = W_mid){
+  y = (v.-c.)*sigma.^2*x^2/(2*W.)
+  return(y)
+} 
+
+# II. Price taker
 pt_harvest = function(x, 
                       alpha. = alpha, 
                       beta. = beta, 
@@ -81,8 +126,16 @@ pt_harvest = function(x,
   return(y)
 }
 
+comp_aqua = function(x, 
+                     v. = v, 
+                     c. = c, 
+                     sigma. = sigma, 
+                     W. = W_mid){
+  y = (v.-c.)*sigma.^2*x^2/(4*W.)
+  return(y)
+}
 
-# II. Monopoly
+# III. Monopoly
 monop_harvest = function(x, 
                          alpha. = alpha, 
                          c. = c, 
@@ -93,7 +146,7 @@ monop_harvest = function(x,
  return(y)
 }
 
-# III. Cournot
+# IV. Cournot
 
 cournot_harvest = function(x, 
                              alpha_f. = alpha_f, 
@@ -136,7 +189,7 @@ cournot_farmed = function(s,
   return(y)
 }
 
-# IV. Bertrand
+# V. Bertrand
 
 price_poachers_bertrand = function(x, 
                                    a_f. = a_f, 
@@ -183,13 +236,21 @@ bertrand_farmed = function(s,
 # III. Generate results
 
 Generate results saved at `~/data/outputs/result1.csv`.
+
 ```{r, Results}
 
 result1 = data.frame(x = seq(1,k))%>%
   mutate(growth = growth(x),
+         #Open access
+         open_access = open_access(x),
+         oa_aqua = oa_aqua(x),
+         ss_oa = growth - open_access,
+         ss_oa_aqua = growth - oa_aqua,
          # Price_taker
          pt_harvest = pt_harvest(x),
          ss_pt = growth - pt_harvest,
+         comp_aqua = comp_aqua(x),
+         ss_comp_aqua = growth - comp_aqua, 
          # Monopoly
          monop_harvest = monop_harvest(x),
          ss_monop = growth - monop_harvest,
@@ -216,7 +277,7 @@ Use `result1` to produce steady states:
 ```{r, Steady states}
 steady_states = c()
   
-for(variable in c('ss_monop', 'ss_cournot', 'ss_bertrand', 'ss_pt')){
+for(variable in c('ss_monop', 'ss_cournot', 'ss_bertrand', 'ss_pt', 'ss_oa', 'ss_oa_aqua', 'ss_comp_aqua')){
   # Find where difference equations change sign
   ss = which(sign(eval(parse(text = paste0('result1$',variable)))) != lag(sign(eval(parse(text = paste0('result1$', variable))))))
   # Allow for up to 3 steady states
@@ -225,13 +286,13 @@ for(variable in c('ss_monop', 'ss_cournot', 'ss_bertrand', 'ss_pt')){
                                               NA,
                                               NA))
     }else if(length(ss)==2){
-      steady_states = append(steady_states, c(result1[1, ss[1]], 
-                                              result1[1, ss[2]],
+      steady_states = append(steady_states, c(result1[ss[1],1], 
+                                              result1[ss[2],1],
                                               NA))
     }else if(length(ss)==3){
-      steady_states = append(steady_states, c(result1[1, ss[1]], 
-                                              result1[1, ss[2]],
-                                              result1[2, ss[3]]))
+      steady_states = append(steady_states, c(result1[ss[1],1], 
+                                              result1[ss[2],1],
+                                              result1[ss[3],1]))
     }
 }
 
@@ -257,15 +318,41 @@ dat_q_pt = result1 %>%
   subset(x %in% steady_states[10:12])%>%
   select(x, pt_harvest)%>%
   mutate(q_farmed = NA, 
-         label = 'Price taker')
+         label = 'Price taker - before')
+
+dat_comp_aqua = result1 %>% 
+  subset(x %in% steady_states[19:21])%>%
+  select(x, comp_aqua)%>%
+  mutate(q_farmed = NA, 
+         label = 'Price taker - aquaculture')
+
+dat_oa = result1 %>% 
+  subset(x %in% steady_states[13:15])%>%
+  select(x, open_access)%>%
+  mutate(q_farmed = NA, 
+         label = 'Open access - before ')
+dat_oa_aqua = result1 %>% 
+  subset(x %in% steady_states[16:18])%>%
+  select(x, oa_aqua)%>%
+  mutate(q_farmed = NA, 
+         label = 'Open access - aquaculture ')
+
 
 names_ = c('Stock', 'Harvest', 'Farmed', 'Market structure')
 colnames(dat_monop) = names_
 colnames(dat_cournot) = names_
 colnames(dat_q_pt) = names_
 colnames(dat_bertrand) = names_
+colnames(dat_oa) = names_
+colnames(dat_oa_aqua) = names_
+colnames(dat_comp_aqua) = names_
 
-final_ = rbind(dat_q_pt, 
+
+
+final_ = rbind(dat_oa, 
+               dat_oa_aqua, 
+               dat_q_pt, 
+               dat_comp_aqua,
                dat_monop, 
                dat_cournot, 
                dat_bertrand)
@@ -273,57 +360,123 @@ final_ = final_[, c(4,1,2,3)]
 kable(final_, row.names = F)
 ```
 
-1. **Monopoly scenario** with cost parameter c=`r c` is a `r round((dat_monop$Stock - dat_q_pt$Stock)/dat_q_pt$Stock*100,2)`, % variation in *population stock* in tonnes (compared to OA) or, equivalently, of `r round((dat_monop$Stock - dat_q_pt$Stock)*1000/25.7)` adult totoabas
+With a realistic market structure, i.e, full control over the value chain by the trader :
 
-2. **Monopoly scenario** with cost parameter c= `r c` is a difference of `r round(dat_q_pt$Harvest-dat_monop$Harvest ,2)`(in tons) in *harvest* or, equivalently, of `r round((dat_q_pt$Harvest-dat_monop$Harvest)*1000/25.7)` adult totoabas
+1.  **Monopoly scenario** with cost parameter c=`r c` is a `r round((dat_monop$Stock - dat_q_pt$Stock)/dat_q_pt$Stock*100,2)`, % variation in *population stock* in tonnes (compared to price taker) or, equivalently, of `r round((dat_monop$Stock - dat_q_pt$Stock)*1000/25.7)` adult totoabas and a difference of `r round(dat_q_pt$Harvest-dat_monop$Harvest ,2)`(in tons) in *harvest* or, equivalently, of `r round((dat_q_pt$Harvest-dat_monop$Harvest)*1000/25.7)` adult totoabas
 
-3. **Worst case scenario** with cost parameter c=`r c` is a `r round((dat_bertrand$Stock - dat_monop$Stock)/dat_monop$Stock*100,2)` % variation in *population stock* in tonnes or, equivalently, of `r round((dat_bertrand$Stock - dat_monop$Stock)*1000/25.7)` adult totoabas
+2.  **Worst case scenario** after aquaculture is introduced, with cost parameter c=`r c` is a `r round((dat_bertrand$Stock - dat_monop$Stock)/dat_monop$Stock*100,2)` % variation in *population stock* in tonnes or, equivalently, of `r round((dat_bertrand$Stock - dat_monop$Stock)*1000/25.7)` adult totoabas, and a difference of `r round(dat_bertrand$Harvest- dat_monop$Harvest,2)` (tons) in *harvest* or, equivalently, of `r round((dat_monop$Harvest-dat_bertrand$Harvest)*1000/25.7,2)` adult totoabas
 
-4. **Worst case scenario** with cost parameter c=`r c` is a difference of `r round(dat_bertrand$Harvest- dat_monop$Harvest,2)` (tons) in *harvest* or, equivalently, of `r round((dat_monop$Harvest-dat_bertrand$Harvest)*1000/25.7,2)` adult totoabas
+3.   **Best case scenario** with cost parameter c=`r c` is a `r round((dat_cournot$Stock - dat_monop$Stock)/dat_monop$Stock*100,2)` % variation in *population stock* in tonnes or, equivalently, of `r round((dat_cournot$Stock - dat_monop$Stock)*1000/25.7,2)` adult totoabas and a difference of `r round(dat_cournot$Harvest- dat_monop$Harvest,2)` ( tons) in *harvest* or, equivalently, of `r  round((dat_monop$Harvest-dat_cournot$Harvest)*1000/25.7,2)` adult totoabas
 
 
-5. **Best case scenario** with cost parameter c=`r c` is a `r round((dat_cournot$Stock - dat_monop$Stock)/dat_monop$Stock*100,2)` % variation in *population stock* in tonnes or, equivalently, of `r round((dat_cournot$Stock - dat_monop$Stock)*1000/25.7,2)` adult totoabas
+```{r, graph2}
+### Better yet : 
+for_graph = result1 %>%
+  select(x,
+         growth, 
+         pt_harvest, 
+         comp_aqua,
+         monop_harvest, 
+         cournot_harvest, 
+         bertrand_harvest, 
+         open_access,
+         oa_aqua
+         )%>%
+  pivot_longer(cols = -c(x),
+               names_to = 'names',
+               values_to = 'values')
 
-6. **Best case scenario** with cost parameter c=`r c` is a difference of `r round(dat_cournot$Harvest- dat_monop$Harvest,2)` ( tons) in *harvest* or, equivalently, of `r  round((dat_monop$Harvest-dat_cournot$Harvest)*1000/25.7,2)` adult totoabas
-
-```{r, Graphic output}
-actual_steady = steady_states[!is.na(steady_states)]
-
-lines_ = F
-
-plot_ = result1 %>%
-  subset(x < 1.5*max(actual_steady))%>%
-  #subset(x<500)%>%
-  ggplot(aes(x=x))+
-  geom_line(aes(y = growth), linewidth = 1)+
-  geom_line(aes(y = monop_harvest, colour = 'Monopoly'), linewidth = 1)+
-  geom_line(aes(y = cournot_harvest, colour = 'Cournot'), linewidth = 1)+
-  geom_line(aes(y = bertrand_harvest, colour = 'Bertrand'), linewidth = 1)+
-  geom_line(aes(y = pt_harvest, colour = 'Price taker'), linewidth = 1) +
-  theme_bw()+
-  ylab('Growth / harvest')+
-  xlab('Population stock')+
-  scale_color_aaas()+
-  labs(colour = ' ')+
-  theme(legend.position = 'bottom')
-
-if(lines_ == T){
-  plot_ = plot_ + 
-    # Vertical lines
-  geom_segment(x = actual_steady[1], xend = actual_steady[1], y=0, yend=growth(actual_steady[1]), linetype = 2)+
-  geom_segment(x = actual_steady[2], xend = actual_steady[2], y=0, yend=growth(actual_steady[2]), linetype = 2)+
-  geom_segment(x = actual_steady[3], xend = actual_steady[3], y=0, yend=growth(actual_steady[3]), linetype = 2)+
-  geom_segment(x = actual_steady[4], xend = actual_steady[4], y=0, yend=growth(actual_steady[4]), linetype = 2)+
-
-  # Horizontal lines
-  geom_segment(x = 0, xend = actual_steady[1], y=growth(actual_steady[1]), yend=growth(actual_steady[1]), linetype = 2)+
-  geom_segment(x = 0, xend = actual_steady[2], y=growth(actual_steady[2]), yend=growth(actual_steady[2]), linetype = 2)+
-  geom_segment(x = 0, xend = actual_steady[3], y=growth(actual_steady[3]), yend=growth(actual_steady[3]), linetype = 2)+
-  geom_segment(x = 0, xend = actual_steady[4], y=growth(actual_steady[4]), yend=growth(actual_steady[4]), linetype = 2)
+set1 = function(x){
+  if(x %in% c('monop_harvest', 'open_access', 'pt_harvest')){
+    return('Baseline')
+  }else if(x == 'growth'){
+    return('Baseline')
+  }else{
+    return('With farming')
+  }
 }
-plot_ 
+
+set2 = function(x){
+  if(x %in% c('pt_harvest', 'comp_aqua')){
+    return('Multiple traders')
+  }else if(x %in% c('monop_harvest', 'cournot_harvest', 'bertrand_harvest')){
+    return('Monopoly')
+  }else if(x %in% c('oa_aqua', 'open_access')){
+    return('Open access')
+  }else{
+    return('Growth')
+  }
+}
+  
+for_graph = for_graph %>%
+  mutate(set1 = sapply(names, set1), 
+         set2 = sapply(names, set2))
+for_graph$set1 = as.factor(unlist(for_graph$set1))
+for_graph$set2 = as.factor(unlist(for_graph$set2))
+
+
+plot_ = for_graph %>%
+  subset(!(names %in% c('oa_aqua', 'comp_aqua')))%>%
+  ggplot(aes(x = x, 
+             y = values, 
+             color = set2, 
+             group = names,
+             linetype = set1)) +
+  geom_line(linewidth = 0.7) +  # Use geom_line instead of geom_point
+  
+  # Set the linetype scale for different linestyles
+  scale_linetype_manual(values = c("solid", "dotted")) +
+  
+  # Customize the legend
+  guides(
+    color = guide_legend(
+      title = " ",  # Title for the first column
+      ncol = 2              # Number of columns
+    ),
+    linetype = guide_legend(
+      title = " ",     # Title for the second column
+      ncol = 1              # Number of columns
+    )
+  ) +
+  ylim(0,1250)+
+  # Move the legend to the bottom
+  theme_bw()+
+  ylab('Growth / Harvest')+
+  xlab('Population')+
+  theme(legend.position = "bottom",
+        axis.title.x  = element_text(family = font_),
+        axis.title.y  = element_text(family = font_),
+        legend.text = element_text(family = font_))+
+  scale_color_manual(values = c('black','forestgreen','#1f78b4', 'firebrick3') )
+
+
+plot_ + annotate("text", x = c(17000,17000), y = c(400,580), 
+         label =  c("Quantity adjustment", "Price setting"), color="forestgreen", 
+         size=3 , angle=0, family = font_)
 ggsave(here('visuals', 'Figure3.jpg'))
+
 ```
 
+## Fishing effort evolution 
 
+ 
+```{r, Fishing effort}
+dats = c('dat_oa', 'dat_oa_aqua', 'dat_q_pt', 'dat_comp_aqua', 'dat_monop', 'dat_cournot', 'dat_bertrand')
 
+for(dats_ in dats){
+  a = get(dats_)
+  a$effort = a$Harvest/(sigma*a$Stock)
+  assign(dats_, a)
+}
+
+final_ = rbind(dat_oa, 
+               dat_oa_aqua, 
+               dat_q_pt, 
+               dat_comp_aqua, 
+               dat_monop, 
+               dat_cournot, 
+               dat_bertrand)
+kable(final_,
+      row.names = F)
+
+```

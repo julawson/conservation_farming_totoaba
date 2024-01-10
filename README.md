@@ -1,6 +1,7 @@
-# Conservation farming for *Totoaba* : low risk, high reward after 50 years of failed regulatory interventions
+# Substantial gains and little downside from farming of *Totoaba macdonaldi*
 
-Scripts and other files relevant to *Conservation farming presents a low risk, high reward alternative after fifty years of failed regulatory interventions for totoaba (Totoaba macdonaldi)* (Lawson et al, 2023) are detailed here. 
+
+Scripts and other files relevant to *Substantial gains and little downside from farming of Totoaba macdonaldi* (Lawson et al, 2023) are detailed here. 
 
 
 ## Data prep and initial conditions (script: `1_Parameters.Rmd`)
@@ -50,4 +51,6 @@ Output file :
 ## Additional graphs (script: `4_Additional_graphs.Rmd`)
 This script draws several other illustrations for Supplementary Materials. 
 
+## Model extensions (script : `5_model_extensions.Rmd`)
+This script examines the results for the oligopoly case (i.e, N identical traders, M identical farmers) and the 'extended cartel' case, where the trader takes over aquaculture. 
 
