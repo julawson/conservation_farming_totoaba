@@ -144,6 +144,7 @@ params_sensitivity = rbind(params_sensitivity, a)
 
 rm(a)
 print(paste0('There are ', nrow(params_sensitivity)," combinations to test" ))
+write.csv(params_sensitivity, here('data', 'inputs', 'params_sensitivity.csv'))
 ```
 
 

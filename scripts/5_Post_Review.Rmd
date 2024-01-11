@@ -24,12 +24,19 @@ library(FishLife)
 library(kableExtra)
 
 Latex =T
+font_ = 'Helvetica'
+color_growth = 'black'
+color_vertical_monopoly = 'firebrick'
+color_bertrand = '#1f78b4'
+color_cournot = 'forestgreen'
+palette_ = c(color_growth, color_vertical_monopoly, color_bertrand, color_cournot)
 ```
 
 # Model with linear quadratic costs
 
 ## I. Recover W
 ### A. Load data
+Use the same data as in `1_Parameters.rmd`.
 ```{r, Load data}
 dat_p = read.csv(here("data","inputs","dat_p.csv")) #Price-quantity data (OG Paper)
 dat_p = dat_p %>%
@@ -52,7 +59,7 @@ sources = read.csv(here("data", 'inputs', "sources.csv"))
 
 
 ### B. Calculate W
-
+Calculate costs of poaching using the same method as in `1_Parameters.rmd`. 
 ```{r calculating cost of poaching}
 
 # W parameter, proportional increase in cost per unit (trip)
@@ -383,8 +390,11 @@ Generate results saved at `~/data/outputs/results_post_review.csv` :
 
 * Set cost variables using `W_lq`: each row corresponds to a cost parameter $W$, $W_1$ and $W_2$
 ```{r, Results}
+# Initiate data storage
 storage = data.frame(0,0,0,0,0,0,0,0)
 colnames(storage) = c('x','names','values','AC', 'W_mid', 'W1', 'W2',"quantile")
+
+# Run model for every W configuration
 for(row in 1:nrow(W_lq)){
   W_mid = W_lq[row,4]
   W1 = W_lq[row,2]
@@ -393,21 +403,25 @@ for(row in 1:nrow(W_lq)){
   
   result1 = data.frame(x = seq(1,k,.5 ))%>%
     mutate(growth= growth(x),
+           # Harvests with quadratic and linear-quadratic costs
            monop_harvest = monop_harvest(x),
            monop_harvest_lq = monop_harvest_lq(x),
            cournot_harvest = cournot_harvest(x),
            cournot_harvest_lq = cournot_harvest_lq(x),
            bertrand_harvest = bertrand_harvest(x),
            bertrand_harvest_lq = composite_bertrand_lq(x),
+           # Steady states
            ss_monop = monop_harvest - growth, 
            ss_monop_lq = monop_harvest_lq - growth, 
            ss_cournot = cournot_harvest - growth, 
            ss_cournot_lq = cournot_harvest_lq - growth,
            ss_bertrand = bertrand_harvest - growth, 
            ss_bertrand_lq = bertrand_harvest_lq - growth,
+           # Prices
            price_poachers_lq = price_poacher_bertrand_lq(x),
            price_poachers_bertrand = price_poachers_bertrand(x))
   
+  # Put data in long format
   errr = result1 %>% 
     pivot_longer(-x, names_to = 'names', values_to = 'values')%>%
     subset(names %in% c('ss_monop',
@@ -423,11 +437,67 @@ for(row in 1:nrow(W_lq)){
            W1 = W1, 
            W2 = W2,
            quantile = quantile)
-  
+  # Store
   storage = rbind(storage, errr)
-
 }
 
+
+# Goal is to format to have only 1 steady state value : filter out the points around the steady states. 
+cost = unique(storage$AC)[2]
+
+# Initiate storage
+final_dat = data.frame(0,0,0,0,0,0,0,0,0)
+colnames(final_dat) = c(colnames(storage), 'lag_sign')
+
+# Mutate ac_quantile to have 1 combination to scan through
+storage = storage %>%
+  mutate(ac_quantile = paste0(AC,quantile))
+
+# Loop over name and ac_quantile combination
+for(name in unique(storage$names)){
+  for(ac_quant in unique(storage$ac_quantile)){
+    study = storage %>%
+      subset(names == name)%>%
+      subset(ac_quantile == ac_quant)%>%     # Subset data 
+      mutate(lag_sign = c(0, diff(sign(values))), # Mutate to get sign change and value of steady state change
+             lag_val = c(0, diff(x)))
+    # Define cut vector to scan through each zone : cuts are defined as jumps in x value 
+      cuts_ = which(study$lag_val>5 | study$lag_val < -5) - 1
+      cuts_ = c(0,cuts_, nrow(study))
+    # Use cuts vector to scan through
+    for(cut in 1:(length(cuts_)-1)){
+      lb_ = cuts_[cut]+1
+      ub_ = cuts_[cut+1]
+    
+      to_check = study[lb_: ub_,]%>%
+        subset(lag_sign !=0)%>%
+        subset(lag_val>0)%>% # Keep only when the lag value is positive : otherwise, it means a change in sequence or type of equilibrium
+        select(-c(lag_val, ac_quantile))
+    
+      final_dat = rbind(final_dat, to_check)
+    }
+  }
+  
+}
+
+# Eventually, tell if equilibrium is stable using lag_sign 
+final_dat = final_dat %>%
+  subset(AC>0)%>%
+  mutate(Stable = ifelse(lag_sign>0,'Stable', 'Unstable'))
+
+# Save
+
+write.csv(final_dat, here('data', 'outputs', 'results_post_review.csv'))
+              
+```
+
+
+
+### Graph outputs : 
+
+First, illustrate the new equilibria with the same $W$ value and the middle point solution for $W_1$ and $W_2$ in the linear quadratic cost of effort specification. 
+
+```{r, New equilibrium}
 W_mid    = W_lq[15,4]
 W1       = W_lq[15,2]
 W2       = W_lq[15,3]
@@ -449,9 +519,33 @@ result1 = data.frame(x = seq(1,k,.5 ))%>%
          ss_bertrand_lq = bertrand_harvest_lq - growth,
          price_poachers_lq = price_poacher_bertrand_lq(x),
          price_poachers_bertrand = price_poachers_bertrand(x))
+# Format:
+renamer= function(x){
+  if(x %in% c('monop_harvest', 'monop_harvest_lq')){
+    return('Vertical Monopoly')
+  }else if(x %in% c('cournot_harvest', 'cournot_harvest_lq')){
+    return('Quantity adjustment')
+  }else if(x %in% c('bertrand_harvest', 'bertrand_harvest_lq')){
+    return('Price setting')
+  }else if(x %in% c('growth')){
+    return('Growth')
+  }
+}
 
+renamer2 = function(x){
+  checker = strsplit(x, '_')[[1]]
+  if(length(checker)<3){
+    return('Quadratic cost')
+  }else{
+    return('Linear quadratic cost')
+  }
+}
 
-result1 %>%
+rounder = function(x){
+  return(max(0,x))
+}
+
+dat_ = result1 %>%
   pivot_longer(-x, 
                values_to = 'values', 
                names_to = 'names')%>%
@@ -461,43 +555,44 @@ result1 %>%
                       'cournot_harvest',
                       'cournot_harvest_lq', 
                       'bertrand_harvest', 
-                      'bertrand_harvest_lq'))%>%
+                      'bertrand_harvest_lq'))
+dat_$new_names = sapply(dat_$names, renamer)
+dat_$values2 = sapply(dat_$values, rounder)
+dat_$cost_structure = sapply(dat_$names, renamer2)
+
+dat_%>%
+  subset(x %%2 == 0)%>%
   ggplot(aes(x = x,
-             y = values, 
-             color = names))+
-  geom_line()
-               
+             y = values2, 
+             color = new_names))+
+  geom_line(aes(linetype = cost_structure))+
+  scale_linetype_manual(values=c("solid", "twodash"))+
+  scale_color_manual(values = palette_)+
+  theme_bw()+
+  guides(
+    color = guide_legend(
+      title = " ",  # Title for the first column
+      ncol = 2              # Number of columns
+    ),
+    linetype = guide_legend(
+      title = ' ',
+      ncol = 2
+    ))+
+  xlab('Population')+
+  ylab('Harvest')+
+  theme(legend.position = 'bottom',
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_))
+
 
 ```
 
-Now ewploit the data with the new cost structure : 
 
-```{r, exploration}
-# Goal is to format to have only 1 steady state value : filter out the points around the steady states. 
-cost = unique(storage$AC)[2]
-
-final_dat = data.frame(0,0,0,0,0,0,0,0)
-colnames(final_dat) = colnames(storage)
-
-for(name in unique(storage$names)){
-  study = storage %>%
-    subset(names == name)%>%
-    mutate(lag_sign = c(0, diff(sign(values))),
-           lag_val = c(0, diff(x)))
-  cuts_ = which(study$lag_val>5 | study$lag_val < -5) - 1
-  cuts_ = c(0,cuts_, nrow(study))
-  
-  for(cut in 1:(length(cuts_)-1)){
-    lb_ = cuts_[cut]+1
-    ub_ = cuts_[cut+1]
-    to_check = study[lb_: ub_,]%>%
-      subset(lag_sign !=0)%>%
-      select(-c(lag_sign, lag_val))
-    final_dat = rbind(final_dat, to_check)
-  }
-}
-
-
+```{r, Equilibria}
 # Rename:
 rename_W = function(x){
   if(x==costs[1]){
@@ -510,28 +605,28 @@ rename_W = function(x){
 }
 
 rename_scenario = function(x){
-  if(x=='ss_monop_lq'){
+  if(x %in% c('ss_monop_lq', 'ss_bertrand_lq', 'ss_cournot_lq')){
     return('Linear-Quadratic cost ')
-  }else if(x =='ss_monop'){
+  }else{
     return('Quadratic cost')
-  }else if(x =='ss_bertrand'){
-    return('Price sett. Quad.')
-  }else if(x =='ss_bertrand_lq'){
-    return('Price sett. Lin. Quad.')
-  }else if(x == 'ss_cournot'){
-    return('Qty Quad.')
-  }else if(x == 'ss_cournot_lq'){
-    return('Qty Lin. Quad.')
   }
 }
 
+rename_scenario2 = function(x){
+  if(x %in% c('ss_bertrand', 'ss_bertrand_lq')){
+    return('Bertrand')
+  }else if(x %in% c('ss_cournot', 'ss_cournot_lq')){
+    return('Cournot')
+  }else if(x %in% c('ss_monop_lq', 'ss_monop')){
+    return('Monopoly')
+  }
+}
 rename_quantiles = function(x){
   return(paste0(x,'%'))
 }
 
 
 ##### Final Graphs
-
 final_dat %>%
   subset(AC>0)%>%
   subset(names %in% c('ss_monop_lq', 'ss_monop'))%>%
@@ -543,17 +638,29 @@ final_dat %>%
          tamr = paste(new_names, new_AC, sep = ' '),
          new_quantile = sapply(quantile, rename_quantiles))%>%
   subset(new_quantile %in% c('10%','20%', '50%', '80%','90%'))%>%
-  ggplot(aes(x = new_names, y = x))+
+  ggplot(aes(x = new_names, y = x, color = Stable))+
+  scale_color_manual(values = c('darkblue', 'brown'))+
   geom_point(size = 2)+
   #scale_color_continuous('Estimate of unit effort cost', type = 'viridis')+
   facet_grid(new_AC~new_quantile)+
   theme_bw()+
+  xlab(' ')+
+  ylab(' ')+
   ggtitle("Vertical monopoly steady states with linear and linear quadratic costs")+
-  theme(axis.text.x = element_text(angle = 60, hjust = 1), 
-        axis.title.x= element_blank(),
-        axis.title.y = element_blank(),
-        plot.title = element_text(hjust = 0.5))
+  theme(axis.text.x = element_text(angle = 60, 
+                                   hjust = 1,
+                                   family = font_), 
+        axis.title.x= element_text(family = font_),
+        axis.title.y = element_text(family = font_),
+        plot.title = element_text(hjust = 0.5,
+                                  family = font_),
+        strip.text.x  = element_text(family = font_) ,
+        axis.text = element_text(family = font_),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_))
+```
 
+```{r, Cournot}
 
 final_dat %>%
   subset(AC>0)%>%
@@ -566,17 +673,29 @@ final_dat %>%
          tamr = paste(new_names, new_AC, sep = ' '),
          new_quantile = sapply(quantile, rename_quantiles))%>%
   subset(new_quantile %in% c('10%','20%', '50%', '80%','90%'))%>%
-  ggplot(aes(x = new_names, y = x))+
+  ggplot(aes(x = new_names, y = x, color = Stable))+
+  scale_color_manual(values = c('darkblue', 'brown'))+
   geom_point(size = 2)+
   #scale_color_continuous('Estimate of unit effort cost', type = 'viridis')+
   facet_grid(new_AC~new_quantile)+
   theme_bw()+
-  ggtitle("Quantity setting steady states with linear and linear quadratic costs")+
-  theme(axis.text.x = element_text(angle = 60, hjust = 1), 
-        axis.title.x= element_blank(),
-        axis.title.y = element_blank(),
-        plot.title = element_text(hjust = 0.5))
-  
+  xlab(' ')+
+  ylab(' ')+
+  ggtitle("Quantity adjustment steady states with linear and linear quadratic costs")+
+  theme(axis.text.x = element_text(angle = 60, 
+                                   hjust = 1,
+                                   family = font_), 
+        axis.title.x= element_text(family = font_),
+        axis.title.y = element_text(family = font_),
+        plot.title = element_text(hjust = 0.5,
+                                  family = font_),
+        strip.text.x  = element_text(family = font_) ,
+        axis.text = element_text(family = font_),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_))
+```
+
+```{r, Bertrand}
 final_dat %>%
   subset(AC>0)%>%
   subset(names %in% c('ss_bertrand_lq', 'ss_bertrand'))%>%
@@ -588,74 +707,141 @@ final_dat %>%
          tamr = paste(new_names, new_AC, sep = ' '),
          new_quantile = sapply(quantile, rename_quantiles))%>%
   subset(new_quantile %in% c('10%','20%', '50%', '80%','90%'))%>%
-  ggplot(aes(x = new_names, y = x))+
+  ggplot(aes(x = new_names, y = x, color = Stable))+
+  scale_color_manual(values = c('darkblue', 'brown'))+
   geom_point(size = 2)+
   #scale_color_continuous('Estimate of unit effort cost', type = 'viridis')+
   facet_grid(new_AC~new_quantile)+
   theme_bw()+
+  xlab(' ')+
+  ylab(' ')+
   ggtitle("Price setting steady states with linear and linear quadratic costs")+
-  theme(axis.text.x = element_text(angle = 60, hjust = 1), 
-        axis.title.x= element_blank(),
-        axis.title.y = element_blank(),
-        plot.title = element_text(hjust = 0.5))
+  theme(axis.text.x = element_text(angle = 60, 
+                                   hjust = 1,
+                                   family = font_), 
+        axis.title.x= element_text(family = font_),
+        axis.title.y = element_text(family = font_),
+        plot.title = element_text(hjust = 0.5,
+                                  family = font_),
+        strip.text.x  = element_text(family = font_) ,
+        axis.text = element_text(family = font_),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_))
 
 
 ```
+### IV. Include profitability
 
-Need to put the data back in wide, to recompute the rate of variation and back to long to plot. 
+In this section : 
 
-```{r, wide long}
-final_dat %>%
-  subset(AC ==costs[1])%>%
-  arrange(quantile)
+* Define profit functions 
 
-```
+* Check the profit at steady state levels
 
-```{r,eded0}
+* Compare with baseline scenario
 
-# Loop over costs
-for(cost in unique(storage$AC)){
-  working_data = storage %>%
-    subset(AC == cost)
-  # Loop over quantiles
-  for(quant in unique(storage$quantile)){
-    working_data = working_data %>%
-      subset(quantile == quant)%>%
-      subset(values<.05 & values >-.05)%>%
-      arrange(names)
-    #L Loop over each type of equilibrium
-    for(name in unique(working_data$names)){
-      working_data2 = working_data %>% subset(names==name)
-      if(nrow(working_data2)>1){
-        # If there is more than 1 steady state :
-        working_data2 = working_data2 %>% 
-          mutate(diff_sign = c(0,diff(sign(values))), # variable to find different steady state zones
-                 diff_x = c(0,diff(x))) # variable to locate the changing of sign
-        
-        cuts_ = which(working_data2$diff_x>10) # Define cut variable to study only the right steady state zones
-        
-        if(cuts_[1]!=1){
-          cuts_ = c(1,cuts_)
-        }
-        
-        if(cuts_[length(cuts_)] == nrow(working_data2)){
-          cuts_ = c(cuts_,(nrow(working_data2)+1))
-        }
-        
-        for(cut in 1:(length(cuts_)-1)){
-          study = working_data2[cuts_[cut] : cuts_[cut+1]-1, ]%>%
-            subset(diff_sign !=0)%>%
-            select(-c(diff_sign, diff_x))
-          final_dat = rbind(final_dat, study)
-        }
-        
-        to_keep = which(diff(sign(working_data2$values))!=0)
-        working_data2 = working_data2[to_keep,]
-        
-      }else{
-      final_dat = rbind(final_dat, working_data2)
-      }
+```{r, define profitability}
+
+profit = function(x, 
+                  cost_structure,
+                  scenario,
+                  player,
+                  alpha_f. = alpha_f,
+                  alpha_w. = alpha_w,
+                  beta_f. = beta_f,
+                  beta_w. = beta_w,
+                  gamma. = gamma, 
+                  sigma. = sigma, 
+                  c. = c, 
+                  v. = v, 
+                  W1. = W1, 
+                  W2. = W2,
+                  a_f. = a_f,
+                  a_w. = a_w,
+                  b_f. = b_f,
+                  b_w. = b_w,
+                  e. = e){
+  if(scenario %in% c('Bertrand', 'bertrand')){
+    if(cost_structure %in% c('linear quadratic', 'Linear quadratic')){
+     if(player == 'illegal'){
+       return('In Bertrand equilibrium with linear quadratic costs, profit of the illegal sector is XXX')
+     }else if(player == 'aquaculture'){
+       return('In Bertrand equilibrium with linear quadratic costs, profit of the aquaculture sector is XXX')
+     } 
+    }else if(cost_structure %in% c('quadratic', 'Quadratic')){
+    if(player == 'illegal'){
+       return('In Bertrand equilibrium with quadratic costs, profit of the illegal sector is XXX')
+     }else if(player == 'aquaculture'){
+       return('In Bertrand equilibrium with  quadratic costs, profit of the aquaculture sector is XXX')
+     } 
+  }
+  }else if(scenario %in% c('Cournot', 'cournot')){
+    if(cost_structure %in% c('linear quadratic', 'Linear quadratic')){
+      if(player == 'illegal'){
+       return('In Cournot equilibrium with linear quadratic costs, profit of the illegal sector is XXX')
+      }else if(player == 'aquaculture'){
+       return('In Cournot equilibrium with quadratic costs, profit of the aquaculture sector is XXX')
+     } 
+    }else if(cost_structure %in% c('quadratic', 'Quadratic')){
+    if(player == 'illegal'){
+       return('In Bertrand equilibrium with quadratic costs, profit of the illegal sector is XXX')
+     }else if(player == 'aquaculture'){
+       return('In Bertrand equilibrium with quadratic costs, profit of the aquaculture sector is XXX')
+     } 
     }
+  }else if(scenario %in% c('Monopoly', 'monopoly')){
+    if(cost_structure %in% c('linear quadratic', 'Linear quadratic')){
+       return('In the vertical monopoly equilibrium with linear quadratic costs, profit of the illegal sector is XXX')
+     }else if(cost_structure %in% c('quadratic', 'Quadratic')){
+       return('In the vertical monopoly equilibrium with quadratic costs, profit of the illegal sector is XXX')
+     } 
+  }else{
+    return('Scenario, cost structure or player is not well referenced : check the syntax of the function')
   }
 }
+
+
+
 ```
+
+
+#Run sensitivity analysis for linear quadratic model
+
+In this section : 
+
+* Define the scenarios to run sensitivity analysis on: use the sensitivity table used previously and interpolate with `W_lq`
+
+* Run all the analysis
+
+* Identify the parameter spaces for which the targets of (i) improving stock and (ii) maintaining profitability are **met** or not
+
+```{r, sensitivity analysis}
+rm(dat_,
+   result1)
+
+params_sensitivity = read.csv(here('data', 'inputs', 'params_sensitivity.csv'))
+
+new_params_sensitivity = data.frame(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
+colnames(new_params_sensitivity) = c(colnames(params_sensitivity), 'W1', 'W2', 'quantile')
+
+for(row in 1:nrow(params_sensitivity)){
+  W = params_sensitivity[row, 'W']
+  cost = 2*max_E*W
+  W1 = quantile(seq(0, cost), probs = seq(0,1,.1))
+  W2 = rev(quantile((cost - W1)/(2*max_E), probs = seq(0,1,.1)))
+  
+  to_append = data.frame(W, W1, W2)
+  
+  to_append = to_append %>% 
+    mutate(quantile = rownames(to_append))%>%
+    select(-W)
+  rownames(to_append) = NULL
+  
+  a = cbind(params_sensitivity[rep(row, nrow(to_append)),], to_append)
+  
+  new_params_sensitivity = rbind(new_params_sensitivity, a)
+}
+
+write.csv(new_params_sensitivity, here('data', 'inputs', 'params_sensitivity_lq.csv'))
+```
+
