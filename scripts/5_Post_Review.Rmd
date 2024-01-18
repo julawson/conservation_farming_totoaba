@@ -16,6 +16,8 @@ library("ggsci")
 library(here)
 library(knitr)
 library(stargazer)
+library(parallel)
+library(RColorBrewer)
 
 if(!('Fishlife' %in% installed.packages())){
   devtools::install_github("james-thorson/FishLife")
@@ -498,10 +500,10 @@ write.csv(final_dat, here('data', 'outputs', 'results_post_review.csv'))
 First, illustrate the new equilibria with the same $W$ value and the middle point solution for $W_1$ and $W_2$ in the linear quadratic cost of effort specification. 
 
 ```{r, New equilibrium}
-W_mid    = W_lq[15,4]
-W1       = W_lq[15,2]
-W2       = W_lq[15,3]
-quantile = W_lq[15,5]
+W_mid    = W_lq[21,4]
+W1       = W_lq[21,2]
+W2       = W_lq[21,3]
+quantile = W_lq[21,5]
   
 result1 = data.frame(x = seq(1,k,.5 ))%>%
   mutate(growth= growth(x),
@@ -589,6 +591,114 @@ dat_%>%
         legend.title = element_text(family = font_))
 
 
+```
+
+To understand the impact of different $W_1$ & $W_2$ divides : 
+
+```{r, understand different W}
+store = data.frame(matrix(nrow = 0, ncol= ncol(result1)+1))
+colnames(store)= c(colnames(result1), 'quantile')
+
+for(xx in c(21, 25, 29)){
+  W_mid    = W_lq[xx,4]
+  W1       = W_lq[xx,2]
+  W2       = W_lq[xx,3]
+  quantile = W_lq[xx,5]
+  
+  result1 = data.frame(x = seq(1,k,.5 ))%>%
+    mutate(growth= growth(x),
+           monop_harvest = monop_harvest(x),
+           monop_harvest_lq = monop_harvest_lq(x),
+           cournot_harvest = cournot_harvest(x),
+           cournot_harvest_lq = cournot_harvest_lq(x),
+           bertrand_harvest = bertrand_harvest(x),
+           bertrand_harvest_lq = composite_bertrand_lq(x),
+           ss_monop = monop_harvest - growth, 
+           ss_monop_lq = monop_harvest_lq - growth, 
+           ss_cournot = cournot_harvest - growth, 
+           ss_cournot_lq = cournot_harvest_lq - growth,
+           ss_bertrand = bertrand_harvest - growth, 
+           ss_bertrand_lq = bertrand_harvest_lq - growth,
+           price_poachers_lq = price_poacher_bertrand_lq(x),
+           price_poachers_bertrand = price_poachers_bertrand(x),
+           quantile = paste0('W1 =', round(W1,1), ' & W2 = ', round(W2,1)))
+  store = rbind(store, 
+                result1)
+}
+
+store$quantile = factor(store$quantile, levels = c("W1 =12947.4 & W2 = 0.4",
+                                                   "W1 =7193 & W2 = 1.9",
+                                                   "W1 =1438.6 & W2 = 3.4"))
+
+# Format:
+renamer= function(x){
+  if(x %in% c('monop_harvest', 'monop_harvest_lq')){
+    return('Vertical Monopoly')
+  }else if(x %in% c('cournot_harvest', 'cournot_harvest_lq')){
+    return('Quantity adjustment')
+  }else if(x %in% c('bertrand_harvest', 'bertrand_harvest_lq')){
+    return('Price setting')
+  }else if(x %in% c('growth')){
+    return('Growth')
+  }
+}
+
+renamer2 = function(x){
+  checker = strsplit(x, '_')[[1]]
+  if(length(checker)<3){
+    return('Quadratic cost')
+  }else{
+    return('Linear quadratic cost')
+  }
+}
+
+rounder = function(x){
+  return(max(0,x))
+}
+
+dat_ = store %>%
+  pivot_longer(-c(x,quantile), 
+               values_to = 'values', 
+               names_to = 'names')%>%
+  subset(names %in% c('growth', 
+                      'monop_harvest', 
+                      'monop_harvest_lq', 
+                      'cournot_harvest',
+                      'cournot_harvest_lq', 
+                      'bertrand_harvest', 
+                      'bertrand_harvest_lq'))
+dat_$new_names = sapply(dat_$names, renamer)
+dat_$values2 = sapply(dat_$values, rounder)
+dat_$cost_structure = sapply(dat_$names, renamer2)
+
+dat_%>%
+  subset(x %% 2 == 0)%>%
+  ggplot(aes(x = x,
+             y = values2, 
+             color = new_names))+
+  geom_line(aes(linetype = cost_structure), linewidth = 1)+
+  facet_grid(~quantile)+
+  scale_linetype_manual(values=c("twodash", "solid"))+
+  scale_color_manual(values = palette_)+
+  theme_bw()+
+  guides(
+    color = guide_legend(
+      title = " ",  # Title for the first column
+      ncol = 2              # Number of columns
+    ),
+    linetype = guide_legend(
+      title = ' ',
+      ncol = 2
+    ))+
+  xlab('Population')+
+  ylab('Harvest')+
+  theme(legend.position = 'bottom',
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_))
 ```
 
 
@@ -730,6 +840,457 @@ final_dat %>%
 
 
 ```
+
+# Run sensitivity analysis for linear quadratic model
+
+In this section : 
+
+* Define the scenarios to run sensitivity analysis on: use the sensitivity table used previously and interpolate with `W_lq`
+
+* Run all the analysis
+
+* Identify the parameter spaces for which the targets of (i) improving stock and (ii) maintaining profitability are **met** or not
+
+## I. Define parameter spaces
+
+```{r, sensitivity analysis}
+rm(dat_,
+   store,
+   result1, 
+   W_lq, 
+   w_pal_val_conf, 
+   w_par, 
+   w_par_ops, 
+   w_par_val)
+
+if(!file.exists(here('data', 'inputs', 'params_sensitivity_lq.csv'))){
+  # Load original parameters for sensitivity analysis. 
+  params_sensitivity = read.csv(here('data', 'inputs', 'params_sensitivity.csv'))
+  # Set up names for new sensitivity analysis scenarios
+  new_params_sensitivity = data.frame(matrix(nrow = 0, ncol = 15 ))
+  colnames(new_params_sensitivity) = c(colnames(params_sensitivity), 'W1', 'W2', 'quantile')
+  # Set each row of data as a scenario
+  for(row in 1:nrow(params_sensitivity)){
+    W = params_sensitivity[row, 'W']
+    # Set cost that would work in quadratic case
+    cost = 2*max_E*W
+    # Generate costs that solve the linear quadratic cost
+    W1 = quantile(seq(0, cost), probs = c(0, .2, .5, .7, 1))
+    W2 = rev(quantile((cost - W1)/(2*max_E), probs = c(0, .2, .5, .7, 1)))
+    # Set storage 
+    to_append = data.frame(W, W1, W2)
+    to_append = to_append %>% 
+      mutate(quantile = rownames(to_append))%>%
+      select(-W)
+    rownames(to_append) = NULL
+    
+    # Extend existing row scenario with new data on costs
+    a = cbind(params_sensitivity[rep(row, nrow(to_append)),], to_append)
+    # Store
+    new_params_sensitivity = rbind(new_params_sensitivity, a)
+  }
+  # Save data
+  new_params_sensitivity = new_params_sensitivity %>%
+    mutate(identifier = seq(1:nrow(new_params_sensitivity)))
+  write.csv(new_params_sensitivity, here('data', 'inputs', 'params_sensitivity_lq.csv'), row.names = F)
+}else{
+  new_params_sensitivity = read.csv(here('data', 'inputs', 'params_sensitivity_lq.csv'))
+}
+
+print(paste0("There are ", nrow(new_params_sensitivity), " combinations" ))
+```
+
+## II. Run sensitivity analysis
+
+```{r, sensitivity}
+model_run = function(param){
+  # Variable assignment
+  to_assign = names(param)
+  if('X' %in% to_assign){
+    to_assign = to_assign[!(to_assign %in% c('X','spec', 'transformation', 'quantile', 'identifier'))]
+    }
+  for(variable in to_assign){
+        assign(variable, 
+               as.numeric(unlist(param[variable])))
+    }
+  # Compute secondary parameters
+  alpha_w = alpha
+  alpha_f = alpha
+  beta_w = beta
+  beta_f = beta
+  # Demand functions parameters
+  e   = gamma/(beta_w*beta_f - (gamma^2))
+  a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
+  a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
+  b_f = beta_f/(beta_w*beta_f - (gamma^2))
+  b_w = beta_w/(beta_w*beta_f - (gamma^2))
+  
+  W_mid = W
+  # Define functions : 
+  growth = function(x, 
+                    k.=k, 
+                    r.=r){
+  y = r.*x*(1-x/k.)
+  return(y)
+}
+
+# I. Price taker
+  pt_harvest = function(x, 
+                        alpha. = alpha, 
+                        beta. = beta, 
+                        W. = W_mid, 
+                        c. = c, 
+                        sigma. = sigma){
+  y = ((alpha.-c.) * x^2 * sigma.^2)/(4*W. + beta. * sigma.^2 * x^2)
+  return(y)
+  }
+
+# II. Monopoly
+  monop_harvest = function(x, 
+                           alpha. = alpha, 
+                           c. = c, 
+                           sigma. = sigma, 
+                           beta. = beta, 
+                           W. = W_mid){
+  y = ((alpha. - c.)*sigma.^2 * x^2) / (2*beta.* sigma.^2 * x^2 + 2*W.)
+  return(y)
+  }
+
+  monop_harvest_lq = function(x,
+                              alpha. = alpha, 
+                              c. = c, 
+                              sigma. = sigma, 
+                              beta. = beta,
+                              W1. = W1,
+                              W2. = W2){
+  y = (sigma.^2 * x^2 * (alpha. - c.) - W1.*sigma.*x)/(2*(beta.*sigma.^2 * x^2 + W2.))
+  return(y)
+  }
+
+
+# III. Cournot
+
+  cournot_harvest = function(x, 
+                             alpha_f. = alpha_f, 
+                             alpha_w. = alpha_w, 
+                             beta_f. = beta_f, 
+                             beta_w. = beta_w, 
+                             gamma. = gamma, 
+                             sigma. = sigma, 
+                             c. = c, 
+                             v. = v, 
+                             W. = W_mid){
+  y = ((sigma.^2)*(x^2)*(2*beta_f.*(alpha_w. - c.) - gamma.*(alpha_f. - v.)))/(4*beta_f.*W. + (sigma.^2)*(x^2)*(4*beta_f.*beta_w. - (gamma.^2)))
+  return(y)
+  }
+
+  cournot_harvest_lq = function(x, 
+                                alpha_f. = alpha_f, 
+                                alpha_w. = alpha_w, 
+                                beta_f. = beta_f, 
+                                beta_w. = beta_w, 
+                                gamma. = gamma, 
+                                sigma. = sigma, 
+                                c. = c, 
+                                v. = v, 
+                                W1. = W1, 
+                                W2. = W2){
+  y = ((2*beta_f. * (alpha_w. - c.) - gamma. * (alpha_w. -v.))*sigma.^2 * x^2 - 2*beta_f.*W1.*sigma.*x)/(4*beta_f.*W2. + (4*beta_f.*beta_w. - gamma.^2)*sigma.^2 * x^2)
+  return(y)
+  }
+
+  price_poachers_cournot = function(x,
+                                    alpha_f. = alpha_f, 
+                                    alpha_w. = alpha_w, 
+                                    beta_f. = beta_f, 
+                                    beta_w. = beta_w, 
+                                    gamma. = gamma, 
+                                    sigma. = sigma, 
+                                    c. = c, 
+                                    v. = v, 
+                                    W. = W_mid){
+  y = (2*W.*(2*beta_f.*(alpha_w. - c.) - gamma.*(alpha_f. - v.)))/((sigma.^2)*(x^2)*(4*beta_f.*beta_w. - gamma.^2) + 4*beta_f.*W.)
+  return(y)
+  }
+
+  cournot_farmed = function(s, 
+                            alpha_f. = alpha_f, 
+                            alpha_w. = alpha_w, 
+                            beta_f. = beta_f, 
+                            beta_w. = beta_w, 
+                            gamma. = gamma, 
+                            sigma. = sigma, 
+                            c. = c, 
+                            v. = v){
+  y = (2 * beta_w. * (alpha_f. - v.) - gamma.* (alpha_w. - (s + c.)) )/(4*beta_w.*beta_f. - gamma.^2)
+  return(y)
+  }
+
+# IV. Bertrand
+
+  price_poachers_bertrand = function(x, 
+                                     a_f. = a_f, 
+                                     a_w. = a_w, 
+                                     b_f. = b_f, 
+                                     b_w. = b_w, 
+                                     e.  = e, 
+                                     c. = c, 
+                                     v. = v, 
+                                     sigma. = sigma, 
+                                     W. = W_mid){
+  y = (2*W.*b_w.*( b_f.*(2*a_w. + e.*v.) + c.*((e.^2) - 2*b_f.*b_w.) + e.*a_f.))/((sigma.^2)*(x^2)*(4*b_f.*b_w. - (e.^2)) + 2*W.*b_w.*(2*b_w.*b_f. - (e.^2)))
+  return(y)
+  }
+
+  bertrand_harvest = function(x,
+                              sigma. = sigma, 
+                              a_f. = a_f, 
+                              a_w. = a_w, 
+                              b_f. = b_f, 
+                              b_w. = b_w, 
+                              e. = e, 
+                              v. = v, 
+                              c. = c, 
+                              W. = W_mid){
+  y = ((sigma.^2)*(x^2)*b_w.*(b_f.*(2*a_w.+e.*v.) + c.*((e.^2)- 2*b_f.*b_w.) + e.*a_f.))/((sigma.^2)*(x^2)*(4*b_w.*b_f. - (e.^2)) + 2*W.*b_w.*(2*b_f.*b_w. - (e.^2)))
+  return(y)
+  }
+
+  bertrand_harvest_lq = function(x,
+                                 sigma. = sigma, 
+                                 a_f. = a_f, 
+                                 a_w. = a_w, 
+                                 b_f. = b_f, 
+                                 b_w. = b_w, 
+                                 e. = e, 
+                                 v. = v, 
+                                 c. = c, 
+                                 W1. = W1, 
+                                 W2. = W2){
+  y1 = b_w.*(sigma.^2 * x^2 *((2*a_w. +e.*v.)*b_f. + e.*a_f.) + (c. + W1. * sigma. * b_w. * x)*(e.^2 - 2*b_w. *b_f.))
+  y2 = 2*W2.*b_w.*(2*b_f.* b_w. - e.^2) + (4*b_f.*b_w. - e.^2)*sigma.^2*x^2
+  z = y1*y2
+  return(z)
+  }
+
+  price_poacher_bertrand_lq = function(x,
+                                       sigma. = sigma, 
+                                       a_f. = a_f, 
+                                       a_w. = a_w, 
+                                       b_f. = b_f, 
+                                       b_w. = b_w, 
+                                       e. = e, 
+                                       v. = v, 
+                                       c. = c, 
+                                       W1. = W1, 
+                                       W2. = W2){
+  y = 2*b_w.*W2.*((2*a_w. + e.*v.)*b_f. + e.*a_f. + c.*(e.^2 - b_f.*b_w.)) + W1.*sigma.*x*(4*b_f.*b_w. - e.^2)
+  z = sigma.^2 * x^2 * (4*b_w.*b_f. - e.^2) + 4*b_w.*W2.*(2*b_f.*b_w - e.^2)
+  result = y/z
+  return(result)
+ }
+
+  composite_bertrand_lq = function(x,
+                                   sigma. = sigma, 
+                                   a_f. = a_f, 
+                                   a_w. = a_w, 
+                                   b_f. = b_f, 
+                                   b_w. = b_w, 
+                                   e. = e, 
+                                   v. = v, 
+                                   c. = c, 
+                                   W1. = W1, 
+                                   W2. = W2){
+  y = b_w. * ((2*a_w. +e.*v.)*b_f. + e.*a_f. + (price_poacher_bertrand_lq(x)+c.)*(e.^2 - 2*b_w.*b_f))/(4*b_f.*b_w. - e.^2)
+  return(y)
+  }
+
+  bertrand_farmed = function(s, 
+                             a_f. = a_f, 
+                             a_w. = a_w, 
+                             b_f. = b_f, 
+                             b_w. = b_w, 
+                             e. = e, 
+                             c. = c, 
+                             v. = v){
+  y = b_f. *(2*b_w.*a_f. + v.*(e.^2 - 2*b_w.*b_f.) + e.*(a_w. + (s+c.)*b_w.))/(4*b_f.*b_w. - e.^2)
+  return(y)
+  }
+  
+  # Run model 
+  kolaf = data.frame(x = seq(1,k,.5 ))%>%
+    mutate(growth= growth(x),
+           monop_harvest = monop_harvest(x),
+           monop_harvest_lq = monop_harvest_lq(x),
+           cournot_harvest = cournot_harvest(x),
+           cournot_harvest_lq = cournot_harvest_lq(x),
+           bertrand_harvest = bertrand_harvest(x),
+           bertrand_harvest_lq = composite_bertrand_lq(x),
+           ss_monop = monop_harvest - growth, 
+           ss_monop_lq = monop_harvest_lq - growth, 
+           ss_cournot = cournot_harvest - growth, 
+           ss_cournot_lq = cournot_harvest_lq - growth,
+           ss_bertrand = bertrand_harvest - growth, 
+           ss_bertrand_lq = bertrand_harvest_lq - growth,
+           price_poachers_lq = price_poacher_bertrand_lq(x),
+           price_poachers_bertrand = price_poachers_bertrand(x)) 
+  #Identify steady states  
+  errr= kolaf %>%
+    pivot_longer(-x, 
+                 names_to = 'names', 
+                 values_to = 'values')%>%
+    subset(names %in% c('ss_monop',
+                        'ss_monop_lq',
+                        'ss_cournot',
+                        'ss_cournot_lq',
+                        'ss_bertrand',
+                        'ss_bertrand_lq'))%>%
+    subset(values > -.1)%>%
+    subset(values < .1)
+ 
+  keep_row = data.frame(matrix(nrow = 0, ncol = 4))
+  colnames(keep_row)= c('x', 'names', "values", 'lag_sign')
+
+  for(name in unique(errr$names)){
+    study = errr %>%
+      subset(names == name)%>%
+      mutate(lag_sign = c(0, diff(sign(values))), # Mutate to get sign change and value of steady state change
+             lag_val = c(0, diff(x)))
+    # Define cut vector to scan through each zone : cuts are defined as jumps in x value 
+      cuts_ = which(study$lag_val>5 | study$lag_val < -5) - 1
+      cuts_ = c(0,cuts_, nrow(study))
+    # Use cuts vector to scan through
+      keep = data.frame(matrix(nrow = 0, ncol = 4))
+      colnames(keep) = c('x', 'names', "values", 'lag_sign')
+
+    for(cut in 1:(length(cuts_)-1)){
+      lb_ = cuts_[cut]+1
+      ub_ = cuts_[cut+1]
+    
+      to_check = study[lb_: ub_,]%>%
+        subset(lag_sign !=0)%>%
+        subset(lag_val>0)%>% # Keep only when the lag value is positive : otherwise, it means a change in sequence or type of equilibrium
+        select(-c(lag_val))
+      
+      keep = rbind(keep, to_check)
+    }
+  keep_row = rbind(keep_row, keep)
+  }
+  # Store
+  keep_row = keep_row %>%
+    mutate(row_ =unlist(param['identifier']))
+ return(keep_row)
+}
+
+if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'steady_states.csv'))){
+  # Set up cores
+  numcores = detectCores() - 4
+    # Make clusters
+  cl = makeCluster(numcores)
+    # Load tidyverse : otherwise, pipe operator is not recognized
+  clusterEvalQ(cl,  library(tidyverse))
+    # Start timer
+  start = Sys.time()
+    # Apply function accross nodes with a slice of the data of lenght width
+  storage = parApply(cl, 
+                    new_params_sensitivity,
+                    1,
+                    model_run)
+  print(paste0('Process took : ', Sys.time() - start, ' minutes with ', numcores, ' processors'))
+
+  storage = bind_rows(storage)
+  write.csv(storage, here('data', 'outputs','sensitivity_analysis_lq', 'steady_states.csv'), row.names = F)
+
+}else{
+  storage = read.csv(here('data', 'outputs','sensitivity_analysis_lq', 'steady_states.csv'))
+}
+```
+
+## II. Exploit data
+
+* Define a baseline scenario : in this case, take $W$ as our main specification, and the midpoint for $W_1$ and $W_2$
+
+* Compute the difference in steady state
+
+* Somehow illustrate it
+
+```{r, sensitivity results}
+new_params_sensitivity = new_params_sensitivity%>%
+  rename(row_ = identifier)
+storage = storage %>%
+  mutate(row_ = as.numeric(row_))
+
+exploit_ = merge(storage, new_params_sensitivity, by = 'row_')%>%
+  distinct()%>%
+  mutate(row_ = as.numeric(row_))
+
+if('X.1' %in% colnames(exploit_)){
+  exploit_ = exploit_ %>%
+    select(- X.1)
+}
+
+
+normalizer = exploit_ %>%
+  subset(spec == 'baseline')%>%
+  subset(quantile == '50%')%>%
+  subset(names == 'ss_monop')%>%
+  select(x)%>%
+  pull()
+
+exploit_ = exploit_%>%
+  mutate(normalized_ss = (x-normalizer)/normalizer*100)
+```
+
+```{r, illustration}
+v_color = function(x){
+  if(x %in% c(paste(unique(exploit_$v), -2))){
+    return('Unstable')
+  }else{
+    return(strsplit(x, ' ')[[1]][1])
+  }
+}
+
+palette = c(brewer.pal(8, 'Blues'), paste0('grey',seq(50,90, by = 5)))
+
+check = exploit_ %>%
+  #subset(quantile %in% c('50%'))%>%
+  subset(spec == 'v')%>%
+  subset(names != 'ss_monop')%>%
+  mutate(quantile = as.factor(quantile),
+         names = as.factor(names), 
+         v_stab = paste(round(v,1), 
+                        lag_sign))
+to_lev = c(unique(round(check$v,1)),
+           paste(unique(round(check$v,1)), -2))
+
+check$v_stab = factor(check$v_stab)
+levels(check$v_stab) = to_lev
+
+check%>%
+  ggplot(aes(x = names, 
+           y= normalized_ss, 
+           color = as.factor(v),
+           shape = as.factor(lag_sign)))+
+  geom_point(position = position_dodge(.8), size = 3)+
+  scale_color_manual(values = palette)+
+  scale_shape_manual(values= c(4, 19))+
+  facet_grid(~W1)+
+  scale_x_discrete()+
+  theme_minimal()
+
+# Here : 
+# - Make v_stab2 a factor and make the values fall in relevant order
+# - Color scale with length()/2 +1 (with last one in gray)
+# - Change the labels in the legend
+# - Use guide legend (override.aes) with alpha = 0 for length/2-1 last values
+
+```
+
+
+```{r, bizarre}
+
+
+```
 ### IV. Include profitability
 
 In this section : 
@@ -742,106 +1303,348 @@ In this section :
 
 ```{r, define profitability}
 
-profit = function(x, 
-                  cost_structure,
-                  scenario,
-                  player,
-                  alpha_f. = alpha_f,
-                  alpha_w. = alpha_w,
-                  beta_f. = beta_f,
-                  beta_w. = beta_w,
-                  gamma. = gamma, 
-                  sigma. = sigma, 
-                  c. = c, 
-                  v. = v, 
-                  W1. = W1, 
-                  W2. = W2,
-                  a_f. = a_f,
-                  a_w. = a_w,
-                  b_f. = b_f,
-                  b_w. = b_w,
-                  e. = e){
-  if(scenario %in% c('Bertrand', 'bertrand')){
-    if(cost_structure %in% c('linear quadratic', 'Linear quadratic')){
-     if(player == 'illegal'){
-       return('In Bertrand equilibrium with linear quadratic costs, profit of the illegal sector is XXX')
-     }else if(player == 'aquaculture'){
-       return('In Bertrand equilibrium with linear quadratic costs, profit of the aquaculture sector is XXX')
-     } 
-    }else if(cost_structure %in% c('quadratic', 'Quadratic')){
-    if(player == 'illegal'){
-       return('In Bertrand equilibrium with quadratic costs, profit of the illegal sector is XXX')
-     }else if(player == 'aquaculture'){
-       return('In Bertrand equilibrium with  quadratic costs, profit of the aquaculture sector is XXX')
-     } 
-  }
-  }else if(scenario %in% c('Cournot', 'cournot')){
-    if(cost_structure %in% c('linear quadratic', 'Linear quadratic')){
-      if(player == 'illegal'){
-       return('In Cournot equilibrium with linear quadratic costs, profit of the illegal sector is XXX')
-      }else if(player == 'aquaculture'){
-       return('In Cournot equilibrium with quadratic costs, profit of the aquaculture sector is XXX')
-     } 
-    }else if(cost_structure %in% c('quadratic', 'Quadratic')){
-    if(player == 'illegal'){
-       return('In Bertrand equilibrium with quadratic costs, profit of the illegal sector is XXX')
-     }else if(player == 'aquaculture'){
-       return('In Bertrand equilibrium with quadratic costs, profit of the aquaculture sector is XXX')
-     } 
+profit = function(param){
+  # Variable assignement
+  to_assign = names(param)
+  
+  
+  if('row_' %in% to_assign){
+    to_assign = to_assign[!(to_assign %in% c('X','spec', 'transformation', 'quantile', 'normalized_ss'))]
     }
-  }else if(scenario %in% c('Monopoly', 'monopoly')){
-    if(cost_structure %in% c('linear quadratic', 'Linear quadratic')){
-       return('In the vertical monopoly equilibrium with linear quadratic costs, profit of the illegal sector is XXX')
-     }else if(cost_structure %in% c('quadratic', 'Quadratic')){
-       return('In the vertical monopoly equilibrium with quadratic costs, profit of the illegal sector is XXX')
-     } 
-  }else{
-    return('Scenario, cost structure or player is not well referenced : check the syntax of the function')
+  for(variable in to_assign){
+    if(variable == 'names'){
+      assign(variable,
+             unlist(param[variable]))
+    }else{
+        assign(variable, 
+               as.numeric(unlist(param[variable])))
+    }
   }
+  
+  alpha_w = alpha
+  alpha_f = alpha
+  beta_w = beta
+  beta_f = beta
+  # Demand functions parameters
+  e   = gamma/(beta_w*beta_f - (gamma^2))
+  a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
+  a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
+  b_f = beta_f/(beta_w*beta_f - (gamma^2))
+  b_w = beta_w/(beta_w*beta_f - (gamma^2))
+  
+  W_mid = W
+  
+  if(names == 'ss_monop'){
+    # Redefine harvest
+    monop_harvest = function(x, 
+                             alpha. = alpha, 
+                             c. = c, 
+                             sigma. = sigma, 
+                             beta. = beta, 
+                             W. = W_mid){
+    y = ((alpha. - c.)*sigma.^2 * x^2) / (2*beta.* sigma.^2 * x^2 + 2*W.)
+    return(y)
+    }
+    # Define outputs : 
+      # Poached harvest
+    poached_harvest = monop_harvest(x)
+      # Farmed harvest : 
+    farmed_harvest = NA
+    # Prices paid:
+    price_poachers = (alpha_w - c)*W/(beta*sigma^2*x^2+W)
+    # Profits:
+      # Profit from poaching
+    profit_poaching = (alpha - beta * poached_harvest - c - price_poachers)*poached_harvest
+      # Profit from farming
+    profit_farming = NA
+    profit_fishermen = (price_poachers*sigma*x)^2/(4*W)
+    
+  }else if(names == 'ss_monop_lq'){
+    # Redefine harvest
+    monop_harvest_lq = function(x,
+                                alpha. = alpha, 
+                                c. = c, 
+                                sigma. = sigma, 
+                                beta. = beta,
+                                W1. = W1,
+                                W2. = W2){
+    y = (sigma.^2 * x^2 * (alpha. - c.) - W1.*sigma.*x)/(2*(beta.*sigma.^2 * x^2 + W2.))
+    return(y)
+    }
+    # Harvest:
+    poached_harvest = monop_harvest_lq(x)
+    farmed_harvest = NA
+    # Price : 
+    price_poachers = (W2*(alpha-c)+beta*W1*sigma*x)/(beta*sigma^2*x^2 + W2)
+    # Redefine profit
+    profit_poaching = (alpha - beta*poached_harvest - c - price_poachers)*poached_harvest
+    profit_fishermen = price_poachers * poached_harvest - W1*((price_poachers * sigma * x -W1)/(2*W2)) - W2*((price_poachers * sigma * x - W1)/(2*W2))^2
+    profit_farming = NA
+  }else if(names == 'ss_cournot'){
+    # Redefine harvests and price paid to poachers
+    cournot_harvest = function(x, 
+                               alpha_f. = alpha_f, 
+                               alpha_w. = alpha_w, 
+                               beta_f. = beta_f, 
+                               beta_w. = beta_w, 
+                               gamma. = gamma, 
+                               sigma. = sigma, 
+                               c. = c, 
+                               v. = v, 
+                               W. = W_mid){
+        y = ((sigma.^2)*(x^2)*(2*beta_f.*(alpha_w. - c.) - gamma.*(alpha_f. - v.)))/(4*beta_f.*W. + (sigma.^2)*(x^2)*(4*beta_f.*beta_w. - (gamma.^2)))
+        return(y)
+      }
+    
+    price_poachers_cournot = function(x,
+                                      alpha_f. = alpha_f, 
+                                      alpha_w. = alpha_w, 
+                                      beta_f. = beta_f, 
+                                      beta_w. = beta_w, 
+                                      gamma. = gamma, 
+                                      sigma. = sigma, 
+                                      c. = c, 
+                                      v. = v, 
+                                      W. = W_mid){
+    y = (2*W.*(2*beta_f.*(alpha_w. - c.) - gamma.*(alpha_f. - v.)))/((sigma.^2)*(x^2)*(4*beta_f.*beta_w. - gamma.^2) + 4*beta_f.*W.)
+    return(y)
+    }
+
+    cournot_farmed = function(s, 
+                              alpha_f. = alpha_f, 
+                              alpha_w. = alpha_w, 
+                              beta_f. = beta_f, 
+                              beta_w. = beta_w, 
+                              gamma. = gamma, 
+                              sigma. = sigma, 
+                              c. = c, 
+                              v. = v){
+    y = (2 * beta_w. * (alpha_f. - v.) - gamma.* (alpha_w. - (s + c.)) )/(4*beta_w.*beta_f. - gamma.^2)
+    return(y)
+    }
+    
+    # Results  
+    poached_harvest = cournot_harvest(x)
+    price_poachers = price_poachers_cournot(x)
+    farmed_harvest = cournot_farmed(price_poachers)
+      
+    profit_poaching = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest - c - price_poachers)*poached_harvest
+    profit_farming  = (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest -c - v) * farmed_harvest
+    profit_fishermen = (price_poachers*x*sigma)^2/(4*W)
+    
+  }else if(names == 'ss_cournot_lq'){
+    cournot_harvest_lq = function(x, 
+                                  alpha_f. = alpha_f, 
+                                  alpha_w. = alpha_w, 
+                                  beta_f. = beta_f, 
+                                  beta_w. = beta_w, 
+                                  gamma. = gamma, 
+                                  sigma. = sigma, 
+                                  c. = c, 
+                                  v. = v, 
+                                  W1. = W1, 
+                                  W2. = W2){
+    y = ((2*beta_f. * (alpha_w. - c.) - gamma. * (alpha_w. -v.))*sigma.^2 * x^2 - 2*beta_f.*W1.*sigma.*x)/(4*beta_f.*W2. + (4*beta_f.*beta_w. - gamma.^2)*sigma.^2 * x^2)
+    return(y)
+    }
+    
+    poached_harvest = cournot_harvest_lq(x)
+    price_poachers = (2*W2*(2*beta_f*(alpha_w - c) - gamma*(alpha_f - v)) + W1*sigma*x*(4*beta_f*beta_w - gamma^2))/(4*beta_f*W2 + (4*beta_f*beta_w - gamma^2)*sigma^2*x^2)
+    farmed_harvest = (2*beta_w*(alpha_f - v) - gamma*(alpha_w - price_poachers - c))/(4*beta_w*beta_f - gamma^2)
+    
+    profit_poaching = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest - price_poachers - c)*poached_harvest
+    profit_farming = (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest - v)* farmed_harvest
+    profit_fishermen = price_poachers * poached_harvest - W1*((price_poachers * sigma * x -W1)/(2*W2)) - W2*((price_poachers * sigma * x - W1)/(2*W2))^2
+    
+  }else if(names == 'ss_bertrand'){
+    
+    price_poachers_bertrand = function(x, 
+                                       a_f. = a_f, 
+                                       a_w. = a_w, 
+                                       b_f. = b_f, 
+                                       b_w. = b_w, 
+                                       e.  = e, 
+                                       c. = c, 
+                                       v. = v, 
+                                       sigma. = sigma, 
+                                       W. = W_mid){
+    y = (2*W.*b_w.*( b_f.*(2*a_w. + e.*v.) + c.*((e.^2) - 2*b_f.*b_w.) + e.*a_f.))/((sigma.^2)*(x^2)*(4*b_f.*b_w. - (e.^2)) + 2*W.*b_w.*(2*b_w.*b_f. - (e.^2)))
+    return(y)
+    }
+
+    bertrand_harvest = function(x,
+                                sigma. = sigma, 
+                                a_f. = a_f, 
+                                a_w. = a_w, 
+                                b_f. = b_f, 
+                                b_w. = b_w, 
+                                e. = e, 
+                                v. = v, 
+                                c. = c, 
+                                W. = W_mid){
+    y = ((sigma.^2)*(x^2)*b_w.*(b_f.*(2*a_w.+e.*v.) + c.*((e.^2)- 2*b_f.*b_w.) + e.*a_f.))/((sigma.^2)*(x^2)*(4*b_w.*b_f. - (e.^2)) + 2*W.*b_w.*(2*b_f.*b_w. - (e.^2)))
+    return(y)
+    }
+    bertrand_farmed = function(s, 
+                               a_f. = a_f, 
+                               a_w. = a_w, 
+                               b_f. = b_f, 
+                               b_w. = b_w, 
+                               e. = e, 
+                               c. = c, 
+                               v. = v){
+    y = b_f. *(2*b_w.*a_f. + v.*(e.^2 - 2*b_w.*b_f.) + e.*(a_w. + (s+c.)*b_w.))/(4*b_f.*b_w. - e.^2)
+    return(y)
+    }
+    
+    poached_harvest = bertrand_harvest(x)
+    price_poachers = price_poachers_bertrand(x)
+    farmed_harvest = bertrand_farmed(price_poachers)
+
+    profit_fishermen = (price_poachers*x*sigma)^2/(4*W)
+    profit_poaching = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest - c - price_poachers) * poached_harvest
+    profit_farming = (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest - v)*farmed_harvest
+    
+  }else if(names == 'ss_bertrand_lq'){
+    price_poacher_bertrand_lq = function(x,
+                                         sigma. = sigma, 
+                                         a_f. = a_f, 
+                                         a_w. = a_w, 
+                                         b_f. = b_f, 
+                                         b_w. = b_w, 
+                                         e. = e, 
+                                         v. = v, 
+                                         c. = c, 
+                                         W1. = W1, 
+                                         W2. = W2){
+    y = 2*b_w.*W2.*((2*a_w. + e.*v.)*b_f. + e.*a_f. + c.*(e.^2 - b_f.*b_w.)) + W1.*sigma.*x*(4*b_f.*b_w. - e.^2)
+    z = sigma.^2 * x^2 * (4*b_w.*b_f. - e.^2) + 4*b_w.*W2.*(2*b_f.*b_w - e.^2)
+    result = y/z
+    return(result)
+    }
+
+    composite_bertrand_lq = function(x,
+                                     sigma. = sigma, 
+                                     a_f. = a_f, 
+                                     a_w. = a_w, 
+                                     b_f. = b_f, 
+                                     b_w. = b_w, 
+                                     e. = e, 
+                                     v. = v, 
+                                     c. = c, 
+                                     W1. = W1, 
+                                     W2. = W2){
+    y = b_w. * ((2*a_w. +e.*v.)*b_f. + e.*a_f. + (price_poacher_bertrand_lq(x)+c.)*(e.^2 - 2*b_w.*b_f))/(4*b_f.*b_w. - e.^2)
+    return(y)
+    }
+    
+    price_poachers = price_poacher_bertrand_lq(x)
+    poached_harvest = composite_bertrand_lq(price_poachers)
+    farmed_harvest = b_f*(b_w*(2*a_f + e*(price_poachers + c)) + e*a_w + v*(e^2 - 2*b_w*b_f))/(4*b_f*b_w - e^2)
+    
+    profit_poaching = (alpha_w - beta_w * poached_harvest + gamma*farmed_harvest - price_poachers - c)*poached_harvest
+    profit_farming = (alpha_f - beta_f * farmed_harvest + gamma * poached_harvest -v)*farmed_harvest
+    profit_fishermen = price_poachers * poached_harvest - W1*((price_poachers * sigma * x -W1)/(2*W2)) - W2*((price_poachers * sigma * x - W1)/(2*W2))^2
+  }
+  
+  result = data.frame(row_, names, poached_harvest, farmed_harvest, price_poachers, profit_poaching, profit_farming, profit_fishermen, lag_sign)
+  rownames(result) = NULL
+  #result = t(as.data.frame(result))
+  colnames(result) = c('row_', 'name','poached_harvest', 'farmed_harvest', 'price_poachers', 'profit_poaching', 'profit_farming', 'profit_fishermen','stability')
+  return(result)
+}
+ 
+profit(exploit_[4,])
+if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'profitability.csv'))){
+  # Set up cores
+  numcores = detectCores() - 4
+    # Make clusters
+  cl = makeCluster(numcores)
+    # Load tidyverse : otherwise, pipe operator is not recognized
+  clusterEvalQ(cl,  library(tidyverse))
+    # Start timer
+  start = Sys.time()
+    # Apply function accross nodes with a slice of the data of lenght width
+  storage = parApply(cl, 
+                    exploit_,
+                    1,
+                    profit)
+  print(paste0('Process took : ', Sys.time() - start, ' minutes with ', numcores, ' processors'))
+
+  storage = bind_rows(storage)
+  write.csv(storage, here('data', 'outputs','sensitivity_analysis_lq', 'profitability.csv'), row.names = F)
+
+}else{
+  storage = read.csv(here('data', 'outputs','sensitivity_analysis_lq', 'profitability.csv'))
 }
 
+```
 
+With profitability done, in the following I :
+
+1. Compute the aggregate profit : **DONE**
+
+2. Compute the cost of policy : based on our baseline estimates, I use the difference with values in the sensitivity analysis, where this is to be taken as a **scenario analysis** instead. I get the per unit cost of policies (subsidies and transaction costs for the traders) - *need to match with existing data and do the computation of unit cost*
+
+3. Compute the variation for each profit and policy costs, along each scenario
+
+```{r, profitability computation}
+
+storage[is.na(storage)] = 0
+storage_stable = storage %>%
+  subset(stability > 0)%>% # only consider stable equilibria
+  mutate(ag_profit = profit_poaching + profit_farming + profit_fishermen)
+
+# Normalize
+baseline_profit_monop = storage %>%
+  subset(name == 'ss_monop')%>%
+  subset(row_ == 1)%>%
+  select(profit_poaching)%>%
+  pull()
+
+baseline_profit_fishermen = storage %>%
+  subset(name == 'ss_monop')%>%
+  subset(row_ == 1)%>%
+  select(profit_fishermen)%>%
+  pull()
+
+baseline_profit_farming = storage %>%
+  subset(name == 'ss_monop')%>%
+  subset(row_ == 1)%>%
+  select(profit_farming)%>%
+  pull()
+
+baseline_ag_profit = storage_stable %>%
+  subset(row_ == 1)%>%
+  subset(name == 'ss_monop')%>%
+  select(ag_profit)%>%
+  pull()
+
+# Issue with Pi_farming = 0 in baseline scenario
+#storage_stable = storage_stable%>%
+#  mutate(ag_profit_rate = (ag_profit - baseline_ag_profit)/ baseline_ag_profit,
+#         profit_poaching_rate = (profit_poaching - baseline_profit_monop)/baseline_profit_monop,
+#         profit_fishermen_rate = (profit_fishermen) )
+
+# Go with absolute variation : 
+storage_stable = storage_stable %>%
+  mutate(ag_profit_diff = ag_profit - baseline_ag_profit, 
+         profit_farming_diff = profit_farming - baseline_profit_farming, 
+         profit_poaching_diff = profit_farming_diff - baseline_profit_monop,
+         profit_fishermen_diff = profit_fishermen - baseline_profit_fishermen)
+```
+# To do
+
+* Re-run sensitivity analysis and make sure the saving of the data is right : **DONE**
+
+* Finalize the `profit(...)` function and architecture: take the steady-state value only : **DONE**
+
+* Think of ways to visualize both outputs e.g. the population stock and the profitability. 
+
+# Annexes : debugging
+```{r, dev}
 
 ```
 
 
-#Run sensitivity analysis for linear quadratic model
-
-In this section : 
-
-* Define the scenarios to run sensitivity analysis on: use the sensitivity table used previously and interpolate with `W_lq`
-
-* Run all the analysis
-
-* Identify the parameter spaces for which the targets of (i) improving stock and (ii) maintaining profitability are **met** or not
-
-```{r, sensitivity analysis}
-rm(dat_,
-   result1)
-
-params_sensitivity = read.csv(here('data', 'inputs', 'params_sensitivity.csv'))
-
-new_params_sensitivity = data.frame(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
-colnames(new_params_sensitivity) = c(colnames(params_sensitivity), 'W1', 'W2', 'quantile')
-
-for(row in 1:nrow(params_sensitivity)){
-  W = params_sensitivity[row, 'W']
-  cost = 2*max_E*W
-  W1 = quantile(seq(0, cost), probs = seq(0,1,.1))
-  W2 = rev(quantile((cost - W1)/(2*max_E), probs = seq(0,1,.1)))
-  
-  to_append = data.frame(W, W1, W2)
-  
-  to_append = to_append %>% 
-    mutate(quantile = rownames(to_append))%>%
-    select(-W)
-  rownames(to_append) = NULL
-  
-  a = cbind(params_sensitivity[rep(row, nrow(to_append)),], to_append)
-  
-  new_params_sensitivity = rbind(new_params_sensitivity, a)
-}
-
-write.csv(new_params_sensitivity, here('data', 'inputs', 'params_sensitivity_lq.csv'))
-```
 
