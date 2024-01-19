@@ -504,7 +504,7 @@ W_mid    = W_lq[21,4]
 W1       = W_lq[21,2]
 W2       = W_lq[21,3]
 quantile = W_lq[21,5]
-  
+
 result1 = data.frame(x = seq(1,k,.5 ))%>%
   mutate(growth= growth(x),
          monop_harvest = monop_harvest(x),
@@ -903,11 +903,12 @@ print(paste0("There are ", nrow(new_params_sensitivity), " combinations" ))
 ## II. Run sensitivity analysis
 
 ```{r, sensitivity}
-model_run = function(param){
+model_run = function(param,
+                     tol = 1){
   # Variable assignment
   to_assign = names(param)
   if('X' %in% to_assign){
-    to_assign = to_assign[!(to_assign %in% c('X','spec', 'transformation', 'quantile', 'identifier'))]
+    to_assign = to_assign[!(to_assign %in% c('X','spec', 'transformation', 'quantile'))]
     }
   for(variable in to_assign){
         assign(variable, 
@@ -1145,8 +1146,8 @@ model_run = function(param){
                         'ss_cournot_lq',
                         'ss_bertrand',
                         'ss_bertrand_lq'))%>%
-    subset(values > -.1)%>%
-    subset(values < .1)
+    subset(values > -tol)%>%
+    subset(values < tol)
  
   keep_row = data.frame(matrix(nrow = 0, ncol = 4))
   colnames(keep_row)= c('x', 'names', "values", 'lag_sign')
@@ -1184,7 +1185,7 @@ model_run = function(param){
 
 if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'steady_states.csv'))){
   # Set up cores
-  numcores = detectCores() - 4
+  numcores = detectCores() - 2
     # Make clusters
   cl = makeCluster(numcores)
     # Load tidyverse : otherwise, pipe operator is not recognized
@@ -1203,6 +1204,7 @@ if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'steady_state
 
 }else{
   storage = read.csv(here('data', 'outputs','sensitivity_analysis_lq', 'steady_states.csv'))
+  print('Loading results')
 }
 ```
 
@@ -1259,7 +1261,8 @@ check = exploit_ %>%
   mutate(quantile = as.factor(quantile),
          names = as.factor(names), 
          v_stab = paste(round(v,1), 
-                        lag_sign))
+                        lag_sign),
+         labels_W = paste('W1: ', round(W1,2), ' and W2: ', round(W2,2)))
 to_lev = c(unique(round(check$v,1)),
            paste(unique(round(check$v,1)), -2))
 
@@ -1274,7 +1277,7 @@ check%>%
   geom_point(position = position_dodge(.8), size = 3)+
   scale_color_manual(values = palette)+
   scale_shape_manual(values= c(4, 19))+
-  facet_grid(~W1)+
+  facet_grid(~labels_W)+
   scale_x_discrete()+
   theme_minimal()
 
@@ -1282,14 +1285,58 @@ check%>%
 # - Make v_stab2 a factor and make the values fall in relevant order
 # - Color scale with length()/2 +1 (with last one in gray)
 # - Change the labels in the legend
-# - Use guide legend (override.aes) with alpha = 0 for length/2-1 last values
-
+# - Use guide legend (override.aes) with alpha = 0 for length/2-1 last value
 ```
 
 
-```{r, bizarre}
+```{r, graph exploration}
+unique(exploit_$spec)
+store_cv = data.frame(matrix(nrow = 0, ncol = length(exploit_)))
+colnames(store_cv) = colnames(exploit_)
+names__ = unique(exploit_$names)
+for(x in c('0%','20%','50%', '70%', '100%')){
+  zebi = x
+  
+  z_min = exploit_ %>%
+    subset(spec == 'c and v') %>%
+    subset(quantile == zebi) %>%
+    subset(lag_sign > 0)%>%
+    group_by(row_, names)%>%
+    summarize(min_outcome = min(normalized_ss))
+  
+  z = exploit_ %>%
+  subset(spec == 'c and v') %>%
+  subset(quantile == zebi) %>%
+  subset(lag_sign > 0)%>%
+  inner_join(z_min, by = c('row_', 'names'))%>%
+  filter(normalized_ss == min_outcome)
+  
+  store_cv = rbind(store_cv, z)
+}
 
 
+min(z$normalized_ss)
+
+store_cv%>%
+  subset(quantile %in% c('0%','50%', '100%'))%>%
+  ggplot(aes(x=c, y = v, fill = normalized_ss))+
+  geom_tile()+
+  facet_grid()+
+  #scale_fill_gradient2(low = 'navyblue', 
+  #                     high = 'gold', 
+  #                     mid = 'white',
+  #                     midpoint = 0, 
+  #                     limit = c(-99,7))+
+  theme_minimal()+
+  facet_grid(cols = vars(names), rows = vars(quantile))
+
+store_cv %>%
+  subset(quantile %in% c('0%', '50%', '100%'))%>%
+  ggplot(aes( x = as.factor(c), 
+              y = as.factor(v), 
+              color = normalized_ss))+
+  geom_point()+
+  facet_grid(cols = vars(names), rows = vars(quantile))
 ```
 ### IV. Include profitability
 
@@ -1302,7 +1349,6 @@ In this section :
 * Compare with baseline scenario
 
 ```{r, define profitability}
-
 profit = function(param){
   # Variable assignement
   to_assign = names(param)
@@ -1349,14 +1395,14 @@ profit = function(param){
       # Poached harvest
     poached_harvest = monop_harvest(x)
       # Farmed harvest : 
-    farmed_harvest = NA
+    farmed_harvest = 0
     # Prices paid:
     price_poachers = (alpha_w - c)*W/(beta*sigma^2*x^2+W)
     # Profits:
       # Profit from poaching
     profit_poaching = (alpha - beta * poached_harvest - c - price_poachers)*poached_harvest
       # Profit from farming
-    profit_farming = NA
+    profit_farming = 0
     profit_fishermen = (price_poachers*sigma*x)^2/(4*W)
     
   }else if(names == 'ss_monop_lq'){
@@ -1373,13 +1419,13 @@ profit = function(param){
     }
     # Harvest:
     poached_harvest = monop_harvest_lq(x)
-    farmed_harvest = NA
+    farmed_harvest = 0
     # Price : 
     price_poachers = (W2*(alpha-c)+beta*W1*sigma*x)/(beta*sigma^2*x^2 + W2)
     # Redefine profit
     profit_poaching = (alpha - beta*poached_harvest - c - price_poachers)*poached_harvest
     profit_fishermen = price_poachers * poached_harvest - W1*((price_poachers * sigma * x -W1)/(2*W2)) - W2*((price_poachers * sigma * x - W1)/(2*W2))^2
-    profit_farming = NA
+    profit_farming = 0
   }else if(names == 'ss_cournot'){
     # Redefine harvests and price paid to poachers
     cournot_harvest = function(x, 
@@ -1453,7 +1499,7 @@ profit = function(param){
     farmed_harvest = (2*beta_w*(alpha_f - v) - gamma*(alpha_w - price_poachers - c))/(4*beta_w*beta_f - gamma^2)
     
     profit_poaching = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest - price_poachers - c)*poached_harvest
-    profit_farming = (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest - v)* farmed_harvest
+    profit_farming =  (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest - v)* farmed_harvest
     profit_fishermen = price_poachers * poached_harvest - W1*((price_poachers * sigma * x -W1)/(2*W2)) - W2*((price_poachers * sigma * x - W1)/(2*W2))^2
     
   }else if(names == 'ss_bertrand'){
@@ -1542,22 +1588,22 @@ profit = function(param){
     poached_harvest = composite_bertrand_lq(price_poachers)
     farmed_harvest = b_f*(b_w*(2*a_f + e*(price_poachers + c)) + e*a_w + v*(e^2 - 2*b_w*b_f))/(4*b_f*b_w - e^2)
     
-    profit_poaching = (alpha_w - beta_w * poached_harvest + gamma*farmed_harvest - price_poachers - c)*poached_harvest
-    profit_farming = (alpha_f - beta_f * farmed_harvest + gamma * poached_harvest -v)*farmed_harvest
+    profit_poaching = (alpha_w - beta_w * poached_harvest - gamma*farmed_harvest - price_poachers - c)*poached_harvest
+    profit_farming = (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest -v)*farmed_harvest
     profit_fishermen = price_poachers * poached_harvest - W1*((price_poachers * sigma * x -W1)/(2*W2)) - W2*((price_poachers * sigma * x - W1)/(2*W2))^2
   }
   
   result = data.frame(row_, names, poached_harvest, farmed_harvest, price_poachers, profit_poaching, profit_farming, profit_fishermen, lag_sign)
   rownames(result) = NULL
   #result = t(as.data.frame(result))
-  colnames(result) = c('row_', 'name','poached_harvest', 'farmed_harvest', 'price_poachers', 'profit_poaching', 'profit_farming', 'profit_fishermen','stability')
+  colnames(result) = c('row_', 'names','poached_harvest', 'farmed_harvest', 'price_poachers', 'profit_poaching', 'profit_farming', 'profit_fishermen','stability')
   return(result)
 }
  
 profit(exploit_[4,])
 if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'profitability.csv'))){
   # Set up cores
-  numcores = detectCores() - 4
+  numcores = detectCores() - 12
     # Make clusters
   cl = makeCluster(numcores)
     # Load tidyverse : otherwise, pipe operator is not recognized
@@ -1576,6 +1622,7 @@ if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'profitabilit
 
 }else{
   storage = read.csv(here('data', 'outputs','sensitivity_analysis_lq', 'profitability.csv'))
+  print('Loading profit data')
 }
 
 ```
@@ -1590,35 +1637,39 @@ With profitability done, in the following I :
 
 ```{r, profitability computation}
 
-storage[is.na(storage)] = 0
-storage_stable = storage %>%
-  subset(stability > 0)%>% # only consider stable equilibria
+if(file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'bioeconomic_performance.csv'))){
+  storage_total = cbind(storage,
+                      exploit_ %>%
+                        select(-c('row_',
+                                  'names',
+                                  'lag_sign',
+                                  'X')))%>%
   mutate(ag_profit = profit_poaching + profit_farming + profit_fishermen)
 
 # Normalize
-baseline_profit_monop = storage %>%
-  subset(name == 'ss_monop')%>%
-  subset(row_ == 1)%>%
-  select(profit_poaching)%>%
-  pull()
+  baseline_profit_monop = storage %>%
+    subset(names == 'ss_monop')%>%
+    subset(row_ == 1)%>%
+    select(profit_poaching)%>%
+    pull()
 
-baseline_profit_fishermen = storage %>%
-  subset(name == 'ss_monop')%>%
-  subset(row_ == 1)%>%
-  select(profit_fishermen)%>%
-  pull()
+  baseline_profit_fishermen = storage %>%
+    subset(names == 'ss_monop')%>%
+    subset(row_ == 1)%>%
+    select(profit_fishermen)%>%
+    pull()
 
-baseline_profit_farming = storage %>%
-  subset(name == 'ss_monop')%>%
-  subset(row_ == 1)%>%
-  select(profit_farming)%>%
-  pull()
+  baseline_profit_farming = storage %>%
+    subset(names == 'ss_monop')%>%
+    subset(row_ == 1)%>%
+    select(profit_farming)%>%
+    pull()
 
-baseline_ag_profit = storage_stable %>%
-  subset(row_ == 1)%>%
-  subset(name == 'ss_monop')%>%
-  select(ag_profit)%>%
-  pull()
+  baseline_ag_profit = storage_total %>%
+    subset(row_ == 1)%>%
+    subset(names == 'ss_monop')%>%
+    select(ag_profit)%>%
+    pull()
 
 # Issue with Pi_farming = 0 in baseline scenario
 #storage_stable = storage_stable%>%
@@ -1627,11 +1678,80 @@ baseline_ag_profit = storage_stable %>%
 #         profit_fishermen_rate = (profit_fishermen) )
 
 # Go with absolute variation : 
-storage_stable = storage_stable %>%
-  mutate(ag_profit_diff = ag_profit - baseline_ag_profit, 
-         profit_farming_diff = profit_farming - baseline_profit_farming, 
-         profit_poaching_diff = profit_farming_diff - baseline_profit_monop,
-         profit_fishermen_diff = profit_fishermen - baseline_profit_fishermen)
+  storage_total = storage_total %>%
+    mutate(ag_profit_diff = ag_profit - baseline_ag_profit, 
+           profit_farming_diff = profit_farming - baseline_profit_farming, 
+           profit_poaching_diff = profit_farming_diff - baseline_profit_monop,
+           profit_fishermen_diff = profit_fishermen - baseline_profit_fishermen)
+
+# Extract baseline scenario
+  v_baseline = storage_total %>%
+    subset(spec == 'baseline')%>%
+    select(v)%>%
+    pull()%>%
+    unique()
+
+  c_baseline = storage_total%>%
+    subset(spec== 'baseline') %>%
+    select(c)%>%
+    pull()%>%
+    unique()
+
+  policy_cost = function(row,
+                         v_baseline. = v_baseline,
+                         c_baseline. = c_baseline){
+    if(row['spec'] == 'c'){
+      policy_cost = (row['c'] - c_baseline.)*row['poached_harvest']
+    }else if(row['spec'] == 'v'){
+      policy_cost = (v_baseline. - row['v'])*row['farmed_harvest']
+    }else if(row['spec'] == 'c and v'){
+      policy_cost = (v_baseline. - row['v'])*row['farmed_harvest'] + (row['c'] - c_baseline.)*row['poached_harvest']
+    }else{
+      policy_cost = 0
+    }
+    return(policy_cost)
+  }
+
+
+  to_treat = which(storage_total['spec'] == 'c')
+  to_treat2 = which(storage_total['spec'] == 'v')
+  to_treat3 = which(storage_total['spec'] == 'c and v')
+  to_treat = unique(c(to_treat, to_treat2, to_treat3))
+
+
+  storage_total['policy_cost'] = 0
+
+
+  for(x in 1:length(to_treat)){
+    storage_total[x, 'policy_cost'] = policy_cost(storage_total[x,])
+    }
+
+  rm(to_treat)
+
+  storage_total['ag_net_benefit'] = storage_total['ag_profit'] - storage_total['policy_cost']
+
+  baseline_net_benefit = storage_total %>%
+    subset(row_ == 1)%>%
+    subset(names == 'ss_monop')%>%
+    select(ag_net_benefit)%>%
+    pull()
+
+  storage_total['variation_ag_net_benefit'] = (storage_total['ag_net_benefit'] - baseline_net_benefit)/baseline_net_benefit*100
+
+  storage_stable = storage_total %>%
+    subset(stability>0)
+  write.csv(storage_stable, here('data','outputs', 'sensitivity_analysis_lq', 'bioeconomic_performance.csv'), row.names = F)
+
+}else{
+  storage_stable = read.csv(here('data','outputs', 'sensitivity_analysis_lq', 'bioeconomic_performance.csv'))
+  print('Loading bioeconomic performance data')
+  a = storage_stable %>% 
+    subset(row_==1)
+  kable(a)
+}
+
+
+
 ```
 # To do
 
