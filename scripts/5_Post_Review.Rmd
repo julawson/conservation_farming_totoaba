@@ -24,7 +24,7 @@ if(!(c('Fishlife')  %in% installed.packages())){
   devtools::install_github("james-thorson/FishLife")
 }
 if(!(c('tinytable') %in% installed.packages())){
-  install_github("vincentarelbundock/tinytable")
+  devtools::install_github("vincentarelbundock/tinytable")
 }
 
 library(tinytable)
