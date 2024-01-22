@@ -6,7 +6,8 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F)
+knitr::opts_chunk$set(echo = F, 
+                      warning = F)
 options(scipen=999)
 
 rm(list = ls())
@@ -19,13 +20,18 @@ library(stargazer)
 library(parallel)
 library(RColorBrewer)
 
-if(!('Fishlife' %in% installed.packages())){
+if(!(c('Fishlife')  %in% installed.packages())){
   devtools::install_github("james-thorson/FishLife")
 }
+if(!(c('tinytable') %in% installed.packages())){
+  install_github("vincentarelbundock/tinytable")
+}
+
+library(tinytable)
 library(FishLife)
 library(kableExtra)
 
-Latex =T
+Latex = T
 font_ = 'Helvetica'
 color_growth = 'black'
 color_vertical_monopoly = 'firebrick'
@@ -701,6 +707,7 @@ dat_%>%
         legend.title = element_text(family = font_))
 ```
 
+Clearly, the choice of $W_1$ and $W_2$ is important with respect to the anticipated equilibrium in the *vertical monopoly* case : with a linear-quadratic cost function, we no longer can say the monopoly will achieve a *healthy* steady state population. The results in the **post intervention** world are robust to the cost specification, and guarantee population increases in the *quantity adjustment* scenario, while population may marginally diminish in the *price setting* scenario. 
 
 ```{r, Equilibria}
 # Rename:
@@ -1208,7 +1215,7 @@ if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'steady_state
 }
 ```
 
-## II. Exploit data
+## III. Exploit data
 
 * Define a baseline scenario : in this case, take $W$ as our main specification, and the midpoint for $W_1$ and $W_2$
 
@@ -1242,6 +1249,8 @@ normalizer = exploit_ %>%
 exploit_ = exploit_%>%
   mutate(normalized_ss = (x-normalizer)/normalizer*100)
 ```
+
+How equilibria evolve with varying farming costs ($v$) and with varying cost splits in the LQ case : 
 
 ```{r, illustration}
 v_color = function(x){
@@ -1279,7 +1288,10 @@ check%>%
   scale_shape_manual(values= c(4, 19))+
   facet_grid(~labels_W)+
   scale_x_discrete()+
-  theme_minimal()
+  theme_minimal()+
+  theme(axis.text.x = element_text(family = font_, 
+                                   angle = 45, 
+                                   hjust = .75))
 
 # Here : 
 # - Make v_stab2 a factor and make the values fall in relevant order
@@ -1314,30 +1326,28 @@ for(x in c('0%','20%','50%', '70%', '100%')){
   store_cv = rbind(store_cv, z)
 }
 
-
-min(z$normalized_ss)
-
-store_cv%>%
-  subset(quantile %in% c('0%','50%', '100%'))%>%
-  ggplot(aes(x=c, y = v, fill = normalized_ss))+
-  geom_tile()+
-  facet_grid()+
+#store_cv%>%
+#  subset(quantile %in% c('0%','50%', '100%'))%>%
+#  ggplot(aes(x=c, y = v, fill = normalized_ss))+
+#  geom_tile()+
+#  facet_grid()+
   #scale_fill_gradient2(low = 'navyblue', 
   #                     high = 'gold', 
   #                     mid = 'white',
   #                     midpoint = 0, 
   #                     limit = c(-99,7))+
-  theme_minimal()+
-  facet_grid(cols = vars(names), rows = vars(quantile))
+#  theme_minimal()+
+#  facet_grid(cols = vars(names), rows = vars(quantile))
 
-store_cv %>%
-  subset(quantile %in% c('0%', '50%', '100%'))%>%
-  ggplot(aes( x = as.factor(c), 
-              y = as.factor(v), 
-              color = normalized_ss))+
-  geom_point()+
-  facet_grid(cols = vars(names), rows = vars(quantile))
+#store_cv %>%
+#  subset(quantile %in% c('0%', '50%', '100%'))%>%
+#  ggplot(aes( x = as.factor(c), 
+#              y = as.factor(v), 
+#              color = normalized_ss))+
+#  geom_point()+
+#  facet_grid(cols = vars(names), rows = vars(quantile))
 ```
+
 ### IV. Include profitability
 
 In this section : 
@@ -1475,7 +1485,7 @@ profit = function(param){
     farmed_harvest = cournot_farmed(price_poachers)
       
     profit_poaching = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest - c - price_poachers)*poached_harvest
-    profit_farming  = (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest -c - v) * farmed_harvest
+    profit_farming  = (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest - v) * farmed_harvest
     profit_fishermen = (price_poachers*x*sigma)^2/(4*W)
     
   }else if(names == 'ss_cournot_lq'){
@@ -1600,10 +1610,9 @@ profit = function(param){
   return(result)
 }
  
-profit(exploit_[4,])
 if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'profitability.csv'))){
   # Set up cores
-  numcores = detectCores() - 12
+  numcores = detectCores() - 4
     # Make clusters
   cl = makeCluster(numcores)
     # Load tidyverse : otherwise, pipe operator is not recognized
@@ -1631,13 +1640,13 @@ With profitability done, in the following I :
 
 1. Compute the aggregate profit : **DONE**
 
-2. Compute the cost of policy : based on our baseline estimates, I use the difference with values in the sensitivity analysis, where this is to be taken as a **scenario analysis** instead. I get the per unit cost of policies (subsidies and transaction costs for the traders) - *need to match with existing data and do the computation of unit cost*
+2. Compute the cost of policy : based on our baseline estimates, I use the difference with values in the sensitivity analysis, where this is to be taken as a **scenario analysis** instead. I get the per unit cost of policies (subsidies and transaction costs for the traders) : **DONE**
 
-3. Compute the variation for each profit and policy costs, along each scenario
+3. Compute the variation for each profit and policy costs, along each scenario : **DONE**
 
 ```{r, profitability computation}
 
-if(file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'bioeconomic_performance.csv'))){
+if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'bioeconomic_performance.csv'))){
   storage_total = cbind(storage,
                       exploit_ %>%
                         select(-c('row_',
@@ -1681,7 +1690,7 @@ if(file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'bioeconomic_p
   storage_total = storage_total %>%
     mutate(ag_profit_diff = ag_profit - baseline_ag_profit, 
            profit_farming_diff = profit_farming - baseline_profit_farming, 
-           profit_poaching_diff = profit_farming_diff - baseline_profit_monop,
+           profit_poaching_diff = profit_poaching - baseline_profit_monop,
            profit_fishermen_diff = profit_fishermen - baseline_profit_fishermen)
 
 # Extract baseline scenario
@@ -1737,6 +1746,14 @@ if(file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'bioeconomic_p
     pull()
 
   storage_total['variation_ag_net_benefit'] = (storage_total['ag_net_benefit'] - baseline_net_benefit)/baseline_net_benefit*100
+  
+  baseline_poaching = storage_total %>%
+    subset(row_ == 1)%>%
+    subset(names == 'ss_monop')%>%
+    select(poached_harvest)%>%
+    pull()
+  
+  storage_total['variation_poaching'] = (storage_total['poached_harvest'] - baseline_poaching)/baseline_poaching*100
 
   storage_stable = storage_total %>%
     subset(stability>0)
@@ -1745,14 +1762,73 @@ if(file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'bioeconomic_p
 }else{
   storage_stable = read.csv(here('data','outputs', 'sensitivity_analysis_lq', 'bioeconomic_performance.csv'))
   print('Loading bioeconomic performance data')
-  a = storage_stable %>% 
-    subset(row_==1)
-  kable(a)
+ 
 }
 
-
-
 ```
+
+The overall outcome for the model  : 
+```{r, dev}
+# Subset data to display : here spec is baseline
+a = storage_stable %>% 
+    subset(spec=='baseline')%>%
+    select(-c('stability', 'values','gamma', 'W', 'r', 
+            'k','values', 'beta', 'alpha','sigma', 'c', 'v', # can keep transformation or other variables if other dimensions need to be checker for sensitivity
+            'policy_cost', 'transformation', 'row_'))
+
+
+renamer= function(x){
+  if(x %in% c('ss_monop', 'ss_monop_lq')){
+    rep = 'Vertical Monopoly'
+  }else if(x %in% c('ss_cournot', 'ss_cournot_lq')){
+    rep = 'Quantity adjustment'
+  }else if(x %in% c('ss_bertrand', 'ss_bertrand_lq')){
+    rep  = 'Price setting'
+  }else if(x %in% c('growth')){
+    rep = 'Growth'
+  }
+  if(length(strsplit(x,'_')[[1]])>2){
+    rep = paste0(as.character(rep), ' - LQ cost')
+  }
+  return(rep)
+}
+
+a['names']= sapply(a$names, renamer)
+
+a%>%
+  subset(quantile == '50%')%>% # Can check other quantiles
+  select(-c('spec','W1','W2', 'quantile', 'ag_net_benefit'))%>%
+  relocate(x, .after = farmed_harvest)%>%
+  relocate(normalized_ss, .after = profit_fishermen_diff)%>%
+  relocate(variation_poaching, .after = normalized_ss)%>%
+  mutate(normalized_ss = paste0(round(normalized_ss, 2), '%'), 
+         variation_ag_net_benefit = paste0(round(variation_ag_net_benefit,2), '%'), 
+         variation_poaching = paste0(round(variation_poaching,2), '%'))%>%
+  rename('Scenario' = names, 
+         'Steady state population' = x,
+         'Poached harvest' = poached_harvest,
+         'Farmed harvest' = farmed_harvest,
+         'Variation in ss. pop.' = normalized_ss,
+         'Price  paid to poacher' = price_poachers,
+         'Illegal profit'= profit_poaching,
+         'Farming profit' = profit_farming, 
+         'Fishing profit' = profit_fishermen,
+         "Aggregate profit" = ag_profit,
+         'Farming profit change' = profit_farming_diff,
+         'Aggregate profit change' = ag_profit_diff, 
+         'Fishing profit change' = profit_fishermen_diff,
+         'Illegal profit change' = profit_poaching_diff,
+         'Aggregate profit change (%)' = variation_ag_net_benefit, 
+         'Poaching change (%)' = variation_poaching)%>%
+  tt(caption = 'Bioeconomic performance - with median LQ cost specification')%>%
+  style_tt(j = 1, background = '#eae4e4')%>%
+  style_tt(j= 2:4, background = '#cfe2f3')%>%
+  style_tt(j =5:9, background = '#d5f8c8' )%>%
+  style_tt(j = 14:16, background = '#f4cccc')%>%
+  style_tt(i = 0,  background = '#eae4e4')%>%
+  style_tt(j = 1, bold = T)
+```
+
 # To do
 
 * Re-run sensitivity analysis and make sure the saving of the data is right : **DONE**
@@ -1761,10 +1837,5 @@ if(file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'bioeconomic_p
 
 * Think of ways to visualize both outputs e.g. the population stock and the profitability. 
 
-# Annexes : debugging
-```{r, dev}
-
-```
-
-
+* Depending on how we feel about the demand assumptions we can maybe include an estimation of the consumer surplus (easy with linear demand scheme), but that may trigger economists.
 
