@@ -48,6 +48,22 @@ Load data from the Google Drive folder, and store :
 
 * `steady_states.csv`, `profitability.csv` and `bioeconomic_performance.csv` in a dedicated folder : `data\outputs\sensitivity_analysis_lq\`
 
+This first code chunk creates the folder if needed, and checks if data is at the right place. 
+
+```{r, architecture}
+if(!dir.exists(here('data', 'outputs', 'sensitivity_analysis_lq'))){
+  dir.create(here('data','outputs', 'sensitivity_analysis_lq'))
+  print('Folder created as data/outputs/sensitivity_analysis_lq :')
+}
+
+if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'steady_states.csv'))){
+  print('Please put steady_states.csv, profitability.csv and bioeconomic_performances.csv in folder')
+}else{
+  print('Architecture and data are up to date')
+}
+
+```
+
 ## I. Recover W
 ### A. Load data
 Use the same data as in `1_Parameters.rmd`.
