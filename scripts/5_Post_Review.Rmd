@@ -42,6 +42,12 @@ palette_ = c(color_growth, color_vertical_monopoly, color_bertrand, color_courno
 
 # Model with linear quadratic costs
 
+Load data from the Google Drive folder, and store : 
+
+* `params_sensitivity_lq.csv` in `data\inputs`
+
+* `steady_states.csv`, `profitability.csv` and `bioeconomic_performance.csv` in a dedicated folder : `data\outputs\sensitivity_analysis_lq\`
+
 ## I. Recover W
 ### A. Load data
 Use the same data as in `1_Parameters.rmd`.
