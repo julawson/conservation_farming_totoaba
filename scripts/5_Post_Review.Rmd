@@ -34,9 +34,9 @@ library(kableExtra)
 Latex = T
 font_ = 'Helvetica'
 color_growth = 'black'
-color_vertical_monopoly = 'firebrick'
+color_vertical_monopoly = '#B22222'
 color_bertrand = '#1f78b4'
-color_cournot = 'forestgreen'
+color_cournot = '#248721'
 palette_ = c(color_growth, color_vertical_monopoly, color_bertrand, color_cournot)
 ```
 
@@ -893,6 +893,7 @@ rm(dat_,
    w_par_val)
 
 if(!file.exists(here('data', 'inputs', 'params_sensitivity_lq.csv'))){
+  print('File : params_sensitivity_lq.csv is not in data/inputs/')
   # Load original parameters for sensitivity analysis. 
   params_sensitivity = read.csv(here('data', 'inputs', 'params_sensitivity.csv'))
   # Set up names for new sensitivity analysis scenarios
@@ -1213,8 +1214,9 @@ model_run = function(param,
 }
 
 if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'steady_states.csv'))){
+  print("File steady_states.csv is not in 'data/outputs/sensitivity_analysis_lq' ")
   # Set up cores
-  numcores = detectCores() - 2
+  numcores = detectCores() - 4
     # Make clusters
   cl = makeCluster(numcores)
     # Load tidyverse : otherwise, pipe operator is not recognized
@@ -1233,7 +1235,7 @@ if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'steady_state
 
 }else{
   storage = read.csv(here('data', 'outputs','sensitivity_analysis_lq', 'steady_states.csv'))
-  print('Loading results')
+  print('Loading results from data/outputs/sensitivity_analysis_lq/steady_states.csv')
 }
 ```
 
@@ -1430,6 +1432,7 @@ profit = function(param){
     farmed_harvest = 0
     # Prices paid:
     price_poachers = (alpha_w - c)*W/(beta*sigma^2*x^2+W)
+    price_retail = (alpha - beta*poached_harvest)
     # Profits:
       # Profit from poaching
     profit_poaching = (alpha - beta * poached_harvest - c - price_poachers)*poached_harvest
@@ -1454,6 +1457,7 @@ profit = function(param){
     farmed_harvest = 0
     # Price : 
     price_poachers = (W2*(alpha-c)+beta*W1*sigma*x)/(beta*sigma^2*x^2 + W2)
+    price_retail = (alpha - beta*poached_harvest)
     # Redefine profit
     profit_poaching = (alpha - beta*poached_harvest - c - price_poachers)*poached_harvest
     profit_fishermen = price_poachers * poached_harvest - W1*((price_poachers * sigma * x -W1)/(2*W2)) - W2*((price_poachers * sigma * x - W1)/(2*W2))^2
@@ -1505,7 +1509,8 @@ profit = function(param){
     poached_harvest = cournot_harvest(x)
     price_poachers = price_poachers_cournot(x)
     farmed_harvest = cournot_farmed(price_poachers)
-      
+    
+    price_retail = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest)
     profit_poaching = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest - c - price_poachers)*poached_harvest
     profit_farming  = (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest - v) * farmed_harvest
     profit_fishermen = (price_poachers*x*sigma)^2/(4*W)
@@ -1530,6 +1535,7 @@ profit = function(param){
     price_poachers = (2*W2*(2*beta_f*(alpha_w - c) - gamma*(alpha_f - v)) + W1*sigma*x*(4*beta_f*beta_w - gamma^2))/(4*beta_f*W2 + (4*beta_f*beta_w - gamma^2)*sigma^2*x^2)
     farmed_harvest = (2*beta_w*(alpha_f - v) - gamma*(alpha_w - price_poachers - c))/(4*beta_w*beta_f - gamma^2)
     
+    price_retail = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest)
     profit_poaching = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest - price_poachers - c)*poached_harvest
     profit_farming =  (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest - v)* farmed_harvest
     profit_fishermen = price_poachers * poached_harvest - W1*((price_poachers * sigma * x -W1)/(2*W2)) - W2*((price_poachers * sigma * x - W1)/(2*W2))^2
@@ -1578,7 +1584,7 @@ profit = function(param){
     poached_harvest = bertrand_harvest(x)
     price_poachers = price_poachers_bertrand(x)
     farmed_harvest = bertrand_farmed(price_poachers)
-
+    price_retail = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest)
     profit_fishermen = (price_poachers*x*sigma)^2/(4*W)
     profit_poaching = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest - c - price_poachers) * poached_harvest
     profit_farming = (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest - v)*farmed_harvest
@@ -1620,19 +1626,21 @@ profit = function(param){
     poached_harvest = composite_bertrand_lq(price_poachers)
     farmed_harvest = b_f*(b_w*(2*a_f + e*(price_poachers + c)) + e*a_w + v*(e^2 - 2*b_w*b_f))/(4*b_f*b_w - e^2)
     
+    price_retail = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest)
     profit_poaching = (alpha_w - beta_w * poached_harvest - gamma*farmed_harvest - price_poachers - c)*poached_harvest
     profit_farming = (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest -v)*farmed_harvest
     profit_fishermen = price_poachers * poached_harvest - W1*((price_poachers * sigma * x -W1)/(2*W2)) - W2*((price_poachers * sigma * x - W1)/(2*W2))^2
   }
   
-  result = data.frame(row_, names, poached_harvest, farmed_harvest, price_poachers, profit_poaching, profit_farming, profit_fishermen, lag_sign)
+  result = data.frame(row_, names, poached_harvest, farmed_harvest, price_retail, price_poachers, profit_poaching, profit_farming, profit_fishermen, lag_sign)
   rownames(result) = NULL
   #result = t(as.data.frame(result))
-  colnames(result) = c('row_', 'names','poached_harvest', 'farmed_harvest', 'price_poachers', 'profit_poaching', 'profit_farming', 'profit_fishermen','stability')
+  colnames(result) = c('row_', 'names','poached_harvest', 'farmed_harvest','price_retail', 'price_poachers', 'profit_poaching', 'profit_farming', 'profit_fishermen','stability')
   return(result)
 }
  
 if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'profitability.csv'))){
+  print("Profitability results are not in data/outputs/sensitivity_analysis_lq")
   # Set up cores
   numcores = detectCores() - 4
     # Make clusters
@@ -1653,7 +1661,7 @@ if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'profitabilit
 
 }else{
   storage = read.csv(here('data', 'outputs','sensitivity_analysis_lq', 'profitability.csv'))
-  print('Loading profit data')
+  print('Loading profit data from data/outputs/sensitivity_analysis_lq/profitability.csv')
 }
 
 ```
@@ -1669,6 +1677,7 @@ With profitability done, in the following I :
 ```{r, profitability computation}
 
 if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'bioeconomic_performance.csv'))){
+  print("bioeconomic_performance.csv is not stored in 'data/outputs/sensitivity_analysis_lq/")
   storage_total = cbind(storage,
                       exploit_ %>%
                         select(-c('row_',
@@ -1822,6 +1831,7 @@ a%>%
   select(-c('spec','W1','W2', 'quantile', 'ag_net_benefit'))%>%
   relocate(x, .after = farmed_harvest)%>%
   relocate(normalized_ss, .after = profit_fishermen_diff)%>%
+  relocate(price_retail, .before = price_poachers)%>%
   relocate(variation_poaching, .after = normalized_ss)%>%
   mutate(normalized_ss = paste0(round(normalized_ss, 2), '%'), 
          variation_ag_net_benefit = paste0(round(variation_ag_net_benefit,2), '%'), 
@@ -1832,6 +1842,7 @@ a%>%
          'Farmed harvest' = farmed_harvest,
          'Variation in ss. pop.' = normalized_ss,
          'Price  paid to poacher' = price_poachers,
+         'Retail price' = price_retail,
          'Illegal profit'= profit_poaching,
          'Farming profit' = profit_farming, 
          'Fishing profit' = profit_fishermen,
@@ -1844,9 +1855,9 @@ a%>%
          'Poaching change (%)' = variation_poaching)%>%
   tt(caption = 'Bioeconomic performance - with median LQ cost specification')%>%
   style_tt(j = 1, background = '#eae4e4')%>%
-  style_tt(j= 2:4, background = '#cfe2f3')%>%
-  style_tt(j =5:9, background = '#d5f8c8' )%>%
-  style_tt(j = 14:16, background = '#f4cccc')%>%
+  style_tt(j = 2:5, background = '#cfe2f3')%>%
+  style_tt(j = 6:10, background = '#d5f8c8' )%>%
+  style_tt(j = 15:17, background = '#f4cccc')%>%
   style_tt(i = 0,  background = '#eae4e4')%>%
   style_tt(j = 1, bold = T)
 ```
