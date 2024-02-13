@@ -199,6 +199,8 @@ calibration %>%
   select(-X)%>%
   mutate(value = round(value,2))%>%
   kable(row.names = F)
+
+avg_toto_weight = 25.7
 ```
 
 ## II. Define functions
@@ -699,7 +701,7 @@ dat_$new_names = sapply(dat_$names, renamer)
 dat_$values2 = sapply(dat_$values, rounder)
 dat_$cost_structure = sapply(dat_$names, renamer2)
 
-dat_%>%
+p = dat_%>%
   subset(x %% 2 == 0)%>%
   ggplot(aes(x = x,
              y = values2, 
@@ -727,6 +729,14 @@ dat_%>%
         axis.title.y  = element_text(family = font_),
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_))
+p
+if(!file.exists(here('visuals', 'supplementary_visuals', 'equilibria_with_W1_W2.png'))){
+  p
+  ggsave(here('visuals', 'supplementary_visuals', 'equilibria_with_W1_W1.png'),
+        width = 30,
+        height = 15, 
+        units = 'cm') 
+}
 ```
 
 Clearly, the choice of $W_1$ and $W_2$ is important with respect to the anticipated equilibrium in the *vertical monopoly* case : with a linear-quadratic cost function, we no longer can say the monopoly will achieve a *healthy* steady state population. The results in the **post intervention** world are robust to the cost specification, and guarantee population increases in the *quantity adjustment* scenario, while population may marginally diminish in the *price setting* scenario. 
@@ -1826,38 +1836,70 @@ renamer= function(x){
 
 a['names']= sapply(a$names, renamer)
 
-a%>%
+a = a%>%
   subset(quantile == '50%')%>% # Can check other quantiles
   select(-c('spec','W1','W2', 'quantile', 'ag_net_benefit'))%>%
+  mutate(price_buche_final = price_retail / 1000 * avg_toto_weight,
+         price_buche_fisher = price_poachers / 1000 * avg_toto_weight)%>%
   relocate(x, .after = farmed_harvest)%>%
   relocate(normalized_ss, .after = profit_fishermen_diff)%>%
   relocate(price_retail, .before = price_poachers)%>%
+  relocate(price_buche_final, .after = price_retail)%>%
+  relocate(price_buche_fisher, .after = price_poachers)%>%
   relocate(variation_poaching, .after = normalized_ss)%>%
   mutate(normalized_ss = paste0(round(normalized_ss, 2), '%'), 
          variation_ag_net_benefit = paste0(round(variation_ag_net_benefit,2), '%'), 
          variation_poaching = paste0(round(variation_poaching,2), '%'))%>%
+  mutate(profit_farming = round(profit_farming/1000000,2),
+         profit_fishermen = round(profit_fishermen/1000000,2),
+         profit_poaching = round(profit_poaching/1000000,2),
+         ag_profit = round(ag_profit/1000000,2),
+         profit_farming_diff = round(profit_farming_diff/1000000,2),
+         ag_profit_diff = round(ag_profit_diff/1000000,2),
+         profit_fishermen_diff = round(profit_fishermen_diff/1000000,2),
+         profit_poaching_diff = round(profit_poaching_diff/1000000,2)
+         )%>%
   rename('Scenario' = names, 
-         'Steady state population' = x,
-         'Poached harvest' = poached_harvest,
-         'Farmed harvest' = farmed_harvest,
+         'Steady state population (in mt)' = x,
+         'Poached harvest (in mt)' = poached_harvest,
+         'Farmed harvest (in mt)' = farmed_harvest,
          'Variation in ss. pop.' = normalized_ss,
-         'Price  paid to poacher' = price_poachers,
-         'Retail price' = price_retail,
-         'Illegal profit'= profit_poaching,
-         'Farming profit' = profit_farming, 
-         'Fishing profit' = profit_fishermen,
-         "Aggregate profit" = ag_profit,
-         'Farming profit change' = profit_farming_diff,
-         'Aggregate profit change' = ag_profit_diff, 
-         'Fishing profit change' = profit_fishermen_diff,
-         'Illegal profit change' = profit_poaching_diff,
+         'Price  paid to poacher (in USD/ton of buche)' = price_poachers,
+         'Retail price (in USD/ton of buche)' = price_retail,
+         'Illegal profit (in million USD)'= profit_poaching,
+         'Retail price of 500g buche (in USD)' = price_buche_final,
+         'Poacher price of 500g buche (in USD)' = price_buche_fisher,
+         'Farming profit (in million USD)' = profit_farming, 
+         'Fishing profit (in million USD)' = profit_fishermen,
+         "Aggregate profit (in million USD)" = ag_profit,
+         'Farming profit change (in million USD)' = profit_farming_diff,
+         'Aggregate profit change (in million USD)' = ag_profit_diff, 
+         'Fishing profit change (in million USD)' = profit_fishermen_diff,
+         'Illegal profit change (in million USD)' = profit_poaching_diff,
          'Aggregate profit change (%)' = variation_ag_net_benefit, 
-         'Poaching change (%)' = variation_poaching)%>%
+         'Poaching change (%)' = variation_poaching)
+
+a%>%
   tt(caption = 'Bioeconomic performance - with median LQ cost specification')%>%
   style_tt(j = 1, background = '#eae4e4')%>%
-  style_tt(j = 2:5, background = '#cfe2f3')%>%
-  style_tt(j = 6:10, background = '#d5f8c8' )%>%
+  style_tt(j = 2:4, background = '#cfe2f3')%>%
+  style_tt(j = 5:10, background = '#d5f8c8' )%>%
   style_tt(j = 15:17, background = '#f4cccc')%>%
+  style_tt(i = 0,  background = '#eae4e4')%>%
+  style_tt(j = 1, bold = T)
+
+
+
+a %>%
+  subset(Scenario %in% c('Vertical Monopoly', 
+                         'Quantity adjustment', 
+                         'Price setting'))%>%
+  tt(caption = 'Bioeconomic performance - with median LQ cost specification')%>%
+  style_tt(j = 1, background = '#eae4e4')%>%
+  style_tt(j = 2:4, background = '#cfe2f3')%>%
+  style_tt(j = 5:8, background = '#d5f8c8' )%>%
+  style_tt(j = 9:12, background = '#98f7b5' )%>%
+  style_tt(j = 17:19, background = '#f4cccc')%>%
   style_tt(i = 0,  background = '#eae4e4')%>%
   style_tt(j = 1, bold = T)
 ```
@@ -1871,4 +1913,10 @@ a%>%
 * Think of ways to visualize both outputs e.g. the population stock and the profitability. 
 
 * Depending on how we feel about the demand assumptions we can maybe include an estimation of the consumer surplus (easy with linear demand scheme), but that may trigger economists.
+
+* Color coding table for various structures
+
+* Convert dollar units to millions of dollars
+
+* Write supplementary materials
 
