@@ -21,6 +21,7 @@ library(stargazer)
 #  devtools::install_github("james-thorson/FishLife")
 #}
 
+
 library(FishLife)
 library(kableExtra)
 
@@ -31,7 +32,7 @@ In this script, we share the code to replicate our parameters.
 
 # 0. File architecture
 
-This still needs to be amended once we have finished all of the architecture in the final repo. 
+Create architecture for scripts, visuals and data. Includes `sensitivity_analysis_lq` 
 
 ```{r}
 if(dir.exists(paste0(getwd(),"/scripts/"))==F){
@@ -40,6 +41,17 @@ if(dir.exists(paste0(getwd(),"/scripts/"))==F){
 if(dir.exists(paste0(getwd(),'/visuals/'))==F){
   dir.create(paste0(getwd(),'/visuals/'))
   dir.create(paste0(getwd(),'/visuals/supplementary_visuals/'))
+}
+
+if(!dir.exists(here('data', 'outputs', 'sensitivity_analysis_lq'))){
+  dir.create(here('data','outputs', 'sensitivity_analysis_lq'))
+  print('Folder created as data/outputs/sensitivity_analysis_lq :')
+}
+
+if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'steady_states.csv'))){
+  print('Please put steady_states.csv, profitability.csv and bioeconomic_performances.csv in folder')
+}else{
+  print('Architecture and data are up to date')
 }
 ```
 
@@ -146,6 +158,8 @@ catchability = pull(catchability)
 
 ## A. Calculate W
 
+Calculate $W$ from vessel data. 
+
 ```{r calculating cost of poaching}
 
 # W parameter, proportional increase in cost per unit (trip)
@@ -189,6 +203,8 @@ W_high = costs[3] # High Season
 ```
 
 ## B. Export data and sources for W
+
+Export data for $W$ and the corresponding model parameters for the quadratic model ($W$) and linear-quadratic model ($W_1$ and $W_2$)
 
 ```{r supplementary materials tables}
 classer = function(x){
@@ -286,6 +302,42 @@ cost_ %>%
 fixed_low = W_low*max_E - W_qlow*(max_E^2)
 fixed_mid = W_mid*max_E - W_qmid*(max_E^2)
 fixed_high = W_high*max_E - W_qhigh*(max_E^2)
+```
+
+Recover costs for the linear quadratic model :
+
+$$
+W_1 + 2W_2 E_{hist} = AC
+$$
+
+Given the lack of accurate data, we need to run a variety of analysis such that $W_1>0$, $W_2>0$ and $W_1 - AC + 2W_2  E_{Hist} = 0$, eg $W_2 = \frac{AC - W1}{2E_{Hist}}$.
+
+```{r, recover W1 W2}
+W_lq = data.frame(0,0,0,0)
+colnames(W_lq) = c('Cost', 'W1', 'W2','W_mid')
+
+for(cost in costs){
+  W1 = quantile(seq(0, cost), probs = seq(0,1,.1))
+  W2 = rev(quantile((cost - W1)/(2*max_E), probs = seq(0,1,.1)))
+  W_mid = cost/(2*max_E)
+  W_storage = data.frame(rep(cost, length(W1)), W1, W2, rep(W_mid, length(W1)))
+  
+
+  colnames(W_storage) = colnames(W_lq)
+  W_lq = rbind(W_lq, W_storage)
+}
+
+W_lq = W_lq %>%
+  cbind(quantiles = rownames(W_lq))%>%
+  subset(W1>0)
+
+to_keep = function(x){
+  return(strsplit(x, '%')[[1]][1])
+}
+
+W_lq['quantiles'] = apply(W_lq['quantiles'],1, to_keep)
+
+write.csv(W_lq, here('data','inputs','W_lq.csv'), row.names = F)
 ```
 
 

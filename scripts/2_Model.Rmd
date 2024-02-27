@@ -56,7 +56,7 @@ calibration %>%
   mutate(value = round(value,2))%>%
   kable(row.names = F)
 
-
+W_lq = read.csv(here('data','inputs','W_lq.csv'))
 ```
 
 # II. Define functions
@@ -71,7 +71,7 @@ Functions for the baseline model are :
 
 -   `pt_harvest(x,...)` : harvest (in metric tons) when trader controls the upstream market and operates on a competitive downstream market (i.e., she is price taker)
 
--   `monop_harvest(x, ...)`: harvest (in metric tons) when trader is a monopolist
+-   `monop_harvest(x, ...), monop_harvest_lq(x, ...)`: harvest (in metric tons) when trader is a monopolist in the quadratic and linear quadratic cost models.
 
 Then, once aquaculture is introduced :
 
@@ -79,7 +79,7 @@ Then, once aquaculture is introduced :
 
 -   `comp_aqua(x, ...)` : harvest (in metric tons) when a trader controls the upstream market and operates on a competitive downstream market, following the introduction of aquaculture.
 
--   `cournot_harvest(x, ...)`, `bertrand_harvest(x, ...)`: harvest (in metric tons) when trader and farmer compete in *Cournot*, i.e, set quantities strategically, and *Bertrand*, i.e, set prices strategically.
+-   `cournot_harvest(x, ...)`, `bertrand_harvest(x, ...), cournot_harvest_lq(x, ...)`, `bertrand_harvest_lq(x, ...)`: harvest (in metric tons) when trader and farmer compete in *Cournot*, i.e, set quantities strategically, and *Bertrand*, i.e, set prices strategically in the quadratic and linear quadratic cost models. 
 
 -   `price_poachers_cournot(x, ...)`, `price_poachers_bertrand(x, ...)`: price paid to poachers (in USD/metric tons) when trader and farmer compete in *Cournot* and *Bertrand*
 
@@ -146,6 +146,17 @@ monop_harvest = function(x,
  return(y)
 }
 
+monop_harvest_lq = function(x,
+                            alpha. = alpha, 
+                            c. = c, 
+                            sigma. = sigma, 
+                            beta. = beta,
+                            W1. = W1,
+                            W2. = W2){
+  y = (sigma.^2 * x^2 * (alpha. - c.) - W1.*sigma.*x)/(2*(beta.*sigma.^2 * x^2 + W2.))
+  return(y)
+}
+
 # IV. Cournot
 
 cournot_harvest = function(x, 
@@ -160,6 +171,21 @@ cournot_harvest = function(x,
                              W. = W_mid){
   y = ((sigma.^2)*(x^2)*(2*beta_f.*(alpha_w. - c.) - gamma.*(alpha_f. - v.)))/(4*beta_f.*W. + (sigma.^2)*(x^2)*(4*beta_f.*beta_w. - (gamma.^2)))
   return(y)
+}
+
+cournot_harvest_lq = function(x, 
+                              alpha_f. = alpha_f, 
+                              alpha_w. = alpha_w, 
+                              beta_f. = beta_f, 
+                              beta_w. = beta_w, 
+                              gamma. = gamma, 
+                              sigma. = sigma, 
+                              c. = c, 
+                              v. = v, 
+                              W1. = W1, 
+                              W2. = W2){
+ y = ((2*beta_f. * (alpha_w. - c.) - gamma. * (alpha_w. -v.))*sigma.^2 * x^2 - 2*beta_f.*W1.*sigma.*x)/(4*beta_f.*W2. + (4*beta_f.*beta_w. - gamma.^2)*sigma.^2 * x^2)
+ return(y)
 }
 
 price_poachers_cournot = function(x,
@@ -219,6 +245,23 @@ bertrand_harvest = function(x,
   return(y)
 }
 
+bertrand_harvest_lq = function(x,
+                               sigma. = sigma, 
+                               a_f. = a_f, 
+                               a_w. = a_w, 
+                               b_f. = b_f, 
+                               b_w. = b_w, 
+                               e. = e, 
+                               v. = v, 
+                               c. = c, 
+                               W1. = W1, 
+                               W2. = W2){
+  y1 = b_w.*(sigma.^2 * x^2 *((2*a_w. +e.*v.)*b_f. + e.*a_f.) + (c. + W1. * sigma. * b_w. * x)*(e.^2 - 2*b_w. *b_f.))
+  y2 = 2*W2.*b_w.*(2*b_f.* b_w. - e.^2) + (4*b_f.*b_w. - e.^2)*sigma.^2*x^2
+  z = y1*y2
+  return(z)
+}
+
 bertrand_farmed = function(s, 
                              a_f. = a_f, 
                              a_w. = a_w, 
@@ -234,6 +277,8 @@ bertrand_farmed = function(s,
 ```
 
 # III. Generate results
+
+## A. Quadratic model 
 
 Generate results saved at `~/data/outputs/result1.csv`.
 
