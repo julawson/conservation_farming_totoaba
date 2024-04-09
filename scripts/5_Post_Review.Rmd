@@ -172,8 +172,6 @@ W_lq['quantiles'] = apply(W_lq['quantiles'],1, to_keep)
 ```
 
 
-
-
 ```{r, Load Params}
 calibration = read.csv(here("data", 'outputs', "calibration_params.csv"))
 

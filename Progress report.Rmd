@@ -1,0 +1,56 @@
+---
+title: "Progress report"
+output: html_document
+date: "2024-04-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+```
+
+
+## A. Done
+
+* Implemented linear quadratic cost model to respond to reviewer : $C(E) = c_0 + c_1 E + c_2 E^2$
+  -> This should be the main model we consider, as it shows that monopoly results can very much depend on the cost structure, and the cartel may not do well. 
+
+* Explained demand scheme in the appendix to respond to reviewer
+
+## B. Left to do
+
+### 1. Core choices for modeling
+
+* Use the linear quadratic model as the baseline specification, and show maybe that in this case, Monopoly is not that good :
+
+  * Implies a heterogeneous, individual appraisal of fishermen costs, but we use an average of costs across the fishery. We focus on the evolution of effort, hence we want to look at a disagreggated view. **still need to clarify that**
+
+  * Implies to think twice about costs : if we use LQ costs, eg, $C(q) = c_0 + c_{1}E + c_{2} E^2$ without heterogeneity, need to find a way to estimate cleanly each of the parameters. So far, we have used $c_1 + 2c_2 = Average$, and I have chosen a split that puts more weight on the linear term (as in the literature, cf Pereau and Doyen, 2021). However, I am not sure how to justify it (besides the sensitivity analysis). Still not sure that this how we should estimate the marginal cost though. 
+
+* Define what is the discount rate chosen by operators in here : if we focus on the steady state and only use contemporaneous profits, what does that mean? 
+
+* We may need to refer to an *explicit target in terms of population* (by referring to the MEY or MSY?) and the distance to it, to really satisfy the reviewers. Are there explicit policy guidelines? Like "we are closing the fishery to recover a population of 80% of carrying capacity"?
+
+### 2. Text modifications
+
+* We should go with the LQ model, as it outlines the potential for a vertical monopoly to fare well, but also to lead to a drastic population decrease
+
+* Concerning our approach with respect to the novelty of our work and contribution, I think we should stress the results from the Monopoly perspective, which we already do, and maybe tone down references to Bulte and Damania. We showed that their results only hold in certain circumstances, but we do indeed find a slightly worse scenario with price competition, which we rule out considering the profit motives. 
+
+* In the *supplementary material* may need to clean stuff up, to refer only to : 
+
+  * The linear quadratic model
+  
+  * Highlight the key equations as suggested by reviewers
+  
+  * And really target the message
+  
+  * Do the extensions for the linear quadratic model
+  
+* Do we want the open access case after all? We need a reference point to say : monopoly is better than something, and then say yes, but not as good as with aquaculture, and finally have a reference point about the economic surplus?   
+
+
+### 3. Code implementations
+
+* Verify sensitivity analysis for linear quadratic model
+
+* Clean the right files 

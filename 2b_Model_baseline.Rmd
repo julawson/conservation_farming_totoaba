@@ -23,12 +23,12 @@ library(RColorBrewer)
 if(!(c('Fishlife')  %in% installed.packages())){
   devtools::install_github("james-thorson/FishLife")
 }
-if(!(c('tinytable') %in% installed.packages())){
-  devtools::install_github("vincentarelbundock/tinytable")
-}
+#if(!(c('tinytable') %in% installed.packages())){
+#  devtools::install_github("vincentarelbundock/tinytable")
+#}
 
 library(tinytable)
-library(FishLife)
+#library(FishLife)
 library(kableExtra)
 
 Latex = T
@@ -405,10 +405,16 @@ write.csv(final_dat, here('data', 'outputs', 'results_all_models.csv'))
 First, illustrate the new equilibria with the same $W$ value and the middle point solution for $W_1$ and $W_2$ in the linear quadratic cost of effort specification. 
 
 ```{r, New equilibrium}
-W_mid    = W_lq[21,4]
-W1       = W_lq[21,2]
-W2       = W_lq[21,3]
-quantile = W_lq[21,5]
+
+W_choice = W_lq %>%
+  subset(quantiles == 90)%>%
+  filter(W_mid < 3 & W_mid >2)%>%
+  unlist()
+
+W_mid    = W_choice['W_mid']
+W1       = W_choice['W1']
+W2       = W_choice['W2']
+quantile = W_choice['quantiles']
 
 result1 = data.frame(x = seq(1,k,.5 ))%>%
   mutate(growth= growth(x),
@@ -441,10 +447,14 @@ renamer= function(x){
 
 renamer2 = function(x){
   checker = strsplit(x, '_')[[1]]
-  if(length(checker)<3){
-    return('Quadratic cost')
-  }else{
+  if(checker[1]=='growth'){
     return('Linear quadratic cost')
+  }else{
+    if(length(checker)<3){
+      return('Quadratic cost')
+    }else{
+      return('Linear quadratic cost')
+    }
   }
 }
 
@@ -472,7 +482,7 @@ dat_%>%
   ggplot(aes(x = x,
              y = values2, 
              color = new_names))+
-  geom_line(aes(linetype = cost_structure))+
+  geom_line(aes(linetype = cost_structure), size = 1)+
   scale_linetype_manual(values=c("solid", "twodash"))+
   scale_color_manual(values = palette_)+
   theme_bw()+
