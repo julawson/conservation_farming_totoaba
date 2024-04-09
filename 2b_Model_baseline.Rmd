@@ -767,6 +767,7 @@ Define bio-economic performance by combining population variables (stock and har
 
 ```{r, bioeconomic performance}
 
+baseline_quantile = 90
 profit = function(param){
   # Variable assignment
   to_assign = names(param)
@@ -1035,7 +1036,7 @@ W_baseline = calibration%>%
 
 Wlq_baseline = W_lq %>%
   subset(W_mid == W_baseline) %>%
-  subset(quantiles == 50)
+  subset(quantiles == baseline_quantile)
 W1_baseline = Wlq_baseline %>%
   select(W1) %>%
   pull()
@@ -1185,12 +1186,12 @@ d = rbind(a %>%
           
           
 d %>% 
-  tt(caption = 'Bioeconomic performance - with median LQ cost specification')%>%
+  tt(caption = 'Bioeconomic performance - with baseline specification')%>%
   style_tt(j = 1, background = '#eae4e4')%>%
   style_tt(j = 2:4, background = '#cfe2f3')%>%
   style_tt(j = 5:8, background = '#d5f8c8' )%>%
   style_tt(j = 9:12, background = '#98f7b5' )%>%
-  style_tt(j = 17:19, background = '#f4cccc')%>%
+  style_tt(j = 17:18, background = '#f4cccc')%>%
   style_tt(i = 0,  background = '#eae4e4')%>%
   style_tt(j = 1, bold = T)
 

@@ -25,6 +25,8 @@ knitr::opts_chunk$set(echo = F)
   * Implies a heterogeneous, individual appraisal of fishermen costs, but we use an average of costs across the fishery. We focus on the evolution of effort, hence we want to look at a disagreggated view. **still need to clarify that**
 
   * Implies to think twice about costs : if we use LQ costs, eg, $C(q) = c_0 + c_{1}E + c_{2} E^2$ without heterogeneity, need to find a way to estimate cleanly each of the parameters. So far, we have used $c_1 + 2c_2 = Average$, and I have chosen a split that puts more weight on the linear term (as in the literature, cf Pereau and Doyen, 2021). However, I am not sure how to justify it (besides the sensitivity analysis). Still not sure that this how we should estimate the marginal cost though. 
+  
+  **Fix today** : I have (i) reconstructed the total cost function, (ii) found values that are close to the actual estimated cost and (iii) feature different evolution scenarios, including different degrees of importance of the quadratic term. This should fix the whole cost discussion, and mimics the results from Pereau and Doyen, 2021. 
 
 * Define what is the discount rate chosen by operators in here : if we focus on the steady state and only use contemporaneous profits, what does that mean? 
 
