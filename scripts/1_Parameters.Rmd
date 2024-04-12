@@ -154,10 +154,11 @@ catchability = pull(catchability)
 
 # III. Poaching costs
 
+## A. Build total cost function
 
-## A. Calculate W
+### 1. Build average subseasonal costs
 
-Calculate $W$ from vessel data. 
+First, as we have time series, seasonal data, we can use it to reconstruct an average cost per sub-season.
 
 ```{r calculating cost of poaching}
 
@@ -201,7 +202,10 @@ W_mid = costs[2] # Mid Season
 W_high = costs[3] # High Season
 ```
 
-### 1. Latest attempt for costs estimation 
+### 2. Total cost from seasonal average cost
+
+
+
 
 We have average cost data, for bins of trips. Here, I estimate a cost function for all the effort levels, that maps the number of trips to their total cost, taking into account different bins.
 
@@ -239,17 +243,74 @@ costs2 %>%
 # If we had a constant marginal cost, it would take the largest value at the end
 costs[3]
 ```
-We nonetheless need a linear, quadratic term.
+The kinky total cost function could be best approximated with a linear term. However, to model the increasing opportunity costs of having more fishermen, it would be nice to have a quadratic term, to forecast the future. 
+
+## B. Estimate $W, W_1, W_2$
+
+### 1. Estimate $W$
+
+Find the parameter $W_{quad}$ such that :
+$$
+TotCost(E)=WE^2 \Rightarrow MargCost(E) = 2W_{quad}E
+$$
+
+And 
+
+$$
+MargCost(E_{hist}) = AvgCost(E_{hist})\Rightarrow W_{quad} = \frac{W_{avg}}{2E_{hist}}
+$$
+
+```{r, Quadratic costs}
+W_qlow = W_low/(2*max_E)
+W_qmid = W_mid/(2*max_E)
+W_qhigh = W_high/(2*max_E)
+
+# Recover fixed cost parameter
+cost_ = data.frame(trips = seq(1,1.5*max_E))%>%
+  mutate(trips2 = trips^2,
+         low = W_low*trips, 
+         mid = W_mid*trips,
+         high = W_high*trips,
+         sq_low = W_qlow*trips2,
+         sq_mid = W_qmid*trips2,
+         sq_high = W_qhigh*trips2)
+
+cost_ %>%
+  ggplot(aes(x = trips))+
+  geom_line(aes(y = low, colour = 'low'))+
+  geom_line(aes(y = mid, colour = 'mid'))+
+  geom_line(aes(y = high, colour = 'high'))+
+  geom_line(aes(y = sq_low, colour = 'low'))+
+  geom_line(aes(y = sq_mid, colour = 'mid'))+
+  geom_line(aes(y = sq_high, colour = 'high'))+
+  scale_colour_manual(values = c( 'red','black','grey', 'red', 'black','grey'))+
+  theme_bw()+
+  ylab('Cost')+
+  labs(colour = ' ')
+
+fixed_low = W_low*max_E - W_qlow*(max_E^2)
+fixed_mid = W_mid*max_E - W_qmid*(max_E^2)
+fixed_high = W_high*max_E - W_qhigh*(max_E^2)
+```
+
+
+### 2. Estimate $W_1, W_2$
+
+
+
+First, find best estimate of modeled cost in a MMSE sense. 
 
 ```{r, new_costs2}
 # We must have that the marginal cost at the end with a linear quadratic model is W1 + 2 W2 E_hist = AVG
-potential_W1 = seq(0, costs[3])
+potential_W1 = seq(0, costs[3]+1)
 potential_W2 = (costs[3] - potential_W1)/2
 
 least_squares = data.frame(0,0)
 colnames(least_squares) = c('value', 'index')
 
-for(row in 1:length(potential_W1)){
+try_ls = F
+if(try_ls == T){
+  for(row in 1:length(potential_W1)){
   costs2 = costs2 %>%
     mutate(attempt = potential_W1[row] * trip + potential_W2[row]*squared_trip)
   least_square = costs2 %>%
@@ -257,45 +318,73 @@ for(row in 1:length(potential_W1)){
     select(ls)%>%
     sum()
   least_squares = rbind(least_squares, c(least_square, row))
+  }
+  write.csv(least_squares, here('data','outputs', 'least_squares_W.csv'))
+}else{
+  least_squares = read.csv(here('data', 'outputs', 'least_squares_W.csv'))
 }
-least_squares = least_squares[-1, ]
-which(least_squares$value == min(least_squares$value))
+
+#least_squares = least_squares[-1, ]
+#print(least_squares[which(least_squares$value == min(least_squares$value)),])
+print(paste0('Optimal W1 in an MMSE sense is : ', potential_W1[which(least_squares$value == min(least_squares$value))]))
+print(paste0('Optimal W2 in an MMSE sense is : ', potential_W2[which(least_squares$value == min(least_squares$value))]))
+```
+
+Result from MMSE suggest to use the linear form, without reference to a quadratic term. However, increasing cost of effort is consistent with a disaggregated view of the fishery. Force a quadratic term.
 
 
-#lm(total_cost ~ trip + squared_trip, costs2)
+```{r, other method}
+baseline_W_choice = 3
 
- costs2 %>%
-  mutate(estimated_linear_quadratic = (costs[2]+costs[3])/1.75 * trip + .75* squared_trip)%>%
-  select(trip, estimated_linear_quadratic, total_cost)%>%
-  pivot_longer(-trip, 
+
+W1_potential = c((costs[2]+costs[3])/2, (costs[2]+costs[3])/1.9, (costs[2]+costs[3])/1.75, (costs[2]+costs[3])/1.6, costs[3])
+W2_potential = c(1.6, 1.3, .75,.1, 0)
+W_lq_new = data.frame(W1_potential, W2_potential)%>%
+  mutate(AC = costs[3], 
+         W_mid = W_high/(2*max_E), 
+         baseline_choice = baseline_W_choice)
+
+
+ 
+ costs2_historical  = costs2 %>%
+  mutate(estimated_linear_quadratic = W1_potential[baseline_W_choice] * trip + W2_potential[baseline_W_choice]* squared_trip)%>%
+  select(trip, estimated_linear_quadratic, total_cost)
+ 
+ costs2_future = data.frame(trip = seq(max_E, 5000))%>%
+   mutate(squared_trip = trip^2,
+          total_cost = costs[3]*trip, 
+          estimated_linear_quadratic = W1_potential[baseline_W_choice] * trip + W2_potential[baseline_W_choice] * squared_trip)%>%
+   select(trip, estimated_linear_quadratic, total_cost)
+ 
+ costs_final = rbind(costs2_historical, costs2_future)
+ rm(costs2_historical, costs2_future)
+ 
+ costs_final%>%
+   pivot_longer(-trip, 
                values_to = 'values', 
                names_to =  'Costs')%>%
-  ggplot(aes(x = trip, y= values, colour = Costs))+
-  geom_line()
+   ggplot(aes(x = trip, y= values, colour = Costs))+
+   geom_line()+
+   geom_vline(xintercept = max_E)
+   
 ```
 
 I think this is a more convincing estimate of the cost function. In order to do a sensitivity analysis we can do : 
 
-```{r, new_costs3}
- W1_potential = c((costs[2]+costs[3])/2, (costs[2]+costs[3])/1.9, (costs[2]+costs[3])/1.75, (costs[2]+costs[3])/1.6, costs[3])
- W2_potential = c(1.6, 1.3, .75,.1, 0)
-
-```
-
-
 With these values, we get different flavors : 
+
 * `r c(W1_potential[1], W2_potential[1])`: first overestimates the costs a little bit before the discontinuity, underestimates them later on, but matches closely the constant marginal cost
 
 * `r c(W1_potential[2], W2_potential[2])` : similar but closer
 
-* `r c(W1_potential[3], W2_potential[3])` : similar, but drastically closer to the actual observed cost after the jump, and close to the marginal cost at observed historical values. 
+* `r c(W1_potential[3], W2_potential[3])` : similar, but drastically closer to the actual observed cost after the jump, and close to the marginal cost at observed historical values  - **this is the one we use in the graph and in the baseline specification**
 
-* `r c(W1_potential[4], W2_potential[4])` : very close to curve after jump, but overestimates costs early on a lot. 
+* `r c(W1_potential[4], W2_potential[4])` : very close to curve after jump, but overestimates costs early on a lot 
 
 * `r c(W1_potential[5], W2_potential[5])` : matches final part of the curve and has no square. 
 
 
-## B. Export data and sources for W
+### 3. Export data and sources for W
 
 Export data for $W$ and the corresponding model parameters for the quadratic model ($W$) and linear-quadratic model ($W_1$ and $W_2$)
 
@@ -350,88 +439,11 @@ if(Latex==T){
           format = 'latex', 
           align = 'c')
 }
+
+write.csv(W_lq_new, here('data', 'inputs', 'W_lq_new.csv'), row.names = F)
+
 ```
 
-
-Find the parameter $W_{quad}$ such that :
-$$
-TotCost(E)=WE^2 \Rightarrow MargCost(E) = 2W_{quad}E
-$$
-
-And 
-
-$$
-MargCost(E_{hist}) = AvgCost(E_{hist})\Rightarrow W_{quad} = \frac{W_{avg}}{2E_{hist}}
-$$
-
-```{r, Quadratic costs}
-W_qlow = W_low/(2*max_E)
-W_qmid = W_mid/(2*max_E)
-W_qhigh = W_high/(2*max_E)
-
-# Recover fixed cost parameter
-cost_ = data.frame(trips = seq(1,1.5*max_E))%>%
-  mutate(trips2 = trips^2,
-         low = W_low*trips, 
-         mid = W_mid*trips,
-         high = W_high*trips,
-         sq_low = W_qlow*trips2,
-         sq_mid = W_qmid*trips2,
-         sq_high = W_qhigh*trips2)
-
-cost_ %>%
-  ggplot(aes(x = trips))+
-  geom_line(aes(y = low, colour = 'low'))+
-  geom_line(aes(y = mid, colour = 'mid'))+
-  geom_line(aes(y = high, colour = 'high'))+
-  geom_line(aes(y = sq_low, colour = 'low'))+
-  geom_line(aes(y = sq_mid, colour = 'mid'))+
-  geom_line(aes(y = sq_high, colour = 'high'))+
-  scale_colour_manual(values = c( 'red','black','grey', 'red', 'black','grey'))+
-  theme_bw()+
-  ylab('Cost')+
-  labs(colour = ' ')
-
-fixed_low = W_low*max_E - W_qlow*(max_E^2)
-fixed_mid = W_mid*max_E - W_qmid*(max_E^2)
-fixed_high = W_high*max_E - W_qhigh*(max_E^2)
-```
-
-Recover costs for the linear quadratic model :
-
-$$
-W_1 + 2W_2 E_{hist} = AC
-$$
-
-Given the lack of accurate data, we need to run a variety of analysis such that $W_1>0$, $W_2>0$ and $W_1 - AC + 2W_2  E_{Hist} = 0$, eg $W_2 = \frac{AC - W1}{2E_{Hist}}$.
-
-```{r, recover W1 W2}
-W_lq = data.frame(0,0,0,0)
-colnames(W_lq) = c('Cost', 'W1', 'W2','W_mid')
-
-for(cost in costs){
-  W1 = quantile(seq(0, cost), probs = seq(0,1,.1))
-  W2 = rev(quantile((cost - W1)/(2*max_E), probs = seq(0,1,.1)))
-  W_mid = cost/(2*max_E)
-  W_storage = data.frame(rep(cost, length(W1)), W1, W2, rep(W_mid, length(W1)))
-  
-
-  colnames(W_storage) = colnames(W_lq)
-  W_lq = rbind(W_lq, W_storage)
-}
-
-W_lq = W_lq %>%
-  cbind(quantiles = rownames(W_lq))%>%
-  subset(W1>0)
-
-to_keep = function(x){
-  return(strsplit(x, '%')[[1]][1])
-}
-
-W_lq['quantiles'] = apply(W_lq['quantiles'],1, to_keep)
-
-write.csv(W_lq, here('data','inputs','W_lq.csv'), row.names = F)
-```
 
 
 # IV. Trading costs
@@ -487,23 +499,28 @@ if(Latex==T){
 
 # VI. Save calibration data
 ```{r}
-params = c('alpha', 'beta', 'r', 'k', 'sigma', 'W_mid', 'W_low', 'W_high', 'avg_cost', 'age', 'gamma', 'v', 'c')
-value = c(alpha, beta, r, k, catchability, W_qmid, W_qlow, W_qhigh, W_mid, age, gamma, v, c)
+
+
+params = c('alpha', 'beta', 'r', 'k', 'sigma', 'W_mid', 'W_low', 'W_high', 'avg_cost','W1', 'W2', 'age', 'gamma', 'v', 'c')
+value = c(alpha, beta, r, k, catchability, W_qmid, W_qlow, W_qhigh, W_high, 
+          W_lq_new[baseline_W_choice,'W1_potential'], W_lq_new[baseline_W_choice, 'W2_potential'], age, gamma, v, c)
 concept = c('Demand model : intercept', 
             'Demand model : coefficient', 
             'Intrinsic growth rate', 
             'Carrying capacity (in metric tons)',
             'Catchability', 
-            'Parameter cost (MC = Avg) at historical value - middle', 
-            'Parameter cost (MC = Avg) at historical value - low', 
-            'Parameter cost (MC = Avg) at historical value - high', 
-            'Average cost per vessel trip', 
+            'Parameter cost (MC = Avg) at historical value - middle season', 
+            'Parameter cost (MC = Avg) at historical value - low season', 
+            'Parameter cost (MC = Avg) at historical value - high season', 
+            'Average cost per vessel trip at historical value', 
+            'Linear cost parameter - Linear quadratic cost function', 
+            'Quadratic cost parameter - Linear quadratic cost function',
             'Age of farmed totoaba', 
             'Substitutability', 
             'Unit cost of farming', 
             'Unit cost of trading')
 
-units = c('USD', 'USD/metric ton of biomass', 'unitless',  '% of biomass/vessel trip', 'metric tons of biomass', 'USD',  'USD', 'USD', 'USD', 'Years', 'Unitless', 'USD/metric ton of biomass', 'USD/ metric ton of biomass')
+units = c('USD', 'USD/metric ton of biomass', 'unitless',   'metric tons of biomass','% of biomass/vessel trip', 'USD vessel trip$^{-2}$',  'USD vessel trip$^{-2}$', 'USDvessel trip$^{-2}$', 'USD/vessel trip', 'USD/vessel trip', 'USD vessel trip$^{-2}$', 'Years', 'Unitless', 'USD/metric ton of biomass', 'USD/ metric ton of biomass')
 
 calibration = data.frame(params, value, concept, units)
 write.csv(calibration, here('data', 'outputs', 'calibration_params.csv'))

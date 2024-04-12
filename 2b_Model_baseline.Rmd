@@ -75,6 +75,8 @@ calibration %>%
 avg_toto_weight = 25.7
 
 W_lq = read.csv(here('data', 'inputs', 'W_lq.csv'))
+W_lq_new = read.csv(here('data','inputs', 'W_lq_new.csv'))
+
 rm(for_display)
 ```
 
@@ -295,18 +297,18 @@ bertrand_farmed = function(s,
 
 Generate results saved at `~/data/outputs/results_all_models.csv` :
 
-* Set cost variables using `W_lq`: each row corresponds to a cost parameter $W$, $W_1$ and $W_2$
+* Set cost variables using `W_lq_new`: each row corresponds to a cost parameter $W$, $W_1$ and $W_2$
 ```{r, Results}
 # Initiate data storage
-storage = data.frame(0,0,0,0,0,0,0,0)
-colnames(storage) = c('x','names','values','AC', 'W_mid', 'W1', 'W2',"quantile")
+storage = data.frame(0,0,0,0,0,0,0)
+colnames(storage) = c('x','names','values','AC', 'W_mid', 'W1', 'W2')
 
 # Run model for every W configuration
 for(row in 1:nrow(W_lq)){
-  W_mid = W_lq[row,4]
-  W1 = W_lq[row,2]
-  W2 = W_lq[row,3]
-  quantile = W_lq[row,5]
+  W_mid = W_lq_new[row,'W_mid']
+  W1 = W_lq_new[row,'W1']
+  W2 = W_lq_new[row,'W2']
+  #quantile = W_lq[row,5]
   
   result1 = data.frame(x = seq(1,k,.5 ))%>%
     mutate(growth= growth(x),
@@ -337,16 +339,18 @@ for(row in 1:nrow(W_lq)){
                         'ss_cournot_lq',
                         'ss_bertrand',
                         'ss_bertrand_lq'))%>%
-    subset(values > -.1)%>%
-    subset(values < .1)%>%
-    mutate(AC = W_lq[row,1],
+    subset(values > -.2)%>%
+    subset(values < .2)%>%
+    mutate(AC = W_lq_new[row,'AC'],
            W_mid = W_mid, 
            W1 = W1, 
-           W2 = W2,
-           quantile = quantile)
+           W2 = W2)
   # Store
   storage = rbind(storage, errr)
 }
+# Little fix to use new data that does not feature quantile
+storage = storage %>%
+  mutate(quantile = 1)
 
 
 # Goal is to format to have only 1 steady state value : filter out the points around the steady states. 
@@ -358,7 +362,7 @@ colnames(final_dat) = c(colnames(storage), 'lag_sign')
 
 # Mutate ac_quantile to have 1 combination to scan through
 storage = storage %>%
-  mutate(ac_quantile = paste0(AC,quantile))
+  mutate(ac_quantile = paste0(W1,W2))
 
 # Loop over name and ac_quantile combination
 for(name in unique(storage$names)){
@@ -402,19 +406,161 @@ write.csv(final_dat, here('data', 'outputs', 'results_all_models.csv'))
 
 ### Graph outputs : 
 
-First, illustrate the new equilibria with the same $W$ value and the middle point solution for $W_1$ and $W_2$ in the linear quadratic cost of effort specification. 
+#### A. Understanding the impact of different values of W1 and W2
+
+To understand the impact of different $W_1$ & $W_2$ divides : 
+
+```{r, understand different W}
+store = data.frame(matrix(nrow = 0, ncol= ncol(result1)+1))
+colnames(store)= c(colnames(result1), 'quantile')
+
+for(xx in 1:nrow(W_lq_new)){
+  W_mid    = W_lq_new[xx,'W_mid']
+  W1       = W_lq_new[xx,'W1']
+  W2       = W_lq_new[xx,'W2']
+  quantile = W_lq_new[xx,'quantile']
+  
+  result1 = data.frame(x = seq(1,k,.5 ))%>%
+    mutate(growth= growth(x),
+           monop_harvest = monop_harvest(x),
+           monop_harvest_lq = monop_harvest_lq(x),
+           cournot_harvest = cournot_harvest(x),
+           cournot_harvest_lq = cournot_harvest_lq(x),
+           bertrand_harvest = bertrand_harvest(x),
+           bertrand_harvest_lq = composite_bertrand_lq(x),
+           ss_monop = monop_harvest - growth, 
+           ss_monop_lq = monop_harvest_lq - growth, 
+           ss_cournot = cournot_harvest - growth, 
+           ss_cournot_lq = cournot_harvest_lq - growth,
+           ss_bertrand = bertrand_harvest - growth, 
+           ss_bertrand_lq = bertrand_harvest_lq - growth,
+           price_poachers_lq = price_poacher_bertrand_lq(x),
+           price_poachers_bertrand = price_poachers_bertrand(x),
+           quantile = paste0('W1 =', round(W1,2), ' & W2 = ', round(W2,2)))
+  store = rbind(store, 
+                result1)
+}
+
+#store$quantile = factor(store$quantile, levels = c("W1 =12947.4 & W2 = 0.4",
+#                                                   "W1 =7193 & W2 = 1.9",
+#                                                   "W1 =1438.6 & W2 = 3.4"))
+
+# Format:
+renamer= function(x){
+  if(x %in% c('monop_harvest', 'monop_harvest_lq')){
+    return('Vertical Monopoly')
+  }else if(x %in% c('cournot_harvest', 'cournot_harvest_lq')){
+    return('Quantity adjustment')
+  }else if(x %in% c('bertrand_harvest', 'bertrand_harvest_lq')){
+    return('Price setting')
+  }else if(x %in% c('growth')){
+    return('Growth')
+  }
+}
+
+renamer2 = function(x){
+  checker = strsplit(x, '_')[[1]]
+  if(length(checker)<3){
+    return('Quadratic cost')
+  }else{
+    return('Linear quadratic cost')
+  }
+}
+
+rounder = function(x){
+  return(max(0,x))
+}
+
+dat_ = store %>%
+  pivot_longer(-c(x,quantile), 
+               values_to = 'values', 
+               names_to = 'names')%>%
+  subset(names %in% c('growth', 
+                      'monop_harvest', 
+                      'monop_harvest_lq', 
+                      'cournot_harvest',
+                      'cournot_harvest_lq', 
+                      'bertrand_harvest', 
+                      'bertrand_harvest_lq'))
+dat_$new_names = sapply(dat_$names, renamer)
+dat_$values2 = sapply(dat_$values, rounder)
+dat_$cost_structure = sapply(dat_$names, renamer2)
+
+dat_to_glue = dat_ %>%
+  subset(new_names == 'Growth')%>%
+  mutate(cost_structure = 'Linear quadratic cost')
+
+
+dat_ = rbind(dat_, dat_to_glue)
+
+p = dat_%>%
+  subset(x %% 2 == 0)%>%
+  ggplot(aes(x = x,
+             y = values2, 
+             color = new_names))+
+  geom_line(linewidth = 1)+
+  facet_grid(cost_structure ~ quantile)+
+  scale_linetype_manual(values=c("twodash", "solid"))+
+  scale_color_manual(values = palette_)+
+  theme_bw()+
+  guides(
+    color = guide_legend(
+      title = " ",  # Title for the first column
+      ncol = 2              # Number of columns
+    ),
+    linetype = guide_legend(
+      title = ' ',
+      ncol = 2
+    ))+
+  xlab('Population')+
+  ylab('Harvest')+
+  theme(legend.position = 'bottom',
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_))
+p
+if(!file.exists(here('visuals', 'supplementary_visuals', 'equilibria_with_W1_W2.png'))){
+  p
+  ggsave(here('visuals', 'supplementary_visuals', 'equilibria_with_W1_W1.png'),
+        width = 30,
+        height = 15, 
+        units = 'cm') 
+}
+```
+
+Clearly, the choice of $W_1$ and $W_2$ is important with respect to the anticipated equilibrium in the *vertical monopoly* case : with a linear-quadratic cost function, we no longer can say the monopoly will achieve a *healthy* steady state population. The results in the **post intervention** world are robust to the cost specification, and guarantee population increases in the *quantity adjustment* scenario, while population may marginally diminish in the *price setting* scenario. 
+
+#### B. Graph with prefered specification
+```{r, baseline choice}
+baseline_W_choice = W_lq_new %>% 
+  select(baseline_choice)%>%
+  unique()%>%
+  pull()
+
+```
+
+First, illustrate the new equilibria with the same $W$ =  `r W_mid` value and the prefered solution for $W_1$ and $W_2$ (e.g `r  c(round(W_lq_new[baseline_W_choice,'W1'],2), round(W_lq_new[baseline_W_choice,'W2'],2))`) in the linear quadratic cost of effort specification. 
 
 ```{r, New equilibrium}
 
-W_choice = W_lq %>%
-  subset(quantiles == 90)%>%
-  filter(W_mid < 3 & W_mid >2)%>%
+# Define baseline value with row index
+baseline_W_choice = W_lq_new %>% 
+  select(baseline_choice)%>%
+  unique()%>%
+  pull()
+
+W_choice = W_lq_new[baseline_W_choice,]%>%
   unlist()
 
 W_mid    = W_choice['W_mid']
 W1       = W_choice['W1']
 W2       = W_choice['W2']
 quantile = W_choice['quantiles']
+
+
 
 result1 = data.frame(x = seq(1,k,.5 ))%>%
   mutate(growth= growth(x),
@@ -477,12 +623,19 @@ dat_$new_names = sapply(dat_$names, renamer)
 dat_$values2 = sapply(dat_$values, rounder)
 dat_$cost_structure = sapply(dat_$names, renamer2)
 
+dat_to_glue = dat_ %>%
+  subset(new_names == 'Growth')%>%
+  mutate(cost_structure = 'Quadratic cost')
+
+dat_= rbind(dat_, dat_to_glue)
+
 dat_%>%
   subset(x %%2 == 0)%>%
   ggplot(aes(x = x,
              y = values2, 
              color = new_names))+
-  geom_line(aes(linetype = cost_structure), size = 1)+
+  geom_line(size = 1)+
+  facet_grid(~cost_structure)+
   scale_linetype_manual(values=c("solid", "twodash"))+
   scale_color_manual(values = palette_)+
   theme_bw()+
@@ -506,127 +659,11 @@ dat_%>%
         legend.title = element_text(family = font_))
 ```
 
-To understand the impact of different $W_1$ & $W_2$ divides : 
 
-```{r, understand different W}
-store = data.frame(matrix(nrow = 0, ncol= ncol(result1)+1))
-colnames(store)= c(colnames(result1), 'quantile')
-
-for(xx in c(21, 25, 29)){
-  W_mid    = W_lq[xx,4]
-  W1       = W_lq[xx,2]
-  W2       = W_lq[xx,3]
-  quantile = W_lq[xx,5]
-  
-  result1 = data.frame(x = seq(1,k,.5 ))%>%
-    mutate(growth= growth(x),
-           monop_harvest = monop_harvest(x),
-           monop_harvest_lq = monop_harvest_lq(x),
-           cournot_harvest = cournot_harvest(x),
-           cournot_harvest_lq = cournot_harvest_lq(x),
-           bertrand_harvest = bertrand_harvest(x),
-           bertrand_harvest_lq = composite_bertrand_lq(x),
-           ss_monop = monop_harvest - growth, 
-           ss_monop_lq = monop_harvest_lq - growth, 
-           ss_cournot = cournot_harvest - growth, 
-           ss_cournot_lq = cournot_harvest_lq - growth,
-           ss_bertrand = bertrand_harvest - growth, 
-           ss_bertrand_lq = bertrand_harvest_lq - growth,
-           price_poachers_lq = price_poacher_bertrand_lq(x),
-           price_poachers_bertrand = price_poachers_bertrand(x),
-           quantile = paste0('W1 =', round(W1,1), ' & W2 = ', round(W2,1)))
-  store = rbind(store, 
-                result1)
-}
-
-store$quantile = factor(store$quantile, levels = c("W1 =12947.4 & W2 = 0.4",
-                                                   "W1 =7193 & W2 = 1.9",
-                                                   "W1 =1438.6 & W2 = 3.4"))
-
-# Format:
-renamer= function(x){
-  if(x %in% c('monop_harvest', 'monop_harvest_lq')){
-    return('Vertical Monopoly')
-  }else if(x %in% c('cournot_harvest', 'cournot_harvest_lq')){
-    return('Quantity adjustment')
-  }else if(x %in% c('bertrand_harvest', 'bertrand_harvest_lq')){
-    return('Price setting')
-  }else if(x %in% c('growth')){
-    return('Growth')
-  }
-}
-
-renamer2 = function(x){
-  checker = strsplit(x, '_')[[1]]
-  if(length(checker)<3){
-    return('Quadratic cost')
-  }else{
-    return('Linear quadratic cost')
-  }
-}
-
-rounder = function(x){
-  return(max(0,x))
-}
-
-dat_ = store %>%
-  pivot_longer(-c(x,quantile), 
-               values_to = 'values', 
-               names_to = 'names')%>%
-  subset(names %in% c('growth', 
-                      'monop_harvest', 
-                      'monop_harvest_lq', 
-                      'cournot_harvest',
-                      'cournot_harvest_lq', 
-                      'bertrand_harvest', 
-                      'bertrand_harvest_lq'))
-dat_$new_names = sapply(dat_$names, renamer)
-dat_$values2 = sapply(dat_$values, rounder)
-dat_$cost_structure = sapply(dat_$names, renamer2)
-
-p = dat_%>%
-  subset(x %% 2 == 0)%>%
-  ggplot(aes(x = x,
-             y = values2, 
-             color = new_names))+
-  geom_line(aes(linetype = cost_structure), linewidth = 1)+
-  facet_grid(~quantile)+
-  scale_linetype_manual(values=c("twodash", "solid"))+
-  scale_color_manual(values = palette_)+
-  theme_bw()+
-  guides(
-    color = guide_legend(
-      title = " ",  # Title for the first column
-      ncol = 2              # Number of columns
-    ),
-    linetype = guide_legend(
-      title = ' ',
-      ncol = 2
-    ))+
-  xlab('Population')+
-  ylab('Harvest')+
-  theme(legend.position = 'bottom',
-        strip.text.x  = element_text(family = font_) ,
-        axis.title.x  = element_text(family = font_),
-        axis.text = element_text(family = font_),
-        axis.title.y  = element_text(family = font_),
-        legend.text = element_text(family = font_), 
-        legend.title = element_text(family = font_))
-p
-if(!file.exists(here('visuals', 'supplementary_visuals', 'equilibria_with_W1_W2.png'))){
-  p
-  ggsave(here('visuals', 'supplementary_visuals', 'equilibria_with_W1_W1.png'),
-        width = 30,
-        height = 15, 
-        units = 'cm') 
-}
-```
-
-Clearly, the choice of $W_1$ and $W_2$ is important with respect to the anticipated equilibrium in the *vertical monopoly* case : with a linear-quadratic cost function, we no longer can say the monopoly will achieve a *healthy* steady state population. The results in the **post intervention** world are robust to the cost specification, and guarantee population increases in the *quantity adjustment* scenario, while population may marginally diminish in the *price setting* scenario. 
 
 ```{r, Equilibria}
 # Rename:
-costs = unique(W_lq$Cost)
+costs = unique(W_lq_new$AC)
 
 rename_W = function(x){
   if(x==costs[1]){
@@ -670,13 +707,13 @@ final_dat %>%
                                     'High Effort Cost')),
          new_names = sapply(names, rename_scenario),
          tamr = paste(new_names, new_AC, sep = ' '),
-         new_quantile = sapply(quantile, rename_quantiles))%>%
-  subset(new_quantile %in% c('10%','20%', '50%', '80%','90%'))%>%
+         new_quantile = paste0('W1 : ', round(W1,2), ' & W2 : ', round(W2,2)))%>%
+  #subset(new_quantile %in% c('10%','20%', '50%', '80%','90%'))%>%
   ggplot(aes(x = new_names, y = x, color = Stable))+
   scale_color_manual(values = c('darkblue', 'brown'))+
   geom_point(size = 2)+
   #scale_color_continuous('Estimate of unit effort cost', type = 'viridis')+
-  facet_grid(new_AC~new_quantile)+
+  facet_grid(~new_quantile)+
   theme_bw()+
   xlab(' ')+
   ylab(' ')+
@@ -698,20 +735,20 @@ final_dat %>%
 
 final_dat %>%
   subset(AC>0)%>%
-  subset(names %in% c('ss_cournot_lq', 'ss_cournot'))%>%
+  subset(names %in% c('ss_cournot', 'ss_cournot_lq'))%>%
   mutate(new_AC = factor(sapply(AC, rename_W), 
                          levels = c('Low Effort Cost', 
                                     'Mid. Effort Cost', 
                                     'High Effort Cost')),
          new_names = sapply(names, rename_scenario),
          tamr = paste(new_names, new_AC, sep = ' '),
-         new_quantile = sapply(quantile, rename_quantiles))%>%
-  subset(new_quantile %in% c('10%','20%', '50%', '80%','90%'))%>%
+         new_quantile = paste0('W1 : ', round(W1,2), ' & W2 : ', round(W2,2)))%>%
+  #subset(new_quantile %in% c('10%','20%', '50%', '80%','90%'))%>%
   ggplot(aes(x = new_names, y = x, color = Stable))+
   scale_color_manual(values = c('darkblue', 'brown'))+
   geom_point(size = 2)+
   #scale_color_continuous('Estimate of unit effort cost', type = 'viridis')+
-  facet_grid(new_AC~new_quantile)+
+  facet_grid(~new_quantile)+
   theme_bw()+
   xlab(' ')+
   ylab(' ')+
@@ -739,13 +776,13 @@ final_dat %>%
                                     'High Effort Cost')),
          new_names = sapply(names, rename_scenario),
          tamr = paste(new_names, new_AC, sep = ' '),
-         new_quantile = sapply(quantile, rename_quantiles))%>%
-  subset(new_quantile %in% c('10%','20%', '50%', '80%','90%'))%>%
+         new_quantile = paste0('W1 : ', round(W1,2), ' & W2 : ', round(W2,2)))%>%
+  #subset(new_quantile %in% c('10%','20%', '50%', '80%','90%'))%>%
   ggplot(aes(x = new_names, y = x, color = Stable))+
   scale_color_manual(values = c('darkblue', 'brown'))+
   geom_point(size = 2)+
   #scale_color_continuous('Estimate of unit effort cost', type = 'viridis')+
-  facet_grid(new_AC~new_quantile)+
+  facet_grid(~new_quantile)+
   theme_bw()+
   xlab(' ')+
   ylab(' ')+
@@ -766,7 +803,6 @@ final_dat %>%
 Define bio-economic performance by combining population variables (stock and harvest) with price and profit data from economic model. 
 
 ```{r, bioeconomic performance}
-
 baseline_quantile = 90
 profit = function(param){
   # Variable assignment
@@ -1029,20 +1065,14 @@ storage = bind_rows(storage)%>%
 
 # Define baselines
 
-W_baseline = calibration%>%
-  subset(params == 'W_mid')%>%
+W_baseline = calibration %>%
+  subset(params == 'W_high')%>%
   select(value)%>%
   pull
 
-Wlq_baseline = W_lq %>%
-  subset(W_mid == W_baseline) %>%
-  subset(quantiles == baseline_quantile)
-W1_baseline = Wlq_baseline %>%
-  select(W1) %>%
-  pull()
-W2_baseline = Wlq_baseline %>%
-  select(W2) %>%
-  pull()
+W1_baseline = W_choice['W1'] 
+W2_baseline = W_choice['W2']
+
 # Normalize :
 ## baseline profit
 baseline_profit_monop = storage %>%
@@ -1109,9 +1139,9 @@ storage_stable = storage%>%
     subset(stability>0)
 
 a = storage_stable %>%
-  filter(W < 1.1*W_baseline & W>.98*W_baseline)%>%
-  filter(W1 < 1.1* W1_baseline & W1 > .98*W1_baseline)%>%
-  filter(W2 < 1.1 *W2_baseline & W2_baseline >.98 * W2_baseline)%>%
+  filter(W < 1.01*W_baseline & W>.999*W_baseline)%>%
+  filter(W1 < 1.01* W1_baseline & W1 > .999*W1_baseline)%>%
+  filter(W2 < 1.01 *W2_baseline & W2_baseline >.999 * W2_baseline)%>%
   select(-c('stability', 'W', 'W1', 'W2'))
 
 renamer= function(x){
@@ -1184,6 +1214,15 @@ d = rbind(a %>%
                          'Price setting - LQ cost'))%>%
             arrange(desc(Scenario)))
           
+checker = data.frame(table(d$Scenario))
+
+if(sum(checker$Freq)>nrow(checker)){
+  to_clean = which(checker$Freq>1)
+  to_clean  = as.character(checker[to_clean, 'Var1'])
+  to_remove = last(which(d$Scenario == to_clean))
+  d[to_remove, 'Scenario'] = ' '
+}
+
           
 d %>% 
   tt(caption = 'Bioeconomic performance - with baseline specification')%>%
