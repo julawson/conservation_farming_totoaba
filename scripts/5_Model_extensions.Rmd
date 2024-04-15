@@ -8,6 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F)
 
+rm(list = ls())
 library(dplyr)
 library(tidyr)
 library(stringi)
@@ -84,6 +85,37 @@ growth = function(x,
   return(y)
 }
 
+###### Linear quadratic model 
+
+monop_harvest_lq = function(x,
+                            alpha. = alpha, 
+                            c. = c, 
+                            sigma. = sigma, 
+                            beta. = beta,
+                            W1. = W1,
+                            W2. = W2){
+    y = (sigma.^2 * x^2 * (alpha. - c.) - W1.*sigma.*x)/(2*(beta.*sigma.^2 * x^2 + W2.))
+    return(y)
+    }
+
+
+cournot_oligo_harvest_lq = function(N, 
+                                    M,
+                                    x,
+                                    alpha_f. = alpha_f, 
+                                    alpha_w. = alpha_w, 
+                                    beta_f. = beta_f, 
+                                    beta_w. = beta_w, 
+                                    gamma. = gamma, 
+                                    sigma. = sigma, 
+                                    c. = c, 
+                                    v. = v, 
+                                    W1. = W1,
+                                    W2. = W2){
+  y = N*( sigma.^2 * x^2 * (beta_f. * (M + 1) * (alpha_w. - c.) - gamma. * M * (alpha_f. - v.)) - W1. * sigma * x * beta_f. * (M+1)) / (sigma.^2 * x^2 * (beta_w. * beta_f. * (M + 1) * (N + 1) - gamma.^2 * N * M) + 2 * N * beta_f. * (M + 1) * W2.)
+  return(y)  
+}
+
 
 ```
 
@@ -112,43 +144,43 @@ a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
 b_f = beta_f/(beta_w*beta_f - (gamma^2))
 b_w = beta_w/(beta_w*beta_f - (gamma^2))
 
-W = W_mid
+W = W_high
 # set data : population
 data = data.frame(x = seq(1,k))
 x_ = seq(1,k)
 data = data %>% 
-  mutate("Monopoly" = monop_harvest(x_),
+  mutate("Monopoly" = monop_harvest_lq(x_),
          #
-         "1 trader - 1 farmer" = cournot_harvest(x_), 
+         "1 trader - 1 farmer" = cournot_oligo_harvest_lq(1,1,x_), 
          growth = growth(x_),
-         '1 trader - 2 farmers' = q_(1,2,x_),
-         '1 trader - 5 farmers' = q_(1, 5, x_),
-         '1 trader - 10 farmers' = q_(1, 10, x_),
-         '1 trader - 50 farmers' = q_(1, 50, x_),
+         '1 trader - 2 farmers' = cournot_oligo_harvest_lq(1,2,x_),
+         '1 trader - 5 farmers' = cournot_oligo_harvest_lq(1, 5, x_),
+         '1 trader - 10 farmers' = cournot_oligo_harvest_lq(1, 10, x_),
+         '1 trader - 50 farmers' = cournot_oligo_harvest_lq(1, 50, x_),
          #
-         '2 traders - 1 farmer' = q_(2, 1, x_),
-         '2 traders - 2 farmers' = q_(2, 2, x_),
-         '2 traders - 5 farmers'  = q_(2,5, x_),
-         '2 traders - 10 farmers' = q_(2, 10, x_),
-         '2 traders - 50 farmers' = q_(2, 50, x_),
+         '2 traders - 1 farmer' = cournot_oligo_harvest_lq(2, 1, x_),
+         '2 traders - 2 farmers' = cournot_oligo_harvest_lq(2, 2, x_),
+         '2 traders - 5 farmers'  = cournot_oligo_harvest_lq(2,5, x_),
+         '2 traders - 10 farmers' = cournot_oligo_harvest_lq(2, 10, x_),
+         '2 traders - 50 farmers' = cournot_oligo_harvest_lq(2, 50, x_),
          #
-         '5 traders - 1 farmer' = q_(5, 1, x_),
-         '5 traders - 2 farmers'  = q_(5, 2, x_),
-         '5 traders - 5 farmers'  = q_(5,5,x_),
-         '5 traders - 10 farmers' = q_(5,10, x_),
-         '5 traders - 50 farmers' = q_(5, 50, x_),
+         '5 traders - 1 farmer' = cournot_oligo_harvest_lq(5, 1, x_),
+         '5 traders - 2 farmers'  = cournot_oligo_harvest_lq(5, 2, x_),
+         '5 traders - 5 farmers'  = cournot_oligo_harvest_lq(5,5,x_),
+         '5 traders - 10 farmers' = cournot_oligo_harvest_lq(5,10, x_),
+         '5 traders - 50 farmers' = cournot_oligo_harvest_lq(5, 50, x_),
          #
-         '10 traders - 1 farmer' = q_(10, 1, x_),
-         '10 traders - 2 farmers' = q_(10, 2, x_),
-         '10 traders - 5 farmers' = q_(10, 5, x_),
-         '10 traders - 10 farmers'= q_(10, 10, x_),
-         '10 traders - 50 farmers'= q_(10, 50, x_),
+         '10 traders - 1 farmer' = cournot_oligo_harvest_lq(10, 1, x_),
+         '10 traders - 2 farmers' = cournot_oligo_harvest_lq(10, 2, x_),
+         '10 traders - 5 farmers' = cournot_oligo_harvest_lq(10, 5, x_),
+         '10 traders - 10 farmers'= cournot_oligo_harvest_lq(10, 10, x_),
+         '10 traders - 50 farmers'= cournot_oligo_harvest_lq(10, 50, x_),
          #
-         '50 traders - 1 farmer' = q_(50, 1, x_),
-         '50 traders - 2 farmers' = q_(50, 2, x_),
-         '50 traders - 5 farmers' = q_(50, 5, x_),
-         '50 traders - 10 farmers' = q_(50, 10, x_),
-         '50 traders - 50 farmers' = q_(50, 50, x_))%>%
+         '50 traders - 1 farmer' = cournot_oligo_harvest_lq(50, 1, x_),
+         '50 traders - 2 farmers' = cournot_oligo_harvest_lq(50, 2, x_),
+         '50 traders - 5 farmers' = cournot_oligo_harvest_lq(50, 5, x_),
+         '50 traders - 10 farmers' = cournot_oligo_harvest_lq(50, 10, x_),
+         '50 traders - 50 farmers' = cournot_oligo_harvest_lq(50, 50, x_))%>%
   pivot_longer(cols = -c('x'), # Set to long format for ggplot
               names_to = 'name', 
               values_to = 'values')%>%
@@ -233,10 +265,11 @@ monopoly_ss = data2 %>%
 
 data2 %>%
   subset(!(grouper %in% c('Baseline')))%>%
-  ggplot(aes(x = order, y = x, colour = name3, shape = name2))+
+  mutate(x_norm = (x - monopoly_ss)/monopoly_ss * 100)%>%
+  ggplot(aes(x = order, y = x_norm, colour = name3, shape = name2))+
   facet_grid(~ grouper, scales = 'free')+
   geom_point(size = 2.5)+
-  geom_hline(yintercept =monopoly_ss, 
+  geom_hline(yintercept =0, 
              linetype = "dashed")+
   #scale_x_discrete(limits = levels(data$name))+
   scale_x_discrete(breaks=data2$order, labels=data2$name)+
@@ -244,7 +277,7 @@ data2 %>%
   scale_colour_manual(values = palette)+
   scale_shape_discrete()+
   theme_bw()+
-  ylab('Steady state population')+
+  ylab('Steady state population (in % variation from vertical monopoly scenario)')+
   xlab('')+
   guides(
     color = guide_legend(

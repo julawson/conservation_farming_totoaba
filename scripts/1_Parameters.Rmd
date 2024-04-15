@@ -339,7 +339,7 @@ baseline_W_choice = 3
 
 W1_potential = c((costs[2]+costs[3])/2, (costs[2]+costs[3])/1.9, (costs[2]+costs[3])/1.75, (costs[2]+costs[3])/1.6, costs[3])
 W2_potential = c(1.6, 1.3, .75,.1, 0)
-W_lq_new = data.frame(W1_potential, W2_potential)%>%
+W_lq_new = data.frame(W1 = W1_potential, W2 = W2_potential)%>%
   mutate(AC = costs[3], 
          W_mid = W_high/(2*max_E), 
          baseline_choice = baseline_W_choice)
@@ -456,7 +456,6 @@ We use `c=` `r c` as trading costs.
 # V. Farming costs
 
 ```{r calculating cost of farming}
-
 # Farming cost data, from Buche Bros
 
 # Final estimate per tonne of totoaba per year:
@@ -465,6 +464,12 @@ v_ = v_par %>%
   pull()
 age = 4.5
 v = v_*age
+
+# Capitalized costs with interest rate
+interest_rate = 0.1
+
+v_cap = v_*(1 + (1 + interest_rate) + (1 + interest_rate)^2 + (1 + interest_rate)^3 + (1+ interest_rate)^3.5)
+v = v_cap
 # Calculating size at harvest
 aqua_par_w <- read.csv(here("data", 'inputs', "aqua_par_wild.csv"))
 aqua_par_f <- read.csv(here("data", 'inputs', "aqua_par_farm.csv"))
@@ -501,9 +506,9 @@ if(Latex==T){
 ```{r}
 
 
-params = c('alpha', 'beta', 'r', 'k', 'sigma', 'W_mid', 'W_low', 'W_high', 'avg_cost','W1', 'W2', 'age', 'gamma', 'v', 'c')
+params = c('alpha', 'beta', 'r', 'k', 'sigma', 'W_mid', 'W_low', 'W_high', 'avg_cost','W1', 'W2', 'age', 'gamma', 'v', 'i_r','c')
 value = c(alpha, beta, r, k, catchability, W_qmid, W_qlow, W_qhigh, W_high, 
-          W_lq_new[baseline_W_choice,'W1_potential'], W_lq_new[baseline_W_choice, 'W2_potential'], age, gamma, v, c)
+          W_lq_new[baseline_W_choice,'W1'], W_lq_new[baseline_W_choice, 'W2'], age, gamma, v, interest_rate, c)
 concept = c('Demand model : intercept', 
             'Demand model : coefficient', 
             'Intrinsic growth rate', 
@@ -518,9 +523,10 @@ concept = c('Demand model : intercept',
             'Age of farmed totoaba', 
             'Substitutability', 
             'Unit cost of farming', 
+            'Interest rate',
             'Unit cost of trading')
 
-units = c('USD', 'USD/metric ton of biomass', 'unitless',   'metric tons of biomass','% of biomass/vessel trip', 'USD vessel trip$^{-2}$',  'USD vessel trip$^{-2}$', 'USDvessel trip$^{-2}$', 'USD/vessel trip', 'USD/vessel trip', 'USD vessel trip$^{-2}$', 'Years', 'Unitless', 'USD/metric ton of biomass', 'USD/ metric ton of biomass')
+units = c('USD', 'USD/metric ton of biomass', 'unitless',   'metric tons of biomass','% of biomass/vessel trip', 'USD vessel trip$^{-2}$',  'USD vessel trip$^{-2}$', 'USDvessel trip$^{-2}$', 'USD/vessel trip', 'USD/vessel trip', 'USD vessel trip$^{-2}$', 'Years', 'Unitless', 'USD/metric ton of biomass', '%', 'USD/ metric ton of biomass')
 
 calibration = data.frame(params, value, concept, units)
 write.csv(calibration, here('data', 'outputs', 'calibration_params.csv'))
