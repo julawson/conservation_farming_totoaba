@@ -74,7 +74,7 @@ calibration %>%
 
 avg_toto_weight = 25.7
 
-W_lq = read.csv(here('data', 'inputs', 'W_lq.csv'))
+#W_lq = read.csv(here('data', 'inputs', 'W_lq.csv'))
 W_lq_new = read.csv(here('data','inputs', 'W_lq_new.csv'))
 
 rm(for_display)
@@ -304,7 +304,7 @@ storage = data.frame(0,0,0,0,0,0,0)
 colnames(storage) = c('x','names','values','AC', 'W_mid', 'W1', 'W2')
 
 # Run model for every W configuration
-for(row in 1:nrow(W_lq)){
+for(row in 1:nrow(W_lq_new)){
   W_mid = W_lq_new[row,'W_mid']
   W1 = W_lq_new[row,'W1']
   W2 = W_lq_new[row,'W2']
@@ -1074,9 +1074,10 @@ W1_baseline = W_choice['W1']
 W2_baseline = W_choice['W2']
 
 # Normalize :
+baseline_scenario = 'ss_monop_lq'
 ## baseline profit
 baseline_profit_monop = storage %>%
-  subset(names == 'ss_monop')%>%
+  subset(names == baseline_scenario)%>%
   filter(W < 1.1*W_baseline & W>.98*W_baseline)%>%
   filter(W1 < 1.1* W1_baseline & W1 > .98*W1_baseline)%>%
   filter(W2 < 1.1 *W2_baseline & W2_baseline >.98 * W2_baseline)%>%
@@ -1084,7 +1085,7 @@ baseline_profit_monop = storage %>%
   pull()
 
 baseline_profit_fishermen = storage %>%
-  subset(names == 'ss_monop')%>%
+  subset(names == baseline_scenario)%>%
   filter(W < 1.1*W_baseline & W>.98*W_baseline)%>%
   filter(W1 < 1.1* W1_baseline & W1 > .98*W1_baseline)%>%
   filter(W2 < 1.1 *W2_baseline & W2_baseline >.98 * W2_baseline)%>%
@@ -1092,7 +1093,7 @@ baseline_profit_fishermen = storage %>%
   pull()
 
 baseline_profit_farming = storage %>%
-  subset(names == 'ss_monop')%>%
+  subset(names == baseline_scenario)%>%
   filter(W < 1.1*W_baseline & W>.98*W_baseline)%>%
   filter(W1 < 1.1* W1_baseline & W1 > .98*W1_baseline)%>%
   filter(W2 < 1.1 *W2_baseline & W2_baseline >.98 * W2_baseline)%>%
@@ -1100,7 +1101,7 @@ baseline_profit_farming = storage %>%
   pull()
 
 baseline_ag_profit = storage %>%
-  subset(names == 'ss_monop')%>%
+  subset(names == baseline_scenario)%>%
   filter(W < 1.1*W_baseline & W>.98*W_baseline)%>%
   filter(W1 < 1.1* W1_baseline & W1 > .98*W1_baseline)%>%
   filter(W2 < 1.1 *W2_baseline & W2_baseline >.98 * W2_baseline)%>%
@@ -1115,7 +1116,7 @@ storage = storage %>%
 
 # Population 
 baseline_poaching = storage %>%
-  subset(names == 'ss_monop')%>%
+  subset(names == baseline_scenario)%>%
   filter(W < 1.1*W_baseline & W>.98*W_baseline)%>%
   filter(W1 < 1.1* W1_baseline & W1 > .98*W1_baseline)%>%
   filter(W2 < 1.1 *W2_baseline & W2_baseline >.98 * W2_baseline)%>%
@@ -1123,7 +1124,7 @@ baseline_poaching = storage %>%
   pull()
 
 baseline_stock = storage %>%
-  subset(names == 'ss_monop')%>%
+  subset(names == baseline_scenario)%>%
   filter(W < 1.1*W_baseline & W>.98*W_baseline)%>%
   filter(W1 < 1.1* W1_baseline & W1 > .98*W1_baseline)%>%
   filter(W2 < 1.1 *W2_baseline & W2_baseline >.98 * W2_baseline)%>%
@@ -1234,5 +1235,42 @@ d %>%
   style_tt(i = 0,  background = '#eae4e4')%>%
   style_tt(j = 1, bold = T)
 
+
 ``` 
+
+Table for manuscript : 
+```{r, table}
+# for manuscript : 
+z = a %>%
+subset(Scenario %in% c('Vertical Monopoly - LQ cost', 
+                       'Quantity adjustment - LQ cost', 
+                       'Price setting - LQ cost'))%>%
+  select( - c(
+         'Price  paid to poacher (in USD/ton of buche)',
+         'Retail price (in USD/ton of buche)',
+         'Retail price of 500g buche (in USD)',
+         'Poacher price of 500g buche (in USD)',
+         'Farming profit change (in million USD)',
+         'Aggregate profit change (in million USD)', 
+         'Fishing profit change (in million USD)'))
+z = z[order(z$Scenario, decreasing= T),]
+new_names_z = c()
+for(x in 1:nrow(z)){
+  to_glue = strsplit(z[x, 'Scenario'], ' ')
+  to_glue =paste(to_glue[[1]][1], to_glue[[1]][2])
+  new_names_z = append(new_names_z, to_glue)
+}
+
+z$Scenario = new_names_z
+
+
+write.csv(z, here('data','outputs', 'bioecon_performance_table.csv'))
+
+z %>%
+  tt(caption = 'Bioeconomic performance')%>%
+  style_tt(i = c(0,2), background = '#EEDD82')
+
+
+
+```
 

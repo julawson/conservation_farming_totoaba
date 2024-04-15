@@ -1,0 +1,4 @@
+"","Scenario","Poached harvest (in mt)","Farmed harvest (in mt)","Steady state population (in mt)","Illegal profit (in million USD)","Farming profit (in million USD)","Fishing profit (in million USD)","Aggregate profit (in million USD)","Illegal profit change (in million USD)","Variation in ss. pop.","Poaching change (%)"
+"4","Vertical Monopoly",505.81,0,17286,400.08,0,1.6,401.68,374.23,"2519.09%","293.38%"
+"6","Quantity adjustment",358.86,329.61,18250.5,201.38,169.89,0.72,371.99,-199.69,"5.61%","-29.14%"
+"1","Price setting",562.98,426.28,17131,57.2,32.82,5.4,95.42,31.35,"2495.61%","337.84%"

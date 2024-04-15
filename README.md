@@ -23,10 +23,14 @@ Input files are :
 
 Output file : 
 
-* `parameters.csv`: baseline parameters for model run. 
+* `parameters.csv`: baseline parameters for model run.
 
-## Conservation farming analysis (script: `2_Model.Rmd`)
-This script runs the model for our baseline calibration. 
+* `least_squares_W.csv` : result from least squares estimates of fishing cost parameters ($W_1$ and $W_2$)
+
+* `W_lq_new.csv` : results for baseline and sensitivity values of fishing cost parameters ($W_1$ and $W_2$)
+
+## Conservation farming analysis (script: `2b_Model_baseline.Rmd`)
+This script runs the model for our baseline calibration.
 
 Input file: 
 
@@ -34,7 +38,9 @@ Input file:
 
 Output file : 
 
-* `result1.csv` : results from model run including population, harvest & farming, prices for different market structures. 
+* `results_all_models.csv` : results from model run including population, harvest & farming, prices and profits for different market structures. 
+
+* `bioecon_performance_table.csv` : table in .csv format for manuscript summarizing model results
 
 
 ## Sensitivity analysis (script: `3_Sensitivity_analysis.Rmd`)

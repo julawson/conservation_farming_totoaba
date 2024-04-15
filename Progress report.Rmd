@@ -13,6 +13,12 @@ knitr::opts_chunk$set(echo = F)
 
 * Implemented linear quadratic cost model to respond to reviewer : $C(E) = c_0 + c_1 E + c_2 E^2$
   -> This should be the main model we consider, as it shows that monopoly results can very much depend on the cost structure, and the cartel may not do well. 
+  
+  (i) reconstructed the total cost function
+  
+  (ii) found values that are close to the actual estimated cost and 
+  
+  (iii) feature different evolution scenarios, including different degrees of importance of the quadratic term. This should fix the whole cost discussion, and mimics the results from Pereau and Doyen, 2021. 
 
 * Explained demand scheme in the appendix to respond to reviewer
 
@@ -20,17 +26,18 @@ knitr::opts_chunk$set(echo = F)
 
 ### 1. Core choices for modeling
 
-* Use the linear quadratic model as the baseline specification, and show maybe that in this case, Monopoly is not that good :
-
-  * Implies a heterogeneous, individual appraisal of fishermen costs, but we use an average of costs across the fishery. We focus on the evolution of effort, hence we want to look at a disagreggated view. **still need to clarify that**
-
-  * Implies to think twice about costs : if we use LQ costs, eg, $C(q) = c_0 + c_{1}E + c_{2} E^2$ without heterogeneity, need to find a way to estimate cleanly each of the parameters. So far, we have used $c_1 + 2c_2 = Average$, and I have chosen a split that puts more weight on the linear term (as in the literature, cf Pereau and Doyen, 2021). However, I am not sure how to justify it (besides the sensitivity analysis). Still not sure that this how we should estimate the marginal cost though. 
-  
-  **Fix today** : I have (i) reconstructed the total cost function, (ii) found values that are close to the actual estimated cost and (iii) feature different evolution scenarios, including different degrees of importance of the quadratic term. This should fix the whole cost discussion, and mimics the results from Pereau and Doyen, 2021. 
-
 * Define what is the discount rate chosen by operators in here : if we focus on the steady state and only use contemporaneous profits, what does that mean? 
+  
+  (i) Defined a capitalization interest rate of $10%$ for aquaculture, changed the cost parameter a little, but better. 
+  
+  (ii) Remain to clarify assumptions for monopolist in terms of discount factor
 
 * We may need to refer to an *explicit target in terms of population* (by referring to the MEY or MSY?) and the distance to it, to really satisfy the reviewers. Are there explicit policy guidelines? Like "we are closing the fishery to recover a population of 80% of carrying capacity"?
+
+  * Solve with the reference point (Punto de Referencia Limite) in INAPESCA, 2020 : '[...] se considero un PRL conservador de 1.2 * K/2' p.68
+  
+  * Solve with no reference point and table output as in Englander and Costello (2023), saved under `bioeconomic_performance_table.csv` in `data/outputs`
+  
 
 ### 2. Text modifications
 
@@ -48,11 +55,10 @@ knitr::opts_chunk$set(echo = F)
   
   * Do the extensions for the linear quadratic model
   
-* Do we want the open access case after all? We need a reference point to say : monopoly is better than something, and then say yes, but not as good as with aquaculture, and finally have a reference point about the economic surplus?   
-
+* Check figure Julia did on Canvas and modify if need be
 
 ### 3. Code implementations
 
 * Verify sensitivity analysis for linear quadratic model
 
-* Clean the right files 
+* Clean the .rmd files 
