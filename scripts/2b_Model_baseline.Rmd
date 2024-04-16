@@ -243,7 +243,7 @@ bertrand_harvest_lq = function(x,
                                W2. = W2){
   y1 = b_w.*(sigma.^2 * x^2 *((2*a_w. +e.*v.)*b_f. + e.*a_f.) + (c. + W1. * sigma. * b_w. * x)*(e.^2 - 2*b_w. *b_f.))
   y2 = 2*W2.*b_w.*(2*b_f.* b_w. - e.^2) + (4*b_f.*b_w. - e.^2)*sigma.^2*x^2
-  z = y1*y2
+  z = y1/y2
   return(z)
 }
 
@@ -397,7 +397,7 @@ final_dat = final_dat %>%
   mutate(Stable = ifelse(lag_sign>0,'Stable', 'Unstable'))
 
 # Save
-
+rm(errr, study, to_check)
 write.csv(final_dat, here('data', 'outputs', 'results_all_models.csv'))
               
 ```
@@ -529,6 +529,8 @@ if(!file.exists(here('visuals', 'supplementary_visuals', 'equilibria_with_W1_W2.
         height = 15, 
         units = 'cm') 
 }
+
+rm(dat_to_glue, store)
 ```
 
 Clearly, the choice of $W_1$ and $W_2$ is important with respect to the anticipated equilibrium in the *vertical monopoly* case : with a linear-quadratic cost function, we no longer can say the monopoly will achieve a *healthy* steady state population. The results in the **post intervention** world are robust to the cost specification, and guarantee population increases in the *quantity adjustment* scenario, while population may marginally diminish in the *price setting* scenario. 
@@ -559,7 +561,6 @@ W_mid    = W_choice['W_mid']
 W1       = W_choice['W1']
 W2       = W_choice['W2']
 quantile = W_choice['quantiles']
-
 
 
 result1 = data.frame(x = seq(1,k,.5 ))%>%
@@ -657,6 +658,7 @@ dat_%>%
         axis.title.y  = element_text(family = font_),
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_))
+rm(dat_)
 ```
 
 
@@ -729,6 +731,7 @@ final_dat %>%
         axis.text = element_text(family = font_),
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_))
+rm(dat_to_glue)
 ```
 
 ```{r, Cournot}
@@ -1076,37 +1079,20 @@ W2_baseline = W_choice['W2']
 # Normalize :
 baseline_scenario = 'ss_monop_lq'
 ## baseline profit
-baseline_profit_monop = storage %>%
-  subset(names == baseline_scenario)%>%
-  filter(W < 1.1*W_baseline & W>.98*W_baseline)%>%
-  filter(W1 < 1.1* W1_baseline & W1 > .98*W1_baseline)%>%
-  filter(W2 < 1.1 *W2_baseline & W2_baseline >.98 * W2_baseline)%>%
-  select(profit_poaching)%>%
-  pull()
+tol = .01
 
-baseline_profit_fishermen = storage %>%
+baseline_dat = storage %>%
   subset(names == baseline_scenario)%>%
-  filter(W < 1.1*W_baseline & W>.98*W_baseline)%>%
-  filter(W1 < 1.1* W1_baseline & W1 > .98*W1_baseline)%>%
-  filter(W2 < 1.1 *W2_baseline & W2_baseline >.98 * W2_baseline)%>%
-  select(profit_fishermen)%>%
-  pull()
+  filter(W < (1+tol)*W_baseline & W> (1-tol)*W_baseline)%>%
+  filter(W1 < (1+tol)* W1_baseline & W1 > (1-tol)*W1_baseline)%>%
+  filter(W2 < (1+tol) *W2_baseline & W2_baseline >(1-tol) * W2_baseline)%>%
+  unlist()
 
-baseline_profit_farming = storage %>%
-  subset(names == baseline_scenario)%>%
-  filter(W < 1.1*W_baseline & W>.98*W_baseline)%>%
-  filter(W1 < 1.1* W1_baseline & W1 > .98*W1_baseline)%>%
-  filter(W2 < 1.1 *W2_baseline & W2_baseline >.98 * W2_baseline)%>%
-  select(profit_farming)%>%
-  pull()
+baseline_profit_monop = as.numeric(baseline_dat['profit_poaching'])
+baseline_profit_fishermen = as.numeric(baseline_dat['profit_fishermen'])
+baseline_profit_farming = as.numeric(baseline_dat['profit_farming'])
+baseline_ag_profit = as.numeric(baseline_dat['ag_profit'])
 
-baseline_ag_profit = storage %>%
-  subset(names == baseline_scenario)%>%
-  filter(W < 1.1*W_baseline & W>.98*W_baseline)%>%
-  filter(W1 < 1.1* W1_baseline & W1 > .98*W1_baseline)%>%
-  filter(W2 < 1.1 *W2_baseline & W2_baseline >.98 * W2_baseline)%>%
-  select(ag_profit)%>%
-  pull()
 
 storage = storage %>%
     mutate(ag_profit_diff = ag_profit - baseline_ag_profit, 
@@ -1115,21 +1101,8 @@ storage = storage %>%
            profit_fishermen_diff = profit_fishermen - baseline_profit_fishermen)
 
 # Population 
-baseline_poaching = storage %>%
-  subset(names == baseline_scenario)%>%
-  filter(W < 1.1*W_baseline & W>.98*W_baseline)%>%
-  filter(W1 < 1.1* W1_baseline & W1 > .98*W1_baseline)%>%
-  filter(W2 < 1.1 *W2_baseline & W2_baseline >.98 * W2_baseline)%>%
-  select(poached_harvest)%>%
-  pull()
-
-baseline_stock = storage %>%
-  subset(names == baseline_scenario)%>%
-  filter(W < 1.1*W_baseline & W>.98*W_baseline)%>%
-  filter(W1 < 1.1* W1_baseline & W1 > .98*W1_baseline)%>%
-  filter(W2 < 1.1 *W2_baseline & W2_baseline >.98 * W2_baseline)%>%
-  select(x)%>%
-  pull()
+baseline_poaching = as.numeric(baseline_dat['poached_harvest'])
+baseline_stock = as.numeric(baseline_dat['x'])
 
   
 storage['variation_poaching'] = (storage['poached_harvest'] - baseline_poaching)/baseline_poaching*100
@@ -1139,10 +1112,10 @@ storage['normalized_ss'] = (storage['x'] - baseline_stock)/baseline_stock*100
 storage_stable = storage%>%
     subset(stability>0)
 
-a = storage_stable %>%
-  filter(W < 1.01*W_baseline & W>.999*W_baseline)%>%
-  filter(W1 < 1.01* W1_baseline & W1 > .999*W1_baseline)%>%
-  filter(W2 < 1.01 *W2_baseline & W2_baseline >.999 * W2_baseline)%>%
+bioecon_table = storage_stable %>%
+  filter(W < (1 + tol)*W_baseline & W>(1 - tol)*W_baseline)%>%
+  filter(W1 < (1 + tol)* W1_baseline & W1 > (1 - tol)*W1_baseline)%>%
+  filter(W2 < (1 + tol) *W2_baseline & W2_baseline > (1 - tol) * W2_baseline)%>%
   select(-c('stability', 'W', 'W1', 'W2'))
 
 renamer= function(x){
@@ -1161,9 +1134,9 @@ renamer= function(x){
   return(rep)
 }
 
-a['names']= sapply(a$names, renamer)
+bioecon_table['names']= sapply(bioecon_table$names, renamer)
 
-a = a%>%
+bioecon_table = bioecon_table %>%
   mutate(price_buche_final = price_retail / 1000 * avg_toto_weight,
          price_buche_fisher = price_poachers / 1000 * avg_toto_weight)%>%
   relocate(x, .after = farmed_harvest)%>%
@@ -1204,28 +1177,30 @@ a = a%>%
          'Illegal profit change (in million USD)' = profit_poaching_diff,
          'Poaching change (%)' = variation_poaching)
 
-d = rbind(a %>%
+bioecon_table_large = rbind(bioecon_table %>%
             subset(Scenario %in% c('Vertical Monopoly', 
                          'Quantity adjustment', 
                          'Price setting'))%>%
             arrange(desc(Scenario)), 
-          a %>%
+          bioecon_table %>%
             subset(Scenario %in% c('Vertical Monopoly - LQ cost', 
                          'Quantity adjustment - LQ cost', 
                          'Price setting - LQ cost'))%>%
             arrange(desc(Scenario)))
-          
-checker = data.frame(table(d$Scenario))
+
+# Loop to check if a scenario appears multiple times to remove it from scenario column in output          
+checker = data.frame(table(bioecon_table_large$Scenario))
 
 if(sum(checker$Freq)>nrow(checker)){
   to_clean = which(checker$Freq>1)
   to_clean  = as.character(checker[to_clean, 'Var1'])
-  to_remove = last(which(d$Scenario == to_clean))
-  d[to_remove, 'Scenario'] = ' '
+  to_remove = last(which(bioecon_table_large$Scenario == to_clean))
+  bioecon_table_large[to_remove, 'Scenario'] = ' '
 }
 
-          
-d %>% 
+
+#Styling output       
+bioecon_table_large %>% 
   tt(caption = 'Bioeconomic performance - with baseline specification')%>%
   style_tt(j = 1, background = '#eae4e4')%>%
   style_tt(j = 2:4, background = '#cfe2f3')%>%
@@ -1241,8 +1216,8 @@ d %>%
 Table for manuscript : 
 ```{r, table}
 # for manuscript : 
-z = a %>%
-subset(Scenario %in% c('Vertical Monopoly - LQ cost', 
+bioecon_table_synthetic = bioecon_table %>%
+  subset(Scenario %in% c('Vertical Monopoly - LQ cost', 
                        'Quantity adjustment - LQ cost', 
                        'Price setting - LQ cost'))%>%
   select( - c(
@@ -1253,20 +1228,20 @@ subset(Scenario %in% c('Vertical Monopoly - LQ cost',
          'Farming profit change (in million USD)',
          'Aggregate profit change (in million USD)', 
          'Fishing profit change (in million USD)'))
-z = z[order(z$Scenario, decreasing= T),]
+bioecon_table_synthetic = bioecon_table_synthetic[order(bioecon_table_synthetic$Scenario, decreasing= T),]
 new_names_z = c()
-for(x in 1:nrow(z)){
-  to_glue = strsplit(z[x, 'Scenario'], ' ')
+for(x in 1:nrow(bioecon_table_synthetic)){
+  to_glue = strsplit(bioecon_table_synthetic[x, 'Scenario'], ' ')
   to_glue =paste(to_glue[[1]][1], to_glue[[1]][2])
   new_names_z = append(new_names_z, to_glue)
 }
 
-z$Scenario = new_names_z
+bioecon_table_synthetic$Scenario = new_names_z
 
 
-write.csv(z, here('data','outputs', 'bioecon_performance_table.csv'))
+write.csv(bioecon_table_synthetic, here('data','outputs', 'bioecon_performance_table.csv'))
 
-z %>%
+bioecon_table_synthetic%>%
   tt(caption = 'Bioeconomic performance')%>%
   style_tt(i = c(0,2), background = '#EEDD82')
 

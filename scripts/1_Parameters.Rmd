@@ -124,7 +124,10 @@ summary(model)
 # Coefficients
 alpha = model$coefficients[1]
 beta = -model$coefficients[2]
-gamma = 0.9*beta
+
+# Product differentiation at k% => gamma = sqrt(k)*beta
+gamma = sqrt(.75)*beta
+#gamma = 0.9*beta
 
 ```
 
@@ -203,8 +206,6 @@ W_high = costs[3] # High Season
 ```
 
 ### 2. Total cost from seasonal average cost
-
-
 
 
 We have average cost data, for bins of trips. Here, I estimate a cost function for all the effort levels, that maps the number of trips to their total cost, taking into account different bins.
@@ -521,12 +522,12 @@ concept = c('Demand model : intercept',
             'Linear cost parameter - Linear quadratic cost function', 
             'Quadratic cost parameter - Linear quadratic cost function',
             'Age of farmed totoaba', 
-            'Substitutability', 
+            'Demand model : substitutable good coefficient', 
             'Unit cost of farming', 
             'Interest rate',
             'Unit cost of trading')
 
-units = c('USD', 'USD/metric ton of biomass', 'unitless',   'metric tons of biomass','% of biomass/vessel trip', 'USD vessel trip$^{-2}$',  'USD vessel trip$^{-2}$', 'USDvessel trip$^{-2}$', 'USD/vessel trip', 'USD/vessel trip', 'USD vessel trip$^{-2}$', 'Years', 'Unitless', 'USD/metric ton of biomass', '%', 'USD/ metric ton of biomass')
+units = c('USD', 'USD/metric ton of biomass', 'unitless',   'metric tons of biomass','% of biomass/vessel trip', 'USD vessel trip$^{-2}$',  'USD vessel trip$^{-2}$', 'USDvessel trip$^{-2}$', 'USD/vessel trip', 'USD/vessel trip', 'USD vessel trip$^{-2}$', 'Years', 'USD/metric ton of biomass', 'USD/metric ton of biomass', '%', 'USD/ metric ton of biomass')
 
 calibration = data.frame(params, value, concept, units)
 write.csv(calibration, here('data', 'outputs', 'calibration_params.csv'))
