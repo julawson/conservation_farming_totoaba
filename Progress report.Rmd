@@ -24,6 +24,8 @@ knitr::opts_chunk$set(echo = F)
 
 ## B. Left to do
 
+ 
+
 ### 1. Core choices for modeling
 
 * Define what is the discount rate chosen by operators in here : if we focus on the steady state and only use contemporaneous profits, what does that mean? 

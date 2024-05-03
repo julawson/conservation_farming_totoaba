@@ -564,4 +564,5 @@ theme(axis.text.x = element_text(angle = 60,
 
 That sucks : with new specification, quantity adjustment can go wrong when demand increases by 80% in the baseline scenario... That changes our recommendations. 
 
+Weird also because there is a steady state for Bertrand competition, while there should not be according to graphs. 
 

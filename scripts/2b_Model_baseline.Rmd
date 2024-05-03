@@ -76,6 +76,7 @@ avg_toto_weight = 25.7
 
 #W_lq = read.csv(here('data', 'inputs', 'W_lq.csv'))
 W_lq_new = read.csv(here('data','inputs', 'W_lq_new.csv'))
+W_mid = W_high
 
 rm(for_display)
 ```
@@ -561,7 +562,7 @@ W_mid    = W_choice['W_mid']
 W1       = W_choice['W1']
 W2       = W_choice['W2']
 quantile = W_choice['quantiles']
-
+#alpha = 2*alpha
 
 result1 = data.frame(x = seq(1,k,.5 ))%>%
   mutate(growth= growth(x),

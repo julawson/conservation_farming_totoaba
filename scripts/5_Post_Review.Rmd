@@ -906,7 +906,7 @@ if(!file.exists(here('data', 'inputs', 'params_sensitivity_lq.csv'))){
   params_sensitivity = read.csv(here('data', 'inputs', 'params_sensitivity.csv'))
   # Set up names for new sensitivity analysis scenarios
   new_params_sensitivity = data.frame(matrix(nrow = 0, ncol = 15 ))
-  colnames(new_params_sensitivity) = c(colnames(params_sensitivity), 'W1', 'W2', 'quantile')
+  colnames(new_params_sensitivity) = c(colnames(params_sensitivity), 'W1', 'W2')
   # Set each row of data as a scenario
   for(row in 1:nrow(params_sensitivity)){
     W = params_sensitivity[row, 'W']

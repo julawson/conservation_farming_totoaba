@@ -8,7 +8,7 @@ output: html_document
 knitr::opts_chunk$set(echo = F)
 options(scipen=999)
 
-#rm(list = ls())
+rm(list = ls())
 
 library(tidyverse)
 library("ggsci")
@@ -262,36 +262,46 @@ MargCost(E_{hist}) = AvgCost(E_{hist})\Rightarrow W_{quad} = \frac{W_{avg}}{2E_{
 $$
 
 ```{r, Quadratic costs}
+# Given the reconstructed cost data, it is more sound to use 
+
 W_qlow = W_low/(2*max_E)
 W_qmid = W_mid/(2*max_E)
 W_qhigh = W_high/(2*max_E)
 
-# Recover fixed cost parameter
-cost_ = data.frame(trips = seq(1,1.5*max_E))%>%
-  mutate(trips2 = trips^2,
-         low = W_low*trips, 
-         mid = W_mid*trips,
-         high = W_high*trips,
-         sq_low = W_qlow*trips2,
-         sq_mid = W_qmid*trips2,
-         sq_high = W_qhigh*trips2)
+# Use the reconstructed cost data and look at ways such that :
+# Marginal cost at historical levels are equal
+# And observed levels at historical levels are visible
+costs2_future = data.frame(trip = seq((max_E+1), 5000))%>%
+  mutate(squared_trip = trip^2,
+         total_cost = costs[3]*trip)
 
-cost_ %>%
-  ggplot(aes(x = trips))+
-  geom_line(aes(y = low, colour = 'low'))+
-  geom_line(aes(y = mid, colour = 'mid'))+
-  geom_line(aes(y = high, colour = 'high'))+
-  geom_line(aes(y = sq_low, colour = 'low'))+
-  geom_line(aes(y = sq_mid, colour = 'mid'))+
-  geom_line(aes(y = sq_high, colour = 'high'))+
-  scale_colour_manual(values = c( 'red','black','grey', 'red', 'black','grey'))+
-  theme_bw()+
-  ylab('Cost')+
-  labs(colour = ' ')
+costs_here = costs2 %>%
+                     select(- av_binned_costs)
 
-fixed_low = W_low*max_E - W_qlow*(max_E^2)
-fixed_mid = W_mid*max_E - W_qmid*(max_E^2)
-fixed_high = W_high*max_E - W_qhigh*(max_E^2)
+costs_here = rbind(costs_here, 
+                   costs2_future)
+
+# Needs to be saved
+cost_differential = costs2 %>%
+  mutate(quad_cost = W_qhigh*squared_trip)%>%
+  mutate(differential = total_cost - quad_cost)%>%
+  subset(trip == max_E)%>%
+  select(differential)%>%
+  pull()%>%
+  unique()
+    
+
+costs_here %>%
+  mutate(quad_cost = W_qhigh*squared_trip + cost_differential)%>%
+  pivot_longer(- trip, 
+               names_to = 'names', 
+               values_to = 'values')%>%
+  subset(!(names %in% c('squared_trip')))%>%
+  ggplot(aes(x = trip, y = values, color = names))+
+  geom_line()+
+  geom_vline(xintercept = max_E, linetype = 'dotted')+
+  scale_color_manual(name = 'Cost', labels = c('Quadratic cost', 'Linear cost'), values = c('royalblue', 'black') )+
+  theme_bw()
 ```
 
 
@@ -347,11 +357,11 @@ W_lq_new = data.frame(W1 = W1_potential, W2 = W2_potential)%>%
 
 
  
- costs2_historical  = costs2 %>%
+costs2_historical  = costs2 %>%
   mutate(estimated_linear_quadratic = W1_potential[baseline_W_choice] * trip + W2_potential[baseline_W_choice]* squared_trip)%>%
   select(trip, estimated_linear_quadratic, total_cost)
  
- costs2_future = data.frame(trip = seq(max_E, 5000))%>%
+costs2_future = data.frame(trip = seq(max_E, 5000))%>%
    mutate(squared_trip = trip^2,
           total_cost = costs[3]*trip, 
           estimated_linear_quadratic = W1_potential[baseline_W_choice] * trip + W2_potential[baseline_W_choice] * squared_trip)%>%
@@ -366,7 +376,9 @@ W_lq_new = data.frame(W1 = W1_potential, W2 = W2_potential)%>%
                names_to =  'Costs')%>%
    ggplot(aes(x = trip, y= values, colour = Costs))+
    geom_line()+
-   geom_vline(xintercept = max_E)
+   geom_vline(xintercept = max_E, linetype = 'dotted')+
+   scale_color_manual(name = 'Cost', labels = c('Linear quadratic cost', 'Linear cost'), values = c('royalblue', 'black') )+
+   theme_bw()
    
 ```
 
@@ -507,18 +519,49 @@ if(Latex==T){
 ```{r}
 
 
-params = c('alpha', 'beta', 'r', 'k', 'sigma', 'W_mid', 'W_low', 'W_high', 'avg_cost','W1', 'W2', 'age', 'gamma', 'v', 'i_r','c')
-value = c(alpha, beta, r, k, catchability, W_qmid, W_qlow, W_qhigh, W_high, 
-          W_lq_new[baseline_W_choice,'W1'], W_lq_new[baseline_W_choice, 'W2'], age, gamma, v, interest_rate, c)
+params = c('alpha', 
+           'beta',
+           'r',
+           'k',
+           'sigma',
+           'avg_cost',
+           #'W_mid',
+           #'W_low',
+           'W_high', 
+           'fixed_cost',
+           'W1', 
+           'W2', 
+           'age', 
+           'gamma', 
+           'v', 
+           'i_r',
+           'c')
+value = c(alpha,
+          beta, 
+          r, 
+          k, 
+          catchability,
+          W_high,
+          #W_qmid,
+          #W_qlow,
+          W_qhigh, 
+          cost_differential,
+          W_lq_new[baseline_W_choice,'W1'],
+          W_lq_new[baseline_W_choice, 'W2'], 
+          age, 
+          gamma,
+          v, 
+          interest_rate, c)
 concept = c('Demand model : intercept', 
             'Demand model : coefficient', 
             'Intrinsic growth rate', 
             'Carrying capacity (in metric tons)',
             'Catchability', 
-            'Parameter cost (MC = Avg) at historical value - middle season', 
-            'Parameter cost (MC = Avg) at historical value - low season', 
-            'Parameter cost (MC = Avg) at historical value - high season', 
             'Average cost per vessel trip at historical value', 
+            #'Parameter cost (MC = Avg) at historical value - middle season', 
+            #'Parameter cost (MC = Avg) at historical value - low season', 
+            'Quadratic cost parameter - Quadratic cost function', 
+            'Fixed cost - Quadratic cost function',
             'Linear cost parameter - Linear quadratic cost function', 
             'Quadratic cost parameter - Linear quadratic cost function',
             'Age of farmed totoaba', 
@@ -527,7 +570,23 @@ concept = c('Demand model : intercept',
             'Interest rate',
             'Unit cost of trading')
 
-units = c('USD', 'USD/metric ton of biomass', 'unitless',   'metric tons of biomass','% of biomass/vessel trip', 'USD vessel trip$^{-2}$',  'USD vessel trip$^{-2}$', 'USDvessel trip$^{-2}$', 'USD/vessel trip', 'USD/vessel trip', 'USD vessel trip$^{-2}$', 'Years', 'USD/metric ton of biomass', 'USD/metric ton of biomass', '%', 'USD/ metric ton of biomass')
+units = c('USD', 
+          'USD/metric ton of biomass',
+          'unitless',  
+          'metric tons of biomass',
+          '% of biomass/vessel trip',
+          'USD/vessel trip', 
+          #'USD vessel trip$^{-2}$',  
+          #'USD vessel trip$^{-2}$', 
+          'USD vessel trip$^{-2}$', 
+          'USD',
+          'USD/vessel trip', 
+          'USD vessel trip$^{-2}$', 
+          'Years', 
+          'USD/metric ton of biomass', 
+          'USD/metric ton of biomass', 
+          '%', 
+          'USD/ metric ton of biomass')
 
 calibration = data.frame(params, value, concept, units)
 write.csv(calibration, here('data', 'outputs', 'calibration_params.csv'))
