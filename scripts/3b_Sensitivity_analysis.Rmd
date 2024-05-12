@@ -161,6 +161,19 @@ params_sensitivity = rbind(params_sensitivity,
 
 params_sensitivity = params_sensitivity %>%
   drop_na()
+
+### G. Subsidy on demand 
+v = baseline$v
+v_sens = v* c(0.9, .8, .7, .6)
+
+sensitivity = do.call(rbind, replicate(length(v_sens), baseline, simplify = F))%>%
+  mutate(v = v_sens,
+         spec = 'subsidy',
+         transformation = v_sens)
+params_sensitivity = rbind(params_sensitivity, 
+                           sensitivity)
+
+
 ## 2. Joint Parameters
 ### A. c and v
 
@@ -326,21 +339,21 @@ model_run = function(params){
   }
 
   price_poacher_bertrand_lq = function(x,
-                                       sigma. = sigma, 
-                                       a_f. = a_f, 
-                                       a_w. = a_w, 
-                                       b_f. = b_f, 
-                                       b_w. = b_w, 
-                                       e. = e, 
-                                       v. = v, 
-                                       c. = c, 
-                                       W1. = W1, 
-                                       W2. = W2){
-    y = 2*b_w.*W2.*((2*a_w. + e.*v.)*b_f. + e.*a_f. + c.*(e.^2 - b_f.*b_w.)) + W1.*sigma.*x*(4*b_f.*b_w. - e.^2)
-    z = sigma.^2 * x^2 * (4*b_w.*b_f. - e.^2) + 4*b_w.*W2.*(2*b_f.*b_w - e.^2)
-    result = y/z
-    return(result)
-  }
+                                     sigma. = sigma, 
+                                     a_f. = a_f, 
+                                     a_w. = a_w, 
+                                     b_f. = b_f, 
+                                     b_w. = b_w, 
+                                     e. = e, 
+                                     v. = v, 
+                                     c. = c, 
+                                     W1. = W1, 
+                                     W2. = W2){
+  y = 2*b_w.*W2.*((2*a_w. + e.*v.)*b_f. + e.*a_f. + c.*(e.^2 - 2* b_f.*b_w.)) + W1.*sigma.*x*(4*b_f.*b_w. - e.^2)
+  z = sigma.^2 * x^2 * (4*b_w.*b_f. - e.^2) + 2*b_w.*W2.*(2*b_f.*b_w - e.^2)
+  result = y/z
+  return(result)
+}
 
   composite_bertrand_lq = function(x,
                                    sigma. = sigma, 
@@ -449,6 +462,9 @@ exploit_ = left_join(storage, params_sensitivity, by = 'identifier')%>%
   distinct()%>%
   mutate(identifier = as.numeric(identifier))
 # Might have to pivot longer to match with previous codes and graphs; 
+if(!(file.exists(here('data','outputs','sensitivity_analysis_results.csv')))){
+  write.csv(exploit_, here('data', 'outputs', 'sensitivity_analysis_results.csv'))
+}
 ```
 
 Check the occurence of steady states : 
@@ -504,6 +520,14 @@ baseline_stock = exploit_ %>%
   select(x)%>%
   pull()
 
+renamer = function(x){
+  if(x == 'ss_bertrand_lq'){
+    return('Price setting')
+  }else if(x == 'ss_cournot_lq'){
+    return('Quantity adjustment')
+  }
+}
+
 # Set up data 
 graph_dat = exploit_ %>%
   subset(spec %in% c('alpha and gamma'))%>%
@@ -531,12 +555,20 @@ for(k in 1:length(work)){
 levels(graph_dat$alpha2) = new_levs
 
 # Graph
-graph_dat %>%
+graph_dat = 
+  graph_dat %>%
+  mutate(gamma3 = factor(round(gamma2^2/beta^2*100,2)),
+         names =  sapply(names, renamer))
+
+graph_dat$gamma3 = paste0(graph_dat$gamma3, '%')
+graph_dat$gamma3 = factor(graph_dat$gamma3, levels = c('10%', '50%', '75%', '90%'))
+
+p = graph_dat %>%
   ggplot(aes(x = names, 
              y = value2, 
              colour = alpha2))+
   geom_point(size = 2.5)+
-  facet_grid(~gamma2)+
+  facet_grid(~gamma3)+
   scale_color_manual(values = pal,
                      breaks = c("-20", "0", "20", "40", "60","80", "100"))+
   theme_bw()+
@@ -559,10 +591,16 @@ theme(axis.text.x = element_text(angle = 60,
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_), 
         aspect.ratio = 10/4)
-
+p
+ggsave(here('visuals', 'demand_evolution_sensitivity.jpg'), p, width = 20, height = 15, units = 'cm')
 ```
 
 That sucks : with new specification, quantity adjustment can go wrong when demand increases by 80% in the baseline scenario... That changes our recommendations. 
 
 Weird also because there is a steady state for Bertrand competition, while there should not be according to graphs. 
 
+
+```{r, analysis for W}
+
+
+```

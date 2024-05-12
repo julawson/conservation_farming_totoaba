@@ -18,6 +18,7 @@ library(here)
 library(knitr)
 library(stargazer)
 library(parallel)
+library(webshot2)
 library(RColorBrewer)
 
 if(!(c('Fishlife')  %in% installed.packages())){
@@ -94,9 +95,14 @@ Define function where variable is either `x` i.e population stock, or `s` i.e pr
 
 * `cournot_harvest(x, ...)`, `bertrand_harvest(x, ...)`: harvest (in metric tons) when trader and farmer compete in *Cournot*, i.e, set quantities strategically, and *Bertrand*, i.e, set prices strategically. 
 
-* `cournot_harvest_lq(x, ...)`, `bertrand_harvest_lq(x, ...)` : harvest  (in metric tons) when trader and farmer compete in *Cournot* i.e, set quantities strategically, and *Bertrand* i.e, set prices strategically and cost structure is linear quadratic
+* `cournot_harvest_lq(x, ...)` : harvest  (in metric tons) when trader and farmer compete in *Cournot* i.e, set quantities strategically and cost structure is linear quadratic
 
 * `price_poachers_cournot(x, ...)`, `price_poachers_bertrand(x, ...)`: price paid to poachers (in USD/metric tons) when trader and farmer compete in *Cournot* and *Bertrand*
+
+* `price_poachers_bertrand(x, ...)`: price paid to poachers (in USD/metric tons) when trader and farmer compete in *Bertrand*  and cost structure is linear quadratic
+
+* `bertrand_harvest_lq(x,...)` is set replacing the price that clears the primary market in the harvest function of fishermen. 
+
 
 * `cournot_farmed(s, ...)`, `bertrand_farmed(s, ...)`: quantity farmed (in metric tons) when trader and farmer compete in *Cournot* and *Bertrand*
 
@@ -249,18 +255,18 @@ bertrand_harvest_lq = function(x,
 }
 
 price_poacher_bertrand_lq = function(x,
-                               sigma. = sigma, 
-                               a_f. = a_f, 
-                               a_w. = a_w, 
-                               b_f. = b_f, 
-                               b_w. = b_w, 
-                               e. = e, 
-                               v. = v, 
-                               c. = c, 
-                               W1. = W1, 
-                               W2. = W2){
-  y = 2*b_w.*W2.*((2*a_w. + e.*v.)*b_f. + e.*a_f. + c.*(e.^2 - b_f.*b_w.)) + W1.*sigma.*x*(4*b_f.*b_w. - e.^2)
-  z = sigma.^2 * x^2 * (4*b_w.*b_f. - e.^2) + 4*b_w.*W2.*(2*b_f.*b_w - e.^2)
+                                     sigma. = sigma, 
+                                     a_f. = a_f, 
+                                     a_w. = a_w, 
+                                     b_f. = b_f, 
+                                     b_w. = b_w, 
+                                     e. = e, 
+                                     v. = v, 
+                                     c. = c, 
+                                     W1. = W1, 
+                                     W2. = W2){
+  y = 2*b_w.*W2.*((2*a_w. + e.*v.)*b_f. + e.*a_f. + c.*(e.^2 - 2* b_f.*b_w.)) + W1.*sigma.*x*(4*b_f.*b_w. - e.^2)
+  z = sigma.^2 * x^2 * (4*b_w.*b_f. - e.^2) + 2*b_w.*W2.*(2*b_f.*b_w - e.^2)
   result = y/z
   return(result)
 }
@@ -279,6 +285,7 @@ composite_bertrand_lq = function(x,
   y = b_w. * ((2*a_w. +e.*v.)*b_f. + e.*a_f. + (price_poacher_bertrand_lq(x)+c.)*(e.^2 - 2*b_w.*b_f))/(4*b_f.*b_w. - e.^2)
   return(y)
 }
+
 
 bertrand_farmed = function(s, 
                              a_f. = a_f, 
@@ -320,6 +327,7 @@ for(row in 1:nrow(W_lq_new)){
            cournot_harvest_lq = cournot_harvest_lq(x),
            bertrand_harvest = bertrand_harvest(x),
            bertrand_harvest_lq = composite_bertrand_lq(x),
+           #bertrand_harvest_lq = (price_poacher_bertrand_lq(x)*sigma^2*x^2 - W1*sigma*x)/(2*W2),
            # Steady states
            ss_monop = monop_harvest - growth, 
            ss_monop_lq = monop_harvest_lq - growth, 
@@ -429,6 +437,7 @@ for(xx in 1:nrow(W_lq_new)){
            cournot_harvest_lq = cournot_harvest_lq(x),
            bertrand_harvest = bertrand_harvest(x),
            bertrand_harvest_lq = composite_bertrand_lq(x),
+           #bertrand_harvest_lq = (price_poacher_bertrand_lq(x)*sigma^2*x^2 - W1*sigma*x)/(2*W2),
            ss_monop = monop_harvest - growth, 
            ss_monop_lq = monop_harvest_lq - growth, 
            ss_cournot = cournot_harvest - growth, 
@@ -564,7 +573,7 @@ W2       = W_choice['W2']
 quantile = W_choice['quantiles']
 #alpha = 2*alpha
 
-result1 = data.frame(x = seq(1,k,.5 ))%>%
+result1 = data.frame(x = seq(0,k,.5 ))%>%
   mutate(growth= growth(x),
          monop_harvest = monop_harvest(x),
          monop_harvest_lq = monop_harvest_lq(x),
@@ -572,6 +581,7 @@ result1 = data.frame(x = seq(1,k,.5 ))%>%
          cournot_harvest_lq = cournot_harvest_lq(x),
          bertrand_harvest = bertrand_harvest(x),
          bertrand_harvest_lq = composite_bertrand_lq(x),
+         #bertrand_harvest_lq = (price_poacher_bertrand_lq(x)*sigma^2*x^2 - W1*sigma*x)/(2*W2),
          ss_monop = monop_harvest - growth, 
          ss_monop_lq = monop_harvest_lq - growth, 
          ss_cournot = cournot_harvest - growth, 
@@ -659,9 +669,40 @@ dat_%>%
         axis.title.y  = element_text(family = font_),
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_))
-rm(dat_)
 ```
+Save plot for final results : 
+```{r, plot}
+p = dat_%>%
+  subset(cost_structure=='Linear quadratic cost')%>%
+  subset(x%%2 == 0)%>%
+  ggplot(aes(x = x,
+             y = values2, 
+             color = new_names))+
+  geom_line(size = 1)+
+  scale_linetype_manual(values=c("solid", "twodash"))+
+  scale_color_manual(values = palette_)+
+  theme_bw()+
+  guides(
+    color = guide_legend(
+      title = " ",  # Title for the first column
+      ncol = 1              # Number of columns
+    ),
+    linetype = guide_legend(
+      title = ' ',
+      ncol = 1
+    ))+
+  xlab('Population')+
+  ylab('Harvest')+
+  theme(legend.position = 'right',
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_))
+ggsave(here('visuals', 'main_result.jpg'), p, width = 20, height = 15, units = 'cm')
 
+```
 
 
 ```{r, Equilibria}
@@ -1241,6 +1282,12 @@ bioecon_table_synthetic$Scenario = new_names_z
 
 
 write.csv(bioecon_table_synthetic, here('data','outputs', 'bioecon_performance_table.csv'))
+
+bioecon_table_synthetic%>%
+  tt(caption = 'Bioeconomic performance')%>%
+  style_tt(i = c(0,2), background = '#EEDD82')%>%
+  save_tt(here('visuals', 'bioecon_perf.png'), overwrite = T)
+
 
 bioecon_table_synthetic%>%
   tt(caption = 'Bioeconomic performance')%>%
