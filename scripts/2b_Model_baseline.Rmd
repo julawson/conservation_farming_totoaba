@@ -87,8 +87,6 @@ Define function where variable is either `x` i.e population stock, or `s` i.e pr
 
 * `growth(x, ...)` : logistic growth function, yields growth of population (in metric tons) 
 
-* `pt_harvest(x,...)` : harvest (in metric tons) when trader is price taker
-
 * `monop_harvest(x, ...)`: harvest (in metric tons) when trader is a monopolist
 
 * `monop_harvest_lq(x, ...)`: harvest (in metric tons) when trader is a monopolist and cost structure is linear quadratic
@@ -108,23 +106,24 @@ Define function where variable is either `x` i.e population stock, or `s` i.e pr
 
 
 ```{r}
-growth = function(x, 
-                  k.=k, 
-                  r.=r){
-  y = r.*x*(1-x/k.)
+
+growth <- function(x, k, r) {
+#' Logistic Growth Model Function
+#'
+#' This function calculates the logistic growth at a given point based on the current value, carrying capacity, and growth rate.
+#'
+#' @param x Numeric, current population or value at time t.
+#' @param k Numeric, carrying capacity of the environment.
+#' @param r Numeric, intrinsic growth rate of the population.
+#'
+#' @return Numeric, the calculated growth value at time t.
+#' @examples
+#' growth(50, 100, 0.02)
+#' @export
+  y <- r * x * (1 - x / k)
   return(y)
 }
 
-# I. Price taker
-pt_harvest = function(x, 
-                      alpha. = alpha, 
-                      beta. = beta, 
-                      W. = W_mid, 
-                      c. = c, 
-                      sigma. = sigma){
-  y = ((alpha.-c.) * x^2 * sigma.^2)/(4*W. + beta. * sigma.^2 * x^2)
-  return(y)
-}
 
 # II. Monopoly
 monop_harvest = function(x, 
@@ -133,6 +132,23 @@ monop_harvest = function(x,
                          sigma. = sigma, 
                          beta. = beta, 
                          W. = W_mid){
+#' Monopoly Harvest Function - Quadratic cost model
+#'
+#' Calculates the harvest level in a vertical monopolistic setting based on a model of quadratic fishery costs in
+#' costs (W), transaction costs (c), demand parameters (intercept alpha and sensitivity beta)
+#'
+#' @param x Numeric, population level at time t
+#' @param alpha Numeric, demand intercept in USD
+#' @param c Numeric, cost associated with trading
+#' @param sigma Numeric, species catchability
+#' @param beta Numeric, demand sensisitivity in USD/metric ton
+#' @param W Numeric, fishery cost parameter
+#'
+#' @return Numeric, the calculated monopoly harvest output based on the input parameters.
+#' @examples
+#' monop_harvest(100, 0.05, 0.01, 0.02, 0.03, 50)
+#' @export  
+
  y = ((alpha. - c.)*sigma.^2 * x^2) / (2*beta.* sigma.^2 * x^2 + 2*W.)
  return(y)
 }
@@ -144,6 +160,25 @@ monop_harvest_lq = function(x,
                             beta. = beta,
                             W1. = W1,
                             W2. = W2){
+#' Monopoly Harvest Function - Linear quadratic cost model 
+#'
+#' Calculates the harvest level in a vertical monopolistic setting based on a model of linear quadratic fishery costs in
+#' costs (W), transaction costs (c), demand parameters (intercept alpha and sensitivity beta)
+#'
+#' @param x Numeric, population level at time t
+#' @param alpha Numeric, demand intercept in USD
+#' @param c Numeric, cost associated with trading
+#' @param sigma Numeric, species catchability
+#' @param beta Numeric, demand sensisitivity in USD/metric ton
+#' @param W1 Numeric, linear fishery cost parameter, in USD/effort
+#' @param W2 Numeric, quadratic fishery effort cost parameter, in USD/effort
+#'
+#' @return Numeric, the calculated monopoly harvest output based on the input parameters.
+#' @examples
+#' monop_harvest(100, 0.05, 0.01, 0.02, 0.03, 50)
+#' @export  
+  
+
   y = (sigma.^2 * x^2 * (alpha. - c.) - W1.*sigma.*x)/(2*(beta.*sigma.^2 * x^2 + W2.))
   return(y)
 }
@@ -161,6 +196,26 @@ cournot_harvest = function(x,
                              c. = c, 
                              v. = v, 
                              W. = W_mid){
+#' Cournot Competition Harvest Function - Quadratic cost model 
+#'
+#' Computes the harvest in a Cournot competition setting, considering
+#' multiple economic factors like production costs, market demand elasticity, and strategic
+#' interaction parameters between firms.
+#'
+#' @param x Numeric, population level at time t
+#' @param alpha_f Numeric, demand intercept in USD for farmed product
+#' @param alpha_w Numeric, demand intercept in USD for wild product
+#' @param beta_f Numeric, demand sensitivity in USD/metric ton for farmed product
+#' @param beta_w Numeric, demand sensitivity in USD/metric ton for wild product
+#' @param gamma Numeric, demand sensitivity in USD/metric ton for cross product
+#' @param sigma Numeric, catchability
+#' @param c Numeric, transaction cost for trader
+#' @param v Numeric, marginal cost of production for aquaculture
+#' @param W Numeric, fishery effort cost in a quadratic model
+#'
+#' @return Numeric, the calculated output level based on Cournot competition theory adapted to specific market and firm conditions.
+
+  
   y = ((sigma.^2)*(x^2)*(2*beta_f.*(alpha_w. - c.) - gamma.*(alpha_f. - v.)))/(4*beta_f.*W. + (sigma.^2)*(x^2)*(4*beta_f.*beta_w. - (gamma.^2)))
   return(y)
 }
@@ -176,6 +231,26 @@ cournot_harvest_lq = function(x,
                               v. = v, 
                               W1. = W1, 
                               W2. = W2){
+#' Cournot Competition Harvest Function - Linear quadratic model 
+#'
+#' Computes the harvest in a Cournot competition setting, considering
+#' multiple economic factors like production costs, market demand elasticity, and strategic
+#' interaction parameters between firms.
+#'
+#' @param x Numeric, population level at time t
+#' @param alpha_f Numeric, demand intercept in USD for farmed product
+#' @param alpha_w Numeric, demand intercept in USD for wild product
+#' @param beta_f Numeric, demand sensitivity in USD/metric ton for farmed product
+#' @param beta_w Numeric, demand sensitivity in USD/metric ton for wild product
+#' @param gamma Numeric, demand sensitivity in USD/metric ton for cross product
+#' @param sigma Numeric, catchability
+#' @param c Numeric, transaction cost for trader
+#' @param v Numeric, marginal cost of production for aquaculture
+#' @param W1 Numeric, linear fishery effort cost in a linear quadratic model
+#' @param W2 Numeric, quadratic fishery effort cost in a linear quadratic model
+#'
+#' @return Numeric, the calculated output level based on Cournot competition theory adapted to specific market and firm conditions.
+
  y = ((2*beta_f. * (alpha_w. - c.) - gamma. * (alpha_w. -v.))*sigma.^2 * x^2 - 2*beta_f.*W1.*sigma.*x)/(4*beta_f.*W2. + (4*beta_f.*beta_w. - gamma.^2)*sigma.^2 * x^2)
  return(y)
 }
@@ -190,19 +265,58 @@ price_poachers_cournot = function(x,
                                   c. = c, 
                                   v. = v, 
                                   W. = W_mid){
+#' Cournot Competition Price Paid to Poachers Function - Quadratic model 
+#'
+#' Calculates the price level in a Cournot competition model considering poaching or competitive undercutting,
+#' based on parameters that represent strategic interactions, market variability, and firm-specific cost structures.
+#'
+#' @param x Numeric, population level at time t
+#' @param alpha_f Numeric, demand intercept in USD for farmed product
+#' @param alpha_w Numeric, demand intercept in USD for wild product
+#' @param beta_f Numeric, demand sensitivity in USD/metric ton for farmed product
+#' @param beta_w Numeric, demand sensitivity in USD/metric ton for wild product
+#' @param gamma Numeric, demand sensitivity in USD/metric ton for cross product
+#' @param sigma Numeric, catchability
+#' @param c Numeric, transaction cost for trader
+#' @param v Numeric, marginal cost of production for aquaculture
+#' @param W Numeric, fishery effort cost in a linear quadratic model
+#'
+#' @return Numeric, the calculated price under Cournot competition 
+#' @examples
+#' price_poachers_cournot(100, 0.05, 0.04, 0.03, 0.02, 0.01, 0.02, 0.01, 0.015, 50)
+#' @export
   y = (2*W.*(2*beta_f.*(alpha_w. - c.) - gamma.*(alpha_f. - v.)))/((sigma.^2)*(x^2)*(4*beta_f.*beta_w. - gamma.^2) + 4*beta_f.*W.)
   return(y)
 }
 
 cournot_farmed = function(s, 
-                            alpha_f. = alpha_f, 
-                            alpha_w. = alpha_w, 
-                            beta_f. = beta_f, 
-                            beta_w. = beta_w, 
-                            gamma. = gamma, 
-                            sigma. = sigma, 
-                            c. = c, 
-                            v. = v){
+                          alpha_f. = alpha_f, 
+                          alpha_w. = alpha_w, 
+                          beta_f. = beta_f, 
+                          beta_w. = beta_w, 
+                          gamma. = gamma, 
+                          sigma. = sigma, 
+                          c. = c, 
+                          v. = v){
+#' Cournot Competition Model for Farmed Goods
+#'
+#' Computes the output level in a Cournot competition setting for farmed goods,
+#' incorporating market dynamics, competitive interactions, and firm-specific
+#' cost structures. The function models the strategic interactions between a
+#' firm and its competitor in a market where goods are farmed.
+#'
+#' @param s Numeric, price paid to poachers in USD
+#' @param alpha_f Numeric, demand intercept for farmed product, in USD
+#' @param alpha_w Numeric, demand intercept for wild product, in USD
+#' @param beta_f Numeric, demand sensitivity for farmed product, in USD/metric ton of biomass
+#' @param beta_w Numeric, demand sensitivity for wild product, in USD/metric ton of biomass
+#' @param gamma Numeric, demand sensitivity in USD/metric ton of biomass for cross product
+#' @param sigma Numeric, catchability
+#' @param c Numeric, transaction cost for traders
+#' @param v Numeric, marginal cost of farming.
+#'
+#' @return Numeric, the calculated equilibrium output level for the farming sector under Cournot competition, considering strategic interactions and farm-specific subsidies.
+#' @export
   y = (2 * beta_w. * (alpha_f. - v.) - gamma.* (alpha_w. - (s + c.)) )/(4*beta_w.*beta_f. - gamma.^2)
   return(y)
 }

@@ -90,19 +90,30 @@ sensitivity= do.call(rbind, replicate(nrow(W_lq), baseline, simplify = FALSE))%>
   mutate(W1 = W_lq$W1,
          W2 = W_lq$W2, 
          spec = 'W1 and W2')
-sensitivity['transformation'] = paste(W_lq$W1/W1, ' and ', W_lq$W2/W2)
+sensitivity['transformation'] = paste(1, "and", W_lq$W1/W1, ' and ', W_lq$W2/W2)
 
 params_sensitivity = rbind(params_sensitivity, 
                            sensitivity)
-### B. Substitutability
-gamma_sens = c(.01, .1, .2, .5, .75, .8, .9, .99)
 
+for(m in c(.9, 1.1, 1.2, 1.3)){
+  sensitivity= do.call(rbind, replicate(nrow(W_lq), baseline, simplify = FALSE))%>%
+  mutate(W1 = W_lq$W1*m,
+         W2 = W_lq$W2, 
+         spec = 'W1 and W2')
+  sensitivity['transformation'] = paste(m, 'and', W_lq$W1/W1, ' and ', W_lq$W2/W2)
+
+  params_sensitivity = rbind(params_sensitivity, 
+                            sensitivity)
+}
+### B. Substitutability
+gamma_sens = c(.01, .1, .2,.3, .4, .5, .6, .7,.75, .8, .9, .99)
 sensitivity= do.call(rbind, replicate(length(gamma_sens), baseline, simplify = F))%>%
   mutate(gamma = beta*sqrt(gamma_sens),
          spec = 'gamma',
          transformation = gamma_sens)
 params_sensitivity = rbind(params_sensitivity, 
                            sensitivity)
+
 
 ### C. Trading costs
 c_sens = c(0, 2,  5, 8, 10, 15, 20, 50)
@@ -164,12 +175,12 @@ params_sensitivity = params_sensitivity %>%
 
 ### G. Subsidy on demand 
 v = baseline$v
-v_sens = v* c(0.9, .8, .7, .6)
+v_sens = v* c(1, 0.9, .8, .7, .6)
 
 sensitivity = do.call(rbind, replicate(length(v_sens), baseline, simplify = F))%>%
   mutate(v = v_sens,
          spec = 'subsidy',
-         transformation = v_sens)
+         transformation = c(1, 0.9, .8, .7, .6))
 params_sensitivity = rbind(params_sensitivity, 
                            sensitivity)
 
@@ -487,17 +498,190 @@ exploit_ = exploit_ %>%
 
 ## D. Analysis
 
-### 1. Impact of variation of cost paramets
+### 1. Impact of variation of cost parameters in fishermen profit
+```{r, costs}
+
+cost_sens = exploit_ %>%
+  subset(spec == 'W1 and W2')
+
+cost_sens = cost_sens %>%
+  mutate(multiplier_global = NA, 
+         W1_multiplier = NA, 
+         W2_multiplier = NA)
+
+for(row_ in 1:nrow(cost_sens)){
+  a = cost_sens[row_, ]%>%
+    select(transformation)%>%
+    pull()
+  b = strsplit(a, 'and')
+  cost_sens[row_,'multiplier_global'] = b[[1]][1]
+  cost_sens[row_, 'W1_multiplier'] = b[[1]][2]
+  cost_sens[row_, 'W2_multiplier'] = b[[1]][3]
+}
+
+# First analysis : we keep the split e.g W1 and W2 respect the same properties, we have uncertainty around aggregate
+# cost
+baseline_stock = exploit_ %>%
+  subset(spec == 'baseline')%>%
+  subset(names == 'ss_monop_lq')%>%
+  select(x)%>%
+  pull()
+
+renamer = function(x){
+  if(x == 'ss_bertrand_lq'){
+    return('Price setting')
+  }else if(x == 'ss_cournot_lq'){
+    return('Quantity adjustment')
+  }else if(x == 'ss_monop_lq'){
+    return("Vertical monopoly")
+  }
+}
+
+cost_sens$names = sapply(cost_sens$names, renamer)
+
+cost_sens %>%
+  mutate(W1_multiplier = as.numeric(W1_multiplier),
+         W2_multiplier = as.numeric(W2_multiplier),
+         x_norm = ((x-baseline_stock)/baseline_stock)*100,
+         multiplier_global = paste((as.numeric(multiplier_global) - 1)*100, '%'))%>%
+  filter(W1_multiplier == 1 & W2_multiplier == 1)%>%
+  ggplot(aes(x = multiplier_global, y =x_norm, color = names))+
+  geom_point(size = 2.5)+
+  scale_color_manual(values = c('#B22222','#1f78b4', '#248721'))+
+  ylab("Variation from baseline steady state population")+
+  xlab(' ')+
+  labs(color = ' ')+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 60,
+                                   hjust = 1),
+        legend.position = "right",
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_, size = 9),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_))
+
+ggsave(here('visuals', 'supplementary_visuals', 'uncertainty_W.jpg'))
 
 
-### 2. Impact of joint variation of demand parameters
+```
+  
+```{r, across Ws}
+# Second analysis : keep the initial cost, but switch the W1 and W2 analysis
+cost_sens %>%
+  mutate(multiplier_global = as.numeric(multiplier_global),
+         W1_multiplier = as.numeric(W1_multiplier),
+         W2_multiplier = as.numeric(W2_multiplier),
+         namer = paste(round(W1,1), " and ", round(W2,1)),
+         baseline = as.factor(ifelse(W1_multiplier ==1 & W2_multiplier == 1, 1, 0)),
+         x_norm = (x - baseline_stock)/baseline_stock*100)%>%
+  subset(Stable == "Stable")%>%
+  filter(multiplier_global == 1)%>%
+  ggplot(aes(x = namer, y =x_norm, color = names, shape = names))+
+  geom_point(size = 2.5)+
+  scale_color_manual(values = c('#B22222','#1f78b4', '#248721'))+
+  #geom_rect(aes(fill = baseline), xmin = -Inf,xmax = Inf,
+  #          ymin = -Inf,ymax = Inf,alpha = 0.1)+
+  #scale_fill_manual(values = c('white', 'grey'))+
+  #facet_grid(~names)+
+  ylab("Variation from baseline steady state population")+
+  xlab(' ')+
+  theme_bw()+
+  labs(color = ' ', 
+       shape = ' ')+
+  theme(axis.text.x = element_text(angle = 60,
+                                   hjust = 1),
+        legend.position = "right",
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_, size = 9),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_))
 
-```{r, demand}
-# Set up baselines
+# Plot at the same time the various costs:
+ggsave(here('visuals', 'supplementary_visuals', 'linear_or_quadratic.jpg'))
+
+```
+
+### 2. Effect of v
+
+```{r, effect of v}
+v_sens = exploit_%>%
+  subset(spec == 'subsidy')
+
+v_sens$names = sapply(v_sens$names, renamer)
+
+v_sens %>%
+  mutate(transformation = paste((1 - as.numeric(transformation))*100, '%'),
+         x_norm = (x - baseline_stock)/baseline_stock * 100)%>%
+  ggplot(aes( x = transformation, y = x_norm, color = names))+
+  geom_point(size = 2.5)+
+  scale_color_manual(values = c('#B22222','#1f78b4', '#248721'))+
+  ylab('Variation from baseline steady state population')+
+  xlab('Ad-valorem subsidy rate')+
+  theme_bw()+
+  labs(color = ' ', 
+       shape = '')+
+  theme(axis.text.x = element_text(angle = 60,
+                                   hjust = 1),
+        legend.position = "right",
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_, size = 9),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_, size = 9),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_))
+ggsave(here('visuals', 'supplementary_visuals', 'effect_of_subsidy.jpg'))
+
+```
+### 3. Impact of different substitutability
+
+```{r, substitutability}
 baseline_gamma = calibration %>%
   subset(params == 'gamma')%>%
   select(value)%>%
   pull()
+
+gamma_sens = exploit_ %>%
+  subset(spec == 'gamma')%>%
+  mutate(transformation = as.numeric(transformation)*100,
+         x_norm = (x-baseline_stock)/baseline_stock * 100)
+
+gamma_sens$names = sapply(gamma_sens$names, renamer)
+
+gamma_sens %>%
+  ggplot(aes( x= transformation, y = x_norm, color = names))+
+  #geom_line(aes(group = names), size = 1)+
+  geom_point(size = 2.2)+
+  geom_vline(xintercept = (baseline_gamma/beta)^2*100, linetype = 'dashed')+
+  scale_color_manual(values = c('#B22222','#1f78b4', '#248721'))+
+  ylab('Variation from baseline steady state population (in %)')+
+  xlab('Product differentiation degree (in %)')+
+  theme_bw()+
+  labs(color = ' ', 
+       shape = '')+
+  theme(axis.text.x = element_text(angle = 60,
+                                   hjust = 1),
+        legend.position = "right",
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_, size = 9),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_, size = 9),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_))
+ggsave(here('visuals', 'supplementary_visuals', 'effect_of_subsidy.jpg'), width = 15, height = 10, units = 'cm')
+
+
+
+```
+
+### 3. Impact of joint variation of demand parameters
+
+```{r, demand}
+# Set up baselines
+
 
 baseline_alpha = calibration%>%
   subset(params == 'alpha')%>%
@@ -514,11 +698,7 @@ baseline_alpha = calibration %>%
   select(value)%>%
   pull()
 
-baseline_stock = exploit_ %>%
-  subset(spec == 'baseline')%>%
-  subset(names == 'ss_monop_lq')%>%
-  select(x)%>%
-  pull()
+
 
 renamer = function(x){
   if(x == 'ss_bertrand_lq'){
@@ -534,7 +714,6 @@ graph_dat = exploit_ %>%
   subset(alpha > .6*baseline_alpha)%>%
   subset(!(names %in% c('ss_monop_lq')))%>%
   mutate(alpha = as.factor(alpha/baseline_alpha))%>%
-  
   subset(gamma %in% c(sqrt(.1) * baseline_beta, sqrt(.5)* baseline_beta, 
                       sqrt(.75)* baseline_beta, sqrt(.9)* baseline_beta))%>%
   mutate(alpha2 = as.factor(paste(alpha, Stable)),
@@ -599,8 +778,3 @@ That sucks : with new specification, quantity adjustment can go wrong when deman
 
 Weird also because there is a steady state for Bertrand competition, while there should not be according to graphs. 
 
-
-```{r, analysis for W}
-
-
-```

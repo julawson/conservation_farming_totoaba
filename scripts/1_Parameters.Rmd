@@ -47,11 +47,6 @@ if(!dir.exists(here('data', 'outputs', 'sensitivity_analysis_lq'))){
   print('Folder created as data/outputs/sensitivity_analysis_lq :')
 }
 
-if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'steady_states.csv'))){
-  print('Please put steady_states.csv, profitability.csv and bioeconomic_performances.csv in folder')
-}else{
-  print('Architecture and data are up to date')
-}
 ```
 
 # I. Load data
@@ -65,19 +60,24 @@ if(!file.exists(here('data', 'outputs', 'sensitivity_analysis_lq', 'steady_state
 * `v_par.csv`: cost data from for aquaculture costs (see Supplementary Materials).
 
 ```{r, Load data}
-dat_p = read.csv(here("data","inputs","dat_p.csv")) #Price-quantity data (OG Paper)
+
+# Price quantity data from seizures
+dat_p = read.csv(here("data","inputs","dat_p.csv"))
 dat_p = dat_p %>%
   mutate(price_buche = g*p,
          price_kg = p*1000, 
          price_buche_kg = price_buche*1000)
 
-
+# Biomass and catch data
 dat_b = read.csv(here('data', 'inputs', "totoaba_biomass_catch_20230516.csv")) %>% 
   rename(y = X) %>% 
   rename(b = Biomass..Tonnes.) %>% 
   rename(c = Catch..Tonnes.)
 
+# Fishery operational costs data
 w_par = read.csv(here("data", 'inputs', "w_par.csv"))
+
+# Aquaculture operational costs data
 v_par = read.csv(here("data", 'inputs', "v_par.csv")) 
 
 sources = read.csv(here("data", 'inputs', "sources.csv"))
@@ -88,6 +88,7 @@ sources = read.csv(here("data", 'inputs', "sources.csv"))
 # II. Demand
 
 ```{r, Demand}
+# Set the typical weight of totoaba, and typical weight of swim bladder
 avg_toto_weight = 25.7
 avg_buche_weight = .5
 
@@ -117,17 +118,17 @@ new_dat %>%
   scale_color_aaas()+
   labs(colour = NULL)
 ggsave(here('visuals','supplementary_visuals','demand_data.jpg' ))
-# Model
+
+# OLS Model
 model  = lm(price_ton_toto ~ c, data = new_dat)
 summary(model)
 
-# Coefficients
+# Coefficients extraction
 alpha = model$coefficients[1]
-beta = -model$coefficients[2]
+beta = abs(model$coefficients[2])
 
 # Product differentiation at k% => gamma = sqrt(k)*beta
 gamma = sqrt(.75)*beta
-#gamma = 0.9*beta
 
 ```
 
@@ -149,9 +150,12 @@ k <- 20226 #carrying capacity (biomass in mt) (source: INAPESCA 2020)
 # Catchability : catch per trip and stock
 max_E = sum(w_par$total_fleet_days_year)
 
+# Estimation of catchability
 catchability = dat_b %>% 
   subset(y==2016) %>% 
-  select(c)/(max_E *dat_b %>% subset(y==2016) %>% select(b))
+  select(c)/(max_E * dat_b %>% 
+               subset(y==2016) %>% 
+               select(b))
 catchability = pull(catchability)
 ```
 
@@ -161,13 +165,18 @@ catchability = pull(catchability)
 
 ### 1. Build average subseasonal costs
 
-First, as we have time series, seasonal data, we can use it to reconstruct an average cost per sub-season.
+First : 
+
+* Use `w_par`to reconstruct costs of crew earning, food, fuel, gear
+
+* Compute a cost per trip, with confiscations of gear and vessels
+
+* Compute sub-seasonal average costs
+
 
 ```{r calculating cost of poaching}
-
 # W parameter, proportional increase in cost per unit (trip)
-
-#Step one, get all annual operating costs
+# Step one, get all annual operating costs
 # Goal is to calculate cost per vessel trip (we have total fleet days per year which is number of vessels * fishing days per month)
 # First calculate total annual costs for the entire fleet
 
@@ -204,6 +213,8 @@ W_low = costs[1] #Low Season
 W_mid = costs[2] # Mid Season
 W_high = costs[3] # High Season
 ```
+
+
 
 ### 2. Total cost from seasonal average cost
 
@@ -290,7 +301,7 @@ cost_differential = costs2 %>%
   pull()%>%
   unique()
     
-
+# Graph
 costs_here %>%
   mutate(quad_cost = W_qhigh*squared_trip + cost_differential)%>%
   pivot_longer(- trip, 
@@ -345,9 +356,11 @@ Result from MMSE suggest to use the linear form, without reference to a quadrati
 
 
 ```{r, other method}
+
+# Set baseline parameter choice. 
 baseline_W_choice = 3
 
-
+# Set potential costs
 W1_potential = c((costs[2]+costs[3])/2, (costs[2]+costs[3])/1.9, (costs[2]+costs[3])/1.75, (costs[2]+costs[3])/1.6, costs[3])
 W2_potential = c(1.6, 1.3, .75,.1, 0)
 W_lq_new = data.frame(W1 = W1_potential, W2 = W2_potential)%>%
@@ -355,8 +368,7 @@ W_lq_new = data.frame(W1 = W1_potential, W2 = W2_potential)%>%
          W_mid = W_high/(2*max_E), 
          baseline_choice = baseline_W_choice)
 
-
- 
+# Compute historical costs, and projected costs, and projected linear quadratic costs. 
 costs2_historical  = costs2 %>%
   mutate(estimated_linear_quadratic = W1_potential[baseline_W_choice] * trip + W2_potential[baseline_W_choice]* squared_trip)%>%
   select(trip, estimated_linear_quadratic, total_cost)
@@ -369,7 +381,7 @@ costs2_future = data.frame(trip = seq(max_E, 5000))%>%
  
  costs_final = rbind(costs2_historical, costs2_future)
  rm(costs2_historical, costs2_future)
- 
+# Plot costs and estimate. 
  costs_final%>%
    pivot_longer(-trip, 
                values_to = 'values', 
@@ -395,6 +407,7 @@ With these values, we get different flavors :
 * `r c(W1_potential[4], W2_potential[4])` : very close to curve after jump, but overestimates costs early on a lot 
 
 * `r c(W1_potential[5], W2_potential[5])` : matches final part of the curve and has no square. 
+
 
 
 ### 3. Export data and sources for W
@@ -475,6 +488,7 @@ We use `c=` `r c` as trading costs.
 v_ = v_par %>% 
   select(op_cost_per_t)%>%
   pull()
+
 age = 4.5
 v = v_*age
 
