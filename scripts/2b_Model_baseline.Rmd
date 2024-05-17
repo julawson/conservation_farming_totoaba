@@ -107,7 +107,7 @@ Define function where variable is either `x` i.e population stock, or `s` i.e pr
 
 ```{r}
 
-growth <- function(x, k, r) {
+growth <- function(x, k. = k, r. = r) {
 #' Logistic Growth Model Function
 #'
 #' This function calculates the logistic growth at a given point based on the current value, carrying capacity, and growth rate.
@@ -120,7 +120,7 @@ growth <- function(x, k, r) {
 #' @examples
 #' growth(50, 100, 0.02)
 #' @export
-  y <- r * x * (1 - x / k)
+  y <- r. * x * (1 - x / k.)
   return(y)
 }
 
