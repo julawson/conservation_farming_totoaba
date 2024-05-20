@@ -99,9 +99,9 @@ max_E = 1920
 for(m in c(.9, 1.1, 1.2, 1.3)){
 
   sensitivity= do.call(rbind, replicate(nrow(W_lq), baseline, simplify = FALSE))%>%
-  mutate(W1 = seq(avg_cost*m-300, avg_cost*m, length.out = nrow(sensitivity)),
-         W2 = avg_cost*m-W1/(2*max_E), 
-         spec = 'W1 and W2')
+    mutate(W1 = seq(avg_cost*m-3000, avg_cost*m, length.out = nrow(sensitivity)))%>%
+    mutate(W2 = (avg_cost*m-W1)/(2*max_E),
+           spec = 'W1 and W2')
   sensitivity['transformation'] = paste(m, 'and', W_lq$W1/W1, ' and ', W_lq$W2/W2)
 
   params_sensitivity = rbind(params_sensitivity, 
@@ -802,12 +802,14 @@ renamer = function(x){
 
 cost_sens$names = sapply(cost_sens$names, renamer)
 
-cost_sens %>%
+cost_sens_estimate_cost = cost_sens %>%
   mutate(W1_multiplier = as.numeric(W1_multiplier),
          W2_multiplier = as.numeric(W2_multiplier),
          x_norm = ((x-baseline_stock)/baseline_stock)*100,
          multiplier_global = paste((as.numeric(multiplier_global) - 1)*100, '%'))%>%
-  filter(W1_multiplier == 1 & W2_multiplier == 1)%>%
+  filter(W1_multiplier == 1 & W2_multiplier == 1)
+
+cost_sens_estimate_cost%>%
   ggplot(aes(x = multiplier_global, y =x_norm, color = names))+
   geom_point(size = 2.5, position = position_dodge2(width = .2))+
   scale_color_manual(values = c('#B22222','#1f78b4', '#248721'))+
@@ -883,7 +885,7 @@ cost_sens %>%
   mutate(multiplier_global = as.numeric(multiplier_global),
          W1_multiplier = as.numeric(W1_multiplier),
          W2_multiplier = as.numeric(W2_multiplier),
-         namer = paste(round(W1,1), " and ", round(W2,1)),
+         namer = paste(round(W1,2), " and ", round(W2,2)),
          baseline = as.factor(ifelse(W1_multiplier ==1 & W2_multiplier == 1, 1, 0)),
          x_norm = (x - baseline_stock)/baseline_stock*100)%>%
   filter(multiplier_global == 1)%>%

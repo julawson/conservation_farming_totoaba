@@ -20,6 +20,8 @@ library(stargazer)
 library(parallel)
 library(webshot2)
 library(RColorBrewer)
+library(writexl)
+library(berryFunctions)
 
 if(!(c('Fishlife')  %in% installed.packages())){
   devtools::install_github("james-thorson/FishLife")
@@ -761,7 +763,7 @@ dat_%>%
              y = values2, 
              color = new_names))+
   geom_line(size = 1)+
-  facet_grid(~cost_structure)+
+  facet_wrap(cost_structure~., dir = "v")+
   scale_linetype_manual(values=c("solid", "twodash"))+
   scale_color_manual(values = palette_)+
   theme_bw()+
@@ -774,8 +776,8 @@ dat_%>%
       title = ' ',
       ncol = 2
     ))+
-  xlab('Population')+
-  ylab('Harvest')+
+  xlab('Population (in mt)')+
+  ylab('Harvest (in mt)')+
   theme(legend.position = 'bottom',
         strip.text.x  = element_text(family = font_) ,
         axis.title.x  = element_text(family = font_),
@@ -783,6 +785,7 @@ dat_%>%
         axis.title.y  = element_text(family = font_),
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_))
+ggsave(here('visuals','figure2.png'), height = 20, width = 16, units = 'cm')
 ```
 Save plot for final results : 
 ```{r, plot}
@@ -805,8 +808,8 @@ p = dat_%>%
       title = ' ',
       ncol = 1
     ))+
-  xlab('Population')+
-  ylab('Harvest')+
+  xlab('Population (in mt)')+
+  ylab('Harvest (in mt)')+
   theme(legend.position = 'right',
         strip.text.x  = element_text(family = font_) ,
         axis.title.x  = element_text(family = font_),
@@ -1216,9 +1219,12 @@ profit = function(param){
   colnames(result) = c( 'names','x', 'poached_harvest', 'farmed_harvest','price_retail', 'price_poachers', 'profit_poaching', 'profit_farming', 'profit_fishermen','stability', 'W1', 'W2', 'W')
   return(result)
 }
+# Run analysis
 storage = apply(final_dat,
                 1,
                 profit)
+
+# Run analysis
 storage = bind_rows(storage)%>%
   mutate(ag_profit = profit_poaching + profit_farming + profit_fishermen)
 
@@ -1232,10 +1238,13 @@ W_baseline = calibration %>%
 W1_baseline = W_choice['W1'] 
 W2_baseline = W_choice['W2']
 
-# Normalize :
+
+
+# I. Define scenario for baseline as monopoly lq 
 baseline_scenario = 'ss_monop_lq'
 ## baseline profit
 tol = .01
+
 
 baseline_dat = storage %>%
   subset(names == baseline_scenario)%>%
@@ -1244,28 +1253,29 @@ baseline_dat = storage %>%
   filter(W2 < (1+tol) *W2_baseline & W2_baseline >(1-tol) * W2_baseline)%>%
   unlist()
 
+# Baseline for the lq model
 baseline_profit_monop = as.numeric(baseline_dat['profit_poaching'])
 baseline_profit_fishermen = as.numeric(baseline_dat['profit_fishermen'])
 baseline_profit_farming = as.numeric(baseline_dat['profit_farming'])
 baseline_ag_profit = as.numeric(baseline_dat['ag_profit'])
+# Population 
+baseline_poaching = as.numeric(baseline_dat['poached_harvest'])
+baseline_stock = as.numeric(baseline_dat['x'])
 
 
-storage = storage %>%
+storage2 = storage %>%
+  subset(names %in% c('ss_monop_lq', 'ss_cournot_lq', 'ss_bertrand_lq'))%>%
     mutate(ag_profit_diff = ag_profit - baseline_ag_profit, 
            profit_farming_diff = profit_farming - baseline_profit_farming, 
            profit_poaching_diff = profit_poaching - baseline_profit_monop,
            profit_fishermen_diff = profit_fishermen - baseline_profit_fishermen)
 
-# Population 
-baseline_poaching = as.numeric(baseline_dat['poached_harvest'])
-baseline_stock = as.numeric(baseline_dat['x'])
-
   
-storage['variation_poaching'] = (storage['poached_harvest'] - baseline_poaching)/baseline_poaching*100
+storage2['variation_poaching'] = (storage2['poached_harvest'] - baseline_poaching)/baseline_poaching*100
 
-storage['normalized_ss'] = (storage['x'] - baseline_stock)/baseline_stock*100
+storage2['normalized_ss'] = (storage2['x'] - baseline_stock)/baseline_stock*100
 
-storage_stable = storage%>%
+storage_stable = storage2%>%
     subset(stability>0)
 
 bioecon_table = storage_stable %>%
@@ -1333,16 +1343,112 @@ bioecon_table = bioecon_table %>%
          'Illegal profit change (in million USD)' = profit_poaching_diff,
          'Poaching change (%)' = variation_poaching)
 
-bioecon_table_large = rbind(bioecon_table %>%
-            subset(Scenario %in% c('Vertical Monopoly', 
-                         'Quantity adjustment', 
-                         'Price setting'))%>%
-            arrange(desc(Scenario)), 
-          bioecon_table %>%
-            subset(Scenario %in% c('Vertical Monopoly - LQ cost', 
-                         'Quantity adjustment - LQ cost', 
-                         'Price setting - LQ cost'))%>%
-            arrange(desc(Scenario)))
+```
+
+```{r, table lq}
+# I. Define scenario for baseline as monopoly lq 
+baseline_scenario_lq = 'ss_monop'
+## baseline profit
+tol = .01
+
+baseline_dat = storage %>%
+  subset(names == baseline_scenario_lq)%>%
+  filter(W < (1+tol)*W_baseline & W> (1-tol)*W_baseline)%>%
+  filter(W1 < (1+tol)* W1_baseline & W1 > (1-tol)*W1_baseline)%>%
+  filter(W2 < (1+tol) *W2_baseline & W2_baseline >(1-tol) * W2_baseline)%>%
+  unlist()
+
+# Baseline for the lq model
+baseline_profit_monop= as.numeric(baseline_dat['profit_poaching'])
+baseline_profit_fishermen= as.numeric(baseline_dat['profit_fishermen'])
+baseline_profit_farming= as.numeric(baseline_dat['profit_farming'])
+baseline_ag_profit = as.numeric(baseline_dat['ag_profit'])
+# Population 
+baseline_poaching = as.numeric(baseline_dat['poached_harvest'])
+baseline_stock = as.numeric(baseline_dat['x'])
+
+
+storage2 = storage %>%
+  subset(names %in% c('ss_monop', 'ss_cournot', 'ss_bertrand'))%>%
+    mutate(ag_profit_diff = ag_profit - baseline_ag_profit, 
+           profit_farming_diff = profit_farming - baseline_profit_farming, 
+           profit_poaching_diff = profit_poaching - baseline_profit_monop,
+           profit_fishermen_diff = profit_fishermen - baseline_profit_fishermen)
+
+  
+storage2['variation_poaching'] = (storage2['poached_harvest'] - baseline_poaching)/baseline_poaching*100
+
+storage2['normalized_ss'] = (storage2['x'] - baseline_stock)/baseline_stock*100
+
+storage_stable = storage2%>%
+    subset(stability>0)
+
+bioecon_table2 = storage_stable %>%
+  filter(W < (1 + tol)*W_baseline & W>(1 - tol)*W_baseline)%>%
+  filter(W1 < (1 + tol)* W1_baseline & W1 > (1 - tol)*W1_baseline)%>%
+  filter(W2 < (1 + tol) *W2_baseline & W2_baseline > (1 - tol) * W2_baseline)%>%
+  select(-c('stability', 'W', 'W1', 'W2'))
+
+renamer= function(x){
+  if(x %in% c('ss_monop', 'ss_monop_lq')){
+    rep = 'Vertical Monopoly'
+  }else if(x %in% c('ss_cournot', 'ss_cournot_lq')){
+    rep = 'Quantity adjustment'
+  }else if(x %in% c('ss_bertrand', 'ss_bertrand_lq')){
+    rep  = 'Price setting'
+  }else if(x %in% c('growth')){
+    rep = 'Growth'
+  }
+  if(length(strsplit(x,'_')[[1]])>2){
+    rep = paste0(as.character(rep), ' - LQ cost')
+  }
+  return(rep)
+}
+
+bioecon_table2['names']= sapply(bioecon_table2$names, renamer)
+
+bioecon_table2 = bioecon_table2 %>%
+  mutate(price_buche_final = price_retail / 1000 * avg_toto_weight,
+         price_buche_fisher = price_poachers / 1000 * avg_toto_weight)%>%
+  relocate(x, .after = farmed_harvest)%>%
+  relocate(normalized_ss, .after = profit_fishermen_diff)%>%
+  relocate(price_retail, .before = price_poachers)%>%
+  relocate(price_buche_final, .after = price_retail)%>%
+  relocate(price_buche_fisher, .after = price_poachers)%>%
+  relocate(variation_poaching, .after = normalized_ss)%>%
+  mutate(normalized_ss = paste0(round(normalized_ss, 2), '%'), 
+         variation_poaching = paste0(round(variation_poaching,2), '%'))%>%
+  mutate(profit_farming = round(profit_farming/1000000,2),
+         poached_harvest = round(poached_harvest, 2), 
+         farmed_harvest = round(farmed_harvest, 2),
+         profit_fishermen = round(profit_fishermen/1000000,2),
+         profit_poaching = round(profit_poaching/1000000,2),
+         ag_profit = round(ag_profit/1000000,2),
+         profit_farming_diff = round(profit_farming_diff/1000000,2),
+         ag_profit_diff = round(ag_profit_diff/1000000,2),
+         profit_fishermen_diff = round(profit_fishermen_diff/1000000,2),
+         profit_poaching_diff = round(profit_poaching_diff/1000000,2)
+         )%>%
+  rename('Scenario' = names, 
+         'Steady state population (in mt)' = x,
+         'Poached harvest (in mt)' = poached_harvest,
+         'Farmed harvest (in mt)' = farmed_harvest,
+         'Variation in ss. pop.' = normalized_ss,
+         'Price  paid to poacher (in USD/ton of buche)' = price_poachers,
+         'Retail price (in USD/ton of buche)' = price_retail,
+         'Illegal profit (in million USD)'= profit_poaching,
+         'Retail price of 500g buche (in USD)' = price_buche_final,
+         'Poacher price of 500g buche (in USD)' = price_buche_fisher,
+         'Farming profit (in million USD)' = profit_farming, 
+         'Fishing profit (in million USD)' = profit_fishermen,
+         "Aggregate profit (in million USD)" = ag_profit,
+         'Farming profit change (in million USD)' = profit_farming_diff,
+         'Aggregate profit change (in million USD)' = ag_profit_diff, 
+         'Fishing profit change (in million USD)' = profit_fishermen_diff,
+         'Illegal profit change (in million USD)' = profit_poaching_diff,
+         'Poaching change (%)' = variation_poaching)
+
+bioecon_table_large = rbind(bioecon_table, bioecon_table2)
 
 # Loop to check if a scenario appears multiple times to remove it from scenario column in output          
 checker = data.frame(table(bioecon_table_large$Scenario))
@@ -1356,7 +1462,7 @@ if(sum(checker$Freq)>nrow(checker)){
 
 
 #Styling output       
-bioecon_table_large = bioecon_table_large %>% 
+bioecon_table_large_tt = bioecon_table_large %>% 
   tt(caption = 'Bioeconomic performance - with baseline specification')%>%
   style_tt(j = 1, background = '#eae4e4')%>%
   style_tt(j = 2:4, background = '#cfe2f3')%>%
@@ -1366,13 +1472,113 @@ bioecon_table_large = bioecon_table_large %>%
   style_tt(i = 0,  background = '#eae4e4')%>%
   style_tt(j = 1, bold = T)
 
-bioecon_table_large%>%
+bioecon_table_large_tt%>%
   save_tt(here('visuals', 'bioecon_table_quadratic_and_lq.png'), overwrite =  T)
 
-bioecon_table_large
+bioecon_table_large_tt
 
 
 ``` 
+
+New version for manuscript : 
+
+```{r, table manuscript2}
+
+
+bioecon_table_large2 = cbind(bioecon_table$Scenario,
+                             bioecon_table$`Poached harvest (in mt)`,
+                             bioecon_table$`Farmed harvest (in mt)`,
+                             bioecon_table$`Steady state population (in mt)`,
+                             bioecon_table$`Illegal profit (in million USD)`,
+                             bioecon_table$`Fishing profit (in million USD)`,
+                             bioecon_table$`Farming profit (in million USD)`)
+bioecon_table_large2 = as.data.frame(bioecon_table_large2)
+
+bioecon_table_large2b = cbind(bioecon_table$Scenario, 
+                              bioecon_table$`Poaching change (%)`,
+                              NA,
+                              bioecon_table$`Variation in ss. pop.`,
+                              bioecon_table$`Illegal profit change (in million USD)`,
+                              bioecon_table$`Fishing profit change (in million USD)`,
+                              NA)%>%
+  as.data.frame()
+
+bioecon_table_large2_lq = rbind(bioecon_table_large2, bioecon_table_large2b)
+
+bioecon_table_large2 = cbind(bioecon_table2$Scenario,
+                             bioecon_table2$`Poached harvest (in mt)`,
+                             bioecon_table2$`Farmed harvest (in mt)`,
+                             bioecon_table2$`Steady state population (in mt)`,
+                             bioecon_table2$`Illegal profit (in million USD)`,
+                             bioecon_table2$`Fishing profit (in million USD)`,
+                             bioecon_table2$`Farming profit (in million USD)`)
+bioecon_table_large2 = as.data.frame(bioecon_table_large2)
+
+bioecon_table_large2b = cbind(bioecon_table2$Scenario, 
+                              bioecon_table2$`Poaching change (%)`,
+                              NA,
+                              bioecon_table2$`Variation in ss. pop.`,
+                              bioecon_table2$`Illegal profit change (in million USD)`,
+                              bioecon_table2$`Fishing profit change (in million USD)`,
+                              NA)%>%
+  as.data.frame()
+bioecon_table_large2 = rbind(bioecon_table_large2, bioecon_table_large2b)
+
+#
+bioecon_table_large2 = rbind(bioecon_table_large2_lq, bioecon_table_large2)
+
+
+
+interm1 = bioecon_table_large2%>%
+  subset(V1 %in% c('Vertical Monopoly - LQ cost', 
+                   'Quantity adjustment - LQ cost',
+                   'Price setting - LQ cost'))%>%
+  arrange(desc(V1))
+interm2 =  bioecon_table_large2%>%
+  subset(!(V1 %in% c('Vertical Monopoly - LQ cost',
+                     'Quantity adjustment - LQ cost',
+                     'Price setting - LQ cost')))%>%
+  arrange(desc(V1))
+
+
+bioecon_table_large2 = rbind(interm1, interm2,
+                             make.row.names = F)
+colnames(bioecon_table_large2) = c('Scenario', 'Poached harvest (in mt & % change)',
+                                   'Farmed harvest (in mt)',
+                                   'Steady state population (in mt & % change)',
+                                   "Trader profit (in million USD and change)",
+                                   'Fishing profit (in million USD and change)',
+                                   'Farming profit')
+bioecon_table_large2 = insertRows(bioecon_table_large2,
+                                  1, new = NA)
+bioecon_table_large2[1,1] = "Linear quadratic cost"
+
+bioecon_table_large2 = insertRows(bioecon_table_large2,
+                                  8, new = NA)
+bioecon_table_large2[8,1] = "Quadratic cost"
+
+bioecon_table_large2[c(2,4,6),1] = c('Vertical Monopoly',
+                                   'Quantity adjustment',
+                                   'Price setting')
+
+bioecon_table_large2[c(3,5,7,10,12,14),1] = NA
+
+
+
+
+bioecon_table_large2[is.na(bioecon_table_large2)] = ''
+bioecon_table_large2 %>%
+  tt()%>%
+  style_tt(i =0 , j=1:7, background = '#EEDD72')%>%
+  style_tt(i = 1, j= 1:7, background = '#EEDD62')%>%
+  style_tt(i = 8, j = 1:7, background = '#EEDD62')%>%
+  style_tt(i = c(2,3,6,7,10,11), j = 1:7, background = '#EEDD82')%>%
+  style_tt(i = c(3,5,7,9,11,13), j = 2:7, italic = T)
+
+write_xlsx(bioecon_table_large2,here('data','outputs','bioecon_table_manuscript.xlsx'))
+                          
+```
+
 
 Table for manuscript : 
 ```{r, table}
