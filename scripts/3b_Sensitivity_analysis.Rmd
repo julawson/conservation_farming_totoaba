@@ -841,7 +841,10 @@ cost_sens %>%
   filter(W1_multiplier == 1 & W2_multiplier == 1)%>%
   select(c(names, x, x_norm,multiplier_global))%>%
   kable()
+
 ```
+Need a subsidy rate of 20% to avoid poaching increase, eg need $v=$ `r baseline$v*0.8`
+  
   
 ```{r, across Ws}
 # Second analysis : keep the initial cost, but switch the W1 and W2 analysis
@@ -998,8 +1001,6 @@ ggsave(here('visuals', 'supplementary_visuals', 'effect_of_subsidy.jpg'), width 
 
 ```{r, demand}
 # Set up baselines
-
-
 baseline_alpha = calibration%>%
   subset(params == 'alpha')%>%
   select(value)%>%
@@ -1025,14 +1026,18 @@ renamer = function(x){
   }
 }
 
+tol = .01
+
 # Set up data 
 graph_dat = exploit_ %>%
   subset(spec %in% c('alpha and gamma'))%>%
-  subset(alpha > .6*baseline_alpha)%>%
+  subset(alpha > .62 * baseline_alpha)%>%
   subset(!(names %in% c('ss_monop_lq')))%>%
   mutate(alpha = as.factor(alpha/baseline_alpha))%>%
-  subset(gamma %in% c(sqrt(.1) * baseline_beta, sqrt(.5)* baseline_beta, 
-                      sqrt(.75)* baseline_beta, sqrt(.9)* baseline_beta))%>%
+  filter((gamma< (1+ tol)*sqrt(.1) * baseline_beta & gamma > (1 - tol)*sqrt(.1)*baseline_beta) |
+         (gamma< (1+ tol)*sqrt(.5) * baseline_beta & gamma > (1 - tol)*sqrt(.5)*baseline_beta)|
+         (gamma< (1+ tol)*sqrt(.75) * baseline_beta & gamma > (1 - tol)*sqrt(.75)*baseline_beta)|
+         (gamma< (1+ tol)*sqrt(.9) * baseline_beta & gamma > (1 - tol)*sqrt(.9)*baseline_beta))%>%
   mutate(alpha2 = as.factor(paste(alpha, Stable)),
          gamma2 = round(gamma,2),
          value2 = (x - baseline_stock)/baseline_stock*100)
@@ -1043,7 +1048,7 @@ new_levs = c()
 for(k in 1:length(work)){
   to_check = work[[k]]
   if(to_check[2] =="Stable"){
-    new_levs = append(new_levs, as.character((as.numeric(to_check[1]) - 1)*100))
+    new_levs = append(new_levs, as.character(round((as.numeric(to_check[1]) - 1)*100)))
   }else{
     new_levs = append(new_levs, 'Unstable')
   }
