@@ -1356,7 +1356,7 @@ if(sum(checker$Freq)>nrow(checker)){
 
 
 #Styling output       
-bioecon_table_large %>% 
+bioecon_table_large = bioecon_table_large %>% 
   tt(caption = 'Bioeconomic performance - with baseline specification')%>%
   style_tt(j = 1, background = '#eae4e4')%>%
   style_tt(j = 2:4, background = '#cfe2f3')%>%
@@ -1365,6 +1365,11 @@ bioecon_table_large %>%
   style_tt(j = 17:18, background = '#f4cccc')%>%
   style_tt(i = 0,  background = '#eae4e4')%>%
   style_tt(j = 1, bold = T)
+
+bioecon_table_large%>%
+  save_tt(here('visuals', 'bioecon_table_quadratic_and_lq.png'), overwrite =  T)
+
+bioecon_table_large
 
 
 ``` 

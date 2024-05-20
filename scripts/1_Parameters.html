@@ -818,8 +818,14 @@ G
 <h2>A. Build total cost function</h2>
 <div id="build-average-subseasonal-costs" class="section level3">
 <h3>1. Build average subseasonal costs</h3>
-<p>First, as we have time series, seasonal data, we can use it to
-reconstruct an average cost per sub-season.</p>
+<p>First :</p>
+<ul>
+<li><p>Use <code>w_par</code>to reconstruct costs of crew earning, food,
+fuel, gear</p></li>
+<li><p>Compute a cost per trip, with confiscations of gear and
+vessels</p></li>
+<li><p>Compute sub-seasonal average costs</p></li>
+</ul>
 </div>
 <div id="total-cost-from-seasonal-average-cost" class="section level3">
 <h3>2. Total cost from seasonal average cost</h3>

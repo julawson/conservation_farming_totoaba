@@ -358,57 +358,97 @@ Result from MMSE suggest to use the linear form, without reference to a quadrati
 ```{r, other method}
 
 # Set baseline parameter choice. 
-baseline_W_choice = 3
 
 # Set potential costs
-W1_potential = c((costs[2]+costs[3])/2, (costs[2]+costs[3])/1.9, (costs[2]+costs[3])/1.75, (costs[2]+costs[3])/1.6, costs[3])
-W2_potential = c(1.6, 1.3, .75,.1, 0)
-W_lq_new = data.frame(W1 = W1_potential, W2 = W2_potential)%>%
-  mutate(AC = costs[3], 
-         W_mid = W_high/(2*max_E), 
-         baseline_choice = baseline_W_choice)
+W1_potential = seq(11000,W_high, by = 400)
+W2_potential = (W_high - W1_potential)/(2*max_E)
 
-# Compute historical costs, and projected costs, and projected linear quadratic costs. 
-costs2_historical  = costs2 %>%
-  mutate(estimated_linear_quadratic = W1_potential[baseline_W_choice] * trip + W2_potential[baseline_W_choice]* squared_trip)%>%
-  select(trip, estimated_linear_quadratic, total_cost)
- 
-costs2_future = data.frame(trip = seq(max_E, 5000))%>%
-   mutate(squared_trip = trip^2,
-          total_cost = costs[3]*trip, 
-          estimated_linear_quadratic = W1_potential[baseline_W_choice] * trip + W2_potential[baseline_W_choice] * squared_trip)%>%
-   select(trip, estimated_linear_quadratic, total_cost)
- 
- costs_final = rbind(costs2_historical, costs2_future)
- rm(costs2_historical, costs2_future)
-# Plot costs and estimate. 
- costs_final%>%
-   pivot_longer(-trip, 
-               values_to = 'values', 
-               names_to =  'Costs')%>%
-   ggplot(aes(x = trip, y= values, colour = Costs))+
-   geom_line()+
-   geom_vline(xintercept = max_E, linetype = 'dotted')+
-   scale_color_manual(name = 'Cost', labels = c('Linear quadratic cost', 'Linear cost'), values = c('royalblue', 'black') )+
-   theme_bw()
-   
+store = data.frame(0,0,0,0)
+colnames(store) = c('W1',"W2","diff%","mse")
+
+for(baseline_W_choice in 1:length(W1_potential)){
+  W_lq_new = data.frame(W1 = W1_potential, W2 = W2_potential)%>%
+    mutate(AC = costs[3], 
+           W_mid = W_high/(2*max_E), 
+           baseline_choice = baseline_W_choice)
+  
+  # Compute historical costs, and projected costs, and projected linear quadratic costs. 
+  costs2_historical  = costs2 %>%
+    mutate(estimated_linear_quadratic = W1_potential[baseline_W_choice] * trip + W2_potential[baseline_W_choice]* squared_trip)%>%
+    select(trip, estimated_linear_quadratic, total_cost)
+  
+  costs2_future = data.frame(trip = seq(max_E, 5000))%>%
+    mutate(squared_trip = trip^2,
+           total_cost = costs[3]*trip, 
+           estimated_linear_quadratic = W1_potential[baseline_W_choice] * trip + W2_potential[baseline_W_choice] * squared_trip)%>%
+    select(trip, estimated_linear_quadratic, total_cost)
+  
+  costs_final = rbind(costs2_historical, costs2_future)
+  rm(costs2_historical, costs2_future)
+  # Plot costs and estimate. 
+  #costs_final%>%
+  #  pivot_longer(-trip, 
+   #           values_to = 'values', 
+ #                names_to =  'Costs')%>%
+  #  ggplot(aes(x = trip, y= values, colour = Costs))+
+   # geom_line()+
+  #  geom_vline(xintercept = max_E, linetype = 'dotted')+
+  #  scale_color_manual(name = 'Cost', labels = c('Linear quadratic cost', 'Linear cost'), values = c('royalblue', 'black') )+
+  #  theme_bw()
+  
+  costs_final= costs_final %>%
+    mutate(diff = total_cost - estimated_linear_quadratic, 
+           diff2 = diff^2,
+           diff_pct = diff/total_cost*100)
+  diff= costs_final%>%
+    subset(trip == 1920)%>%
+    select(diff_pct)%>%
+    pull()%>%
+    unique()
+  mse = costs_final%>%select(diff2)%>%sum()
+  dat = c(W1_potential[baseline_W_choice], W2_potential[baseline_W_choice], diff, mse)
+  store = rbind(store, dat)
+}
+
+kable(store)
+
 ```
 
-I think this is a more convincing estimate of the cost function. In order to do a sensitivity analysis we can do : 
+Here, I keep as the baseline specification the first value with low difference with cost
 
-With these values, we get different flavors : 
+```{r, baseline choice for W}
+baseline_W_choice = 4
 
-* `r c(W1_potential[1], W2_potential[1])`: first overestimates the costs a little bit before the discontinuity, underestimates them later on, but matches closely the constant marginal cost
+W_lq_new = data.frame(W1 = W1_potential, W2 = W2_potential)%>%
+    mutate(AC = costs[3], 
+           W_mid = W_high/(2*max_E), 
+           baseline_choice = baseline_W_choice)
+  
+  # Compute historical costs, and projected costs, and projected linear quadratic costs. 
+  costs2_historical  = costs2 %>%
+    mutate(estimated_linear_quadratic = W1_potential[baseline_W_choice] * trip + W2_potential[baseline_W_choice]* squared_trip)%>%
+    select(trip, estimated_linear_quadratic, total_cost)
+  
+  costs2_future = data.frame(trip = seq(max_E, 5000))%>%
+    mutate(squared_trip = trip^2,
+           total_cost = costs[3]*trip, 
+           estimated_linear_quadratic = W1_potential[baseline_W_choice] * trip + W2_potential[baseline_W_choice] * squared_trip)%>%
+    select(trip, estimated_linear_quadratic, total_cost)
+  
+  costs_final = rbind(costs2_historical, costs2_future)
+  rm(costs2_historical, costs2_future)
+  # Plot costs and estimate. 
+  costs_final%>%
+    pivot_longer(-trip, 
+                 values_to = 'values', 
+                 names_to =  'Costs')%>%
+    ggplot(aes(x = trip, y= values, colour = Costs))+
+    geom_line()+
+    geom_vline(xintercept = max_E, linetype = 'dotted')+
+    scale_color_manual(name = 'Cost', labels = c('Linear quadratic cost', 'Linear cost'), values = c('royalblue', 'black') )+
+    theme_bw()
 
-* `r c(W1_potential[2], W2_potential[2])` : similar but closer
-
-* `r c(W1_potential[3], W2_potential[3])` : similar, but drastically closer to the actual observed cost after the jump, and close to the marginal cost at observed historical values  - **this is the one we use in the graph and in the baseline specification**
-
-* `r c(W1_potential[4], W2_potential[4])` : very close to curve after jump, but overestimates costs early on a lot 
-
-* `r c(W1_potential[5], W2_potential[5])` : matches final part of the curve and has no square. 
-
-
+```
 
 ### 3. Export data and sources for W
 

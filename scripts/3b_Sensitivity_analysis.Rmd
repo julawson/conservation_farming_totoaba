@@ -94,11 +94,13 @@ sensitivity['transformation'] = paste(1, "and", W_lq$W1/W1, ' and ', W_lq$W2/W2)
 
 params_sensitivity = rbind(params_sensitivity, 
                            sensitivity)
+max_E = 1920
 
 for(m in c(.9, 1.1, 1.2, 1.3)){
+
   sensitivity= do.call(rbind, replicate(nrow(W_lq), baseline, simplify = FALSE))%>%
-  mutate(W1 = W_lq$W1*m,
-         W2 = W_lq$W2, 
+  mutate(W1 = seq(avg_cost*m-300, avg_cost*m, length.out = nrow(sensitivity)),
+         W2 = avg_cost*m-W1/(2*max_E), 
          spec = 'W1 and W2')
   sensitivity['transformation'] = paste(m, 'and', W_lq$W1/W1, ' and ', W_lq$W2/W2)
 
@@ -116,7 +118,7 @@ params_sensitivity = rbind(params_sensitivity,
 
 
 ### C. Trading costs
-c_sens = c(0, 2,  5, 8, 10, 15, 20, 50)
+c_sens = seq(0,300, by = 5)
 c_plus = 100
 sensitivity = do.call(rbind, replicate(length(c_sens), baseline, simplify = F))%>%
   mutate(c = (c+c_plus)*c_sens,
@@ -173,14 +175,14 @@ params_sensitivity = rbind(params_sensitivity,
 params_sensitivity = params_sensitivity %>%
   drop_na()
 
-### G. Subsidy on demand 
+### G. Subsidy on aquaculture 
 v = baseline$v
-v_sens = v* c(1, 0.9, .8, .7, .6)
+v_sens = v* seq(.5,1.1, by = 0.04)
 
 sensitivity = do.call(rbind, replicate(length(v_sens), baseline, simplify = F))%>%
   mutate(v = v_sens,
          spec = 'subsidy',
-         transformation = c(1, 0.9, .8, .7, .6))
+         transformation = seq(.5,1.1, by = 0.04))
 params_sensitivity = rbind(params_sensitivity, 
                            sensitivity)
 
@@ -452,33 +454,294 @@ model_run = function(params){
   
   final_dat = final_dat %>%
     mutate(Stable = ifelse(lag_sign>0,'Stable', 'Unstable'))%>%
-    subset(x>0)
+    subset(x>0)%>%
+    mutate(row = identifier)
   #%>%
   #  subset(lag_sign >0)
   return(final_dat)
-  }
-storage = data.frame(0,0,0,0,0,0)
-colnames(storage) = c('x', 'names', 'values', 'lag_sign', 'Stable', 'identifier')
-for(row in 1:nrow(params_sensitivity)){
-  storage =rbind(storage,
-                 model_run(params_sensitivity[row,])%>%
-                   mutate(identifier = row))
 }
+
+model_run_par = function(params){
+  params = suppressWarnings(as.numeric(unlist(params, use.names = T)))
+  beta  = params[1]
+  alpha = params[2]
+  gamma = params[3]
+  W     = params[4]
+  W1    = params[5]
+  W2    = params[6]
+  c     = params[7]
+  v     = params[8]
+  r     = params[9]
+  k     = params[10]
+  interest_rate = params[11]
+  sigma = params[12]
+  identifier = params[15]
+  
+  # Define functions for model run 
+  alpha_w = alpha
+  alpha_f = alpha
+  beta_w = beta
+  beta_f = beta
+  # Demand functions parameters
+  e   = gamma/(beta_w*beta_f - (gamma^2))
+  a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
+  a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
+  b_f = beta_f/(beta_w*beta_f - (gamma^2))
+  b_w = beta_w/(beta_w*beta_f - (gamma^2))
+  
+  growth = function(x, 
+                  k.=k, 
+                  r.=r){
+  y = r.*x*(1-x/k.)
+  return(y)
+}
+
+  # I. Monopoly
+  monop_harvest_lq = function(x,
+                              alpha. = alpha, 
+                              c. = c, 
+                              sigma. = sigma, 
+                              beta. = beta,
+                              W1. = W1,
+                              W2. = W2){
+    y = (sigma.^2 * x^2 * (alpha. - c.) - W1.*sigma.*x)/(2*(beta.*sigma.^2 * x^2 + W2.))
+    return(y)
+  }
+
+
+  # II. Cournot
+  cournot_harvest_lq = function(x, 
+                                alpha_f. = alpha_f, 
+                                alpha_w. = alpha_w, 
+                                beta_f. = beta_f, 
+                                beta_w. = beta_w, 
+                                gamma. = gamma, 
+                                sigma. = sigma, 
+                                c. = c, 
+                                v. = v, 
+                                W1. = W1, 
+                                W2. = W2){
+    y = ((2*beta_f. * (alpha_w. - c.) - gamma. * (alpha_w. -v.))*sigma.^2 * x^2 - 2*beta_f.*W1.*sigma.*x)/(4*beta_f.*W2. + (4*beta_f.*beta_w. - gamma.^2)*sigma.^2 * x^2)
+    return(y)
+  }
+  
+  price_poachers_cournot_lq = function(x,
+                                       alpha_f. = alpha_f, 
+                                       alpha_w. = alpha_w, 
+                                       beta_f. = beta_f, 
+                                       beta_w. = beta_w, 
+                                       gamma. = gamma, 
+                                       sigma. = sigma, 
+                                       c. = c, 
+                                       v. = v, 
+                                       W1. = W1, 
+                                       W2. = W2){
+    y = (2*W2.*(2*beta_f.*(alpha_w. - c) - gamma.*(alpha_f. - v.)) + W1.*sigma.*x*(4*beta_f.*beta_w. - gamma.^2))/(4*beta_f.*W2. + (4*beta_f.*beta_w. - gamma.^2)*sigma.^2*x^2)
+    return(y)
+  }
+  
+  farmed_cournot_lq = function(price_poachers,
+                               alpha_f. = alpha_f, 
+                               alpha_w. = alpha_w, 
+                               beta_f. = beta_f, 
+                               beta_w. = beta_w, 
+                               gamma. = gamma, 
+                               sigma. = sigma, 
+                               c. = c, 
+                               v. = v, 
+                               W1. = W1, 
+                               W2. = W2){
+    y = (2*beta_w.*(alpha_f. - v.) - gamma.*(alpha_w. - price_poachers - c.))/(4*beta_w.*beta_f. - gamma.^2)
+    return(y)
+  }
+
+  # III. Bertrand
+
+  bertrand_harvest_lq = function(x,
+                                 sigma. = sigma, 
+                                 a_f. = a_f, 
+                                 a_w. = a_w, 
+                                 b_f. = b_f, 
+                                 b_w. = b_w, 
+                                 e. = e, 
+                                 v. = v, 
+                                 c. = c, 
+                                 W1. = W1, 
+                                 W2. = W2){
+    y1 = b_w.*(sigma.^2 * x^2 *((2*a_w. +e.*v.)*b_f. + e.*a_f.) + (c. + W1. * sigma. * b_w. * x)*(e.^2 - 2*b_w. *b_f.))
+    y2 = 2*W2.*b_w.*(2*b_f.* b_w. - e.^2) + (4*b_f.*b_w. - e.^2)*sigma.^2*x^2
+    z = y1/y2
+    return(z)
+  }
+
+  price_poacher_bertrand_lq = function(x,
+                                     sigma. = sigma, 
+                                     a_f. = a_f, 
+                                     a_w. = a_w, 
+                                     b_f. = b_f, 
+                                     b_w. = b_w, 
+                                     e. = e, 
+                                     v. = v, 
+                                     c. = c, 
+                                     W1. = W1, 
+                                     W2. = W2){
+  y = 2*b_w.*W2.*((2*a_w. + e.*v.)*b_f. + e.*a_f. + c.*(e.^2 - 2* b_f.*b_w.)) + W1.*sigma.*x*(4*b_f.*b_w. - e.^2)
+  z = sigma.^2 * x^2 * (4*b_w.*b_f. - e.^2) + 2*b_w.*W2.*(2*b_f.*b_w - e.^2)
+  result = y/z
+  return(result)
+}
+
+  composite_bertrand_lq = function(x,
+                                   sigma. = sigma, 
+                                   a_f. = a_f, 
+                                   a_w. = a_w, 
+                                   b_f. = b_f, 
+                                   b_w. = b_w, 
+                                   e. = e, 
+                                   v. = v, 
+                                   c. = c, 
+                                   W1. = W1, 
+                                   W2. = W2){
+    y = b_w. * ((2*a_w. +e.*v.)*b_f. + e.*a_f. + (price_poacher_bertrand_lq(x)+c.)*(e.^2 - 2*b_w.*b_f))/(4*b_f.*b_w. - e.^2)
+    return(y)
+  }
+
+  bertrand_farmed = function(s,
+                             a_f. = a_f, 
+                             a_w. = a_w, 
+                             b_f. = b_f, 
+                             b_w. = b_w, 
+                             e. = e, 
+                             c. = c, 
+                             v. = v){
+    y = b_f. *(2*b_w.*a_f. + v.*(e.^2 - 2*b_w.*b_f.) + e.*(a_w. + (s+c.)*b_w.))/(4*b_f.*b_w. - e.^2)
+    return(y)
+  }
+  
+  # Run model :
+  result1 = data.frame(x = seq(1,k,.5 ))%>%
+    mutate(growth= growth(x),
+           # Harvests with quadratic and linear-quadratic costs
+           monop_harvest_lq = monop_harvest_lq(x),
+           cournot_harvest_lq = cournot_harvest_lq(x),
+           #bertrand_harvest_lq = bertrand_harvest_lq(x),
+           bertrand_harvest_lq = composite_bertrand_lq(x),
+           # Prices
+           price_poachers_bertrand = price_poacher_bertrand_lq(x),
+           price_poachers_cournot = price_poachers_cournot_lq(x),
+           # Farmed
+           bertrand_farmed_lq = bertrand_farmed(price_poachers_bertrand),
+           cournot_farmed_lq = farmed_cournot_lq(price_poachers_cournot),
+           # Steady states
+           ss_monop_lq = monop_harvest_lq - growth, 
+           ss_cournot_lq = cournot_harvest_lq - growth,
+           ss_bertrand_lq = bertrand_harvest_lq - growth
+           )
+
+  # Put data in long format and keep only values close to the steady state
+  errr = result1 %>% 
+    pivot_longer(-x, names_to = 'names', values_to = 'values')%>%
+    subset(names %in% c('ss_monop_lq',
+                        'ss_cournot_lq',
+                        'ss_bertrand_lq'))%>%
+    subset(values > -.2)%>%
+    subset(values < .2)
+  
+  # Initiate storage
+  final_dat = data.frame(0, 0, 0, 0)
+  colnames(final_dat) = c(colnames(errr), 'lag_sign')
+
+  
+  # Loop over each scenario to identify one steady state
+  for(name in unique(errr$names)){
+    study = errr %>%
+      subset(names == name)%>%
+      mutate(lag_sign = c(0, diff(sign(values))), # Mutate to get sign change and value of steady state change
+             lag_val = c(0, diff(x)))
+    # Define cut vector to scan through each zone : cuts are defined as jumps in x value 
+    cuts_ = which(study$lag_val>5 | study$lag_val < -5) - 1
+    cuts_ = c(0,cuts_, nrow(study))
+    # Use cuts vector to scan through
+    for(cut in 1:(length(cuts_)-1)){
+      lb_ = cuts_[cut]+1
+      ub_ = cuts_[cut+1]
+    
+      to_check = study[lb_: ub_,]%>%
+        subset(lag_sign !=0)%>%
+        subset(lag_val>0)%>% # Keep only when the lag value is positive : otherwise, it means a change in sequence or type of equilibrium
+        select(-c(lag_val))
+    
+      final_dat = rbind(final_dat, to_check)
+    }
+  }
+  
+  final_dat = final_dat %>%
+    mutate(Stable = ifelse(lag_sign>0,'Stable', 'Unstable'))%>%
+    subset(x>0)%>%
+    mutate(row = identifier)
+  #%>%
+  #  subset(lag_sign >0)
+  return(final_dat)
+}
+
+
+
+if(!(file.exists(here('data','outputs','sensitivity_analysis.csv')))){
+  
+  storage = data.frame(0,0,0,0,0,0)
+  colnames(storage) = c('x', 'names', 'values', 'lag_sign', 'Stable', 'identifier')
+  
+  if(nrow(params_sensitivity) > 10000){
+    
+    numcores = detectCores() - 4
+    cl = makeCluster(numcores)
+    # Load tidyverse : otherwise, pipe operator is not recognized
+    clusterEvalQ(cl,  library(tidyverse))
+
+    # Start timer
+    start = Sys.time()
+    # Apply function accross nodes with a slice of the data of lenght width
+    a = parApply(cl, 
+                 params_sensitivity,
+                 1,
+                 model_run_par)
+    print(Sys.time() - start)
+    stopCluster(cl)
+    
+    # Unlist all that 
+    start = Sys.time()
+    storage = 
+      Reduce(function(dtf1, dtf2) rbind(dtf1, dtf2), a)
+    print(Sys.time() - start)
+    
+    storage = storage %>%
+      mutate(identifier = row)%>%
+      select(-row)
+  }else{
+    for(row in 1:nrow(params_sensitivity)){
+      storage =rbind(storage,
+                   model_run(params_sensitivity[row,])%>%
+                   mutate(identifier = row))
+      storage = storage %>%
+                   subset(identifier >0)
+    }
 # Keep only real data
-storage = storage %>%
-  subset(identifier >0)
+  }
 
 # Merge with parameters
-exploit_ = left_join(storage, params_sensitivity, by = 'identifier')%>%
-  distinct()%>%
-  mutate(identifier = as.numeric(identifier))
-# Might have to pivot longer to match with previous codes and graphs; 
-if(!(file.exists(here('data','outputs','sensitivity_analysis_results.csv')))){
-  write.csv(exploit_, here('data', 'outputs', 'sensitivity_analysis_results.csv'))
-}
+    exploit_ = left_join(storage, params_sensitivity, by = 'identifier')%>%
+      distinct()%>%
+      mutate(identifier = as.numeric(identifier))
+
+  
+  write.csv(exploit_, here('data', 'outputs', 'sensitivity_analysis.csv'))
+}else(
+  exploit_ = read.csv(here('data', 'outputs', 'sensitivity_analysis.csv'))
+)
+
 ```
 
-Check the occurence of steady states : 
+Check the occurrence of steady states : 
 ```{r, steady state coarse}
 # Analyse if multiple steady states have been recorded for various scenarios
 checker = data.frame(table(exploit_$identifier))
@@ -546,7 +809,7 @@ cost_sens %>%
          multiplier_global = paste((as.numeric(multiplier_global) - 1)*100, '%'))%>%
   filter(W1_multiplier == 1 & W2_multiplier == 1)%>%
   ggplot(aes(x = multiplier_global, y =x_norm, color = names))+
-  geom_point(size = 2.5)+
+  geom_point(size = 2.5, position = position_dodge2(width = .2))+
   scale_color_manual(values = c('#B22222','#1f78b4', '#248721'))+
   ylab("Variation from baseline steady state population")+
   xlab(' ')+
@@ -566,6 +829,17 @@ ggsave(here('visuals', 'supplementary_visuals', 'uncertainty_W.jpg'))
 
 
 ```
+
+```{r, table of results}
+cost_sens %>%
+  mutate(W1_multiplier = as.numeric(W1_multiplier),
+         W2_multiplier = as.numeric(W2_multiplier),
+         x_norm = ((x-baseline_stock)/baseline_stock)*100,
+         multiplier_global = paste((as.numeric(multiplier_global) - 1)*100, '%'))%>%
+  filter(W1_multiplier == 1 & W2_multiplier == 1)%>%
+  select(c(names, x, x_norm,multiplier_global))%>%
+  kable()
+```
   
 ```{r, across Ws}
 # Second analysis : keep the initial cost, but switch the W1 and W2 analysis
@@ -573,19 +847,18 @@ cost_sens %>%
   mutate(multiplier_global = as.numeric(multiplier_global),
          W1_multiplier = as.numeric(W1_multiplier),
          W2_multiplier = as.numeric(W2_multiplier),
-         namer = paste(round(W1,1), " and ", round(W2,1)),
+         namer = paste(round(W1,1), " and ", round(W2,2)),
          baseline = as.factor(ifelse(W1_multiplier ==1 & W2_multiplier == 1, 1, 0)),
          x_norm = (x - baseline_stock)/baseline_stock*100)%>%
-  subset(Stable == "Stable")%>%
   filter(multiplier_global == 1)%>%
-  ggplot(aes(x = namer, y =x_norm, color = names, shape = names))+
-  geom_point(size = 2.5)+
+  ggplot(aes(x = namer, y =x_norm, color = names, shape = Stable, group = names))+
+  geom_point(size = 2.5, position = position_dodge2(width = .2))+
   scale_color_manual(values = c('#B22222','#1f78b4', '#248721'))+
   #geom_rect(aes(fill = baseline), xmin = -Inf,xmax = Inf,
   #          ymin = -Inf,ymax = Inf,alpha = 0.1)+
   #scale_fill_manual(values = c('white', 'grey'))+
   #facet_grid(~names)+
-  ylab("Variation from baseline steady state population")+
+  ylab("Variation from baseline steady state population (in %)")+
   xlab(' ')+
   theme_bw()+
   labs(color = ' ', 
@@ -605,6 +878,20 @@ ggsave(here('visuals', 'supplementary_visuals', 'linear_or_quadratic.jpg'))
 
 ```
 
+```{r, table of results lin quad}
+cost_sens %>%
+  mutate(multiplier_global = as.numeric(multiplier_global),
+         W1_multiplier = as.numeric(W1_multiplier),
+         W2_multiplier = as.numeric(W2_multiplier),
+         namer = paste(round(W1,1), " and ", round(W2,1)),
+         baseline = as.factor(ifelse(W1_multiplier ==1 & W2_multiplier == 1, 1, 0)),
+         x_norm = (x - baseline_stock)/baseline_stock*100)%>%
+  filter(multiplier_global == 1)%>%
+  select(c(names, x, x_norm,namer))%>%
+  kable()
+
+```
+
 ### 2. Effect of v
 
 ```{r, effect of v}
@@ -614,7 +901,7 @@ v_sens = exploit_%>%
 v_sens$names = sapply(v_sens$names, renamer)
 
 v_sens %>%
-  mutate(transformation = paste((1 - as.numeric(transformation))*100, '%'),
+  mutate(transformation = (1 - as.numeric(transformation))*100,
          x_norm = (x - baseline_stock)/baseline_stock * 100)%>%
   ggplot(aes( x = transformation, y = x_norm, color = names))+
   geom_point(size = 2.5)+
@@ -636,7 +923,35 @@ v_sens %>%
 ggsave(here('visuals', 'supplementary_visuals', 'effect_of_subsidy.jpg'))
 
 ```
-### 3. Impact of different substitutability
+
+### 3. Impact of different v and c
+
+```{r, c and v}
+c_and_v = exploit_ %>%
+  subset(spec == 'v and c')
+
+c_and_v$names = sapply(c_and_v$names, renamer)
+
+c_and_v = c_and_v %>%
+  mutate(x_norm = (x - baseline_stock)/baseline_stock * 100)
+
+c_and_v%>%
+  subset(names != 'Vertical monopoly')%>%
+  ggplot(aes(x = c, y = v, fill = x_norm))+
+  geom_tile()+
+  scale_fill_gradient2(
+    high='green',
+    low = 'red',
+    mid = 'white',
+    midpoint = 0
+  )+
+  facet_grid(~names)+
+  theme_minimal()
+
+```
+
+
+### 4. Impact of different substitutability
 
 ```{r, substitutability}
 baseline_gamma = calibration %>%
@@ -677,7 +992,7 @@ ggsave(here('visuals', 'supplementary_visuals', 'effect_of_subsidy.jpg'), width 
 
 ```
 
-### 3. Impact of joint variation of demand parameters
+### 5. Impact of joint variation of demand parameters
 
 ```{r, demand}
 # Set up baselines
