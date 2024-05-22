@@ -86,6 +86,12 @@ params_sensitivity = rbind(params_sensitivity,
                            sensitivity)
 #### ii. Linear quadratic model
 
+W_lq_append = W_lq
+W_lq_append = W_lq_append%>%
+  mutate(W1 = 1.1 * W1)
+
+W_lq = rbind(W_lq, W_lq_append)
+
 sensitivity= do.call(rbind, replicate(nrow(W_lq), baseline, simplify = FALSE))%>%
   mutate(W1 = W_lq$W1,
          W2 = W_lq$W2, 

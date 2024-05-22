@@ -411,7 +411,7 @@ write.csv(final_dat, here('data', 'outputs', 'results_all_models.csv'))
 
 To understand the impact of different $W_1$ & $W_2$ divides : 
 
-```{r, understand different W}
+```{r, fig.width=10, fig.height=11}
 store = data.frame(matrix(nrow = 0, ncol= ncol(result1)+1))
 colnames(store)= c(colnames(result1), 'quantile')
 
@@ -521,7 +521,7 @@ p = dat_%>%
         axis.text = element_text(family = font_),
         axis.title.y  = element_text(family = font_),
         legend.text = element_text(family = font_), 
-        legend.title = element_text(family = font_))
+        legend.title = element_text(family = font_)) 
 p
 if(!file.exists(here('visuals', 'supplementary_visuals', 'equilibria_with_W1_W2.png'))){
   p
@@ -537,6 +537,7 @@ rm(dat_to_glue, store)
 Clearly, the choice of $W_1$ and $W_2$ is important with respect to the anticipated equilibrium in the *vertical monopoly* case : with a linear-quadratic cost function, we no longer can say the monopoly will achieve a *healthy* steady state population. The results in the **post intervention** world are robust to the cost specification, and guarantee population increases in the *quantity adjustment* scenario, while population may marginally diminish in the *price setting* scenario. 
 
 #### B. Graph with prefered specification
+
 ```{r, baseline choice}
 baseline_W_choice = W_lq_new %>% 
   select(baseline_choice)%>%
@@ -551,6 +552,7 @@ First, illustrate the new equilibria with the same $W$ =  `r W_mid` value and th
 
 # Define baseline value with row index
 baseline_W_choice = W_lq_new %>% 
+  #mutate(baseline_choice = 4) %>%
   select(baseline_choice)%>%
   unique()%>%
   pull()
