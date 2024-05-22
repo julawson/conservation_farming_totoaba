@@ -238,6 +238,9 @@ params_sensitivity = params_sensitivity %>%
   mutate(identifier = seq(1, nrow(params_sensitivity)))
 
 rm(sensitivity, to_append)
+if(!(file.exists(here('data','inputs', 'params_sensitivity.csv')))){
+  write.csv(params_sensitivity, here('data', 'inputs', 'sensitivity_analysis.csv'))
+}
 ```
 
 
@@ -934,6 +937,14 @@ v_sens %>%
 ggsave(here('visuals', 'supplementary_visuals', 'effect_of_subsidy.jpg'))
 
 ```
+```{r, identify v to have safe space}
+v_sens %>%
+  mutate(transformation = (1 - as.numeric(transformation))*100,
+         x_norm = (x - baseline_stock)/baseline_stock * 100)%>%
+  subset(names == 'Price setting')%>%
+  subset(x_norm>=0 & x_norm < .2 )
+
+```
 
 ### 3. Impact of different v and c
 
@@ -946,19 +957,76 @@ c_and_v$names = sapply(c_and_v$names, renamer)
 c_and_v = c_and_v %>%
   mutate(x_norm = (x - baseline_stock)/baseline_stock * 100)
 
-c_and_v%>%
-  subset(names != 'Vertical monopoly')%>%
-  ggplot(aes(x = c, y = v, fill = x_norm))+
-  geom_tile()+
-  scale_fill_gradient2(
-    high='green',
-    low = 'red',
-    mid = 'white',
-    midpoint = 0
-  )+
-  facet_grid(~names)+
-  theme_minimal()
 
+
+
+a = c_and_v %>%
+  subset(c %in% c(0,5000, 10000, 15000, 20000, 25000, 30000))%>%
+  mutate(c = as.factor(c))
+
+store = data.frame(0,0,0,0)
+colnames(store) = c('names', 'values', 'c', 'v')
+
+names_ = c('Price setting', 'Quantity adjustment')
+for(row_ in unique(a$identifier)){
+  here = a %>%
+    subset(identifier == row_)
+  monop = here %>%
+    subset(names =='Vertical monopoly')%>%
+    select(x)%>%
+    pull()
+  bertrand = here %>%
+    subset(names == 'Price setting')%>%
+    select(x)%>%
+    pull()
+  cournot = here %>%
+    subset(names == 'Quantity adjustment')%>%
+    select(x)%>%
+    pull()
+  values = c((bertrand-monop)/monop*100, (cournot - monop)/monop*100)
+  dat__ = data.frame(names_, values, 
+                     rep(here%>%select(c)%>%pull()%>%unique(),2), rep(here%>%select(v)%>%pull()%>%unique(),2))
+  colnames(dat__) = c('names', 'values', 'c', 'v')
+  store = rbind(store, dat__)
+}
+
+baselines_ = exploit_ %>%
+  subset(spec == 'baseline')
+baseline_cournot = (baselines_ %>% 
+  subset(names == 'ss_cournot_lq')%>%
+  select(x)%>%
+  pull()-baseline_stock)/baseline_stock*100
+baseline_bertrand = (baselines_ %>% 
+  subset(names == 'ss_bertrand_lq')%>%
+  select(x)%>%
+  pull()-baseline_stock)/baseline_stock*100
+
+points = data.frame(names = c('Price setting', 'Quantity adjustment'), 
+                    values = c(baseline_bertrand, baseline_cournot), 
+                    v = rep(baselines_%>%select(v)%>%pull()%>%unique()))
+
+store %>%
+  subset(names != 0)%>%
+  mutate(c = factor(c, levels = seq(0,30000, 5000)))%>%
+  ggplot(aes(x = v, y = values, color = c))+
+  geom_line(linewidth = 1)+
+  scale_color_discrete_sequential('SunsetDark')+
+  geom_hline(yintercept = 0)+
+  geom_point(data = data.frame(x = baselines_ %>% select(v) %>% pull() %>% unique(), 
+                               y = baseline_bertrand, 
+                               names = 'Price setting'),aes(x = x, y = y), colour = '#B22222', size = 2.5)+
+    geom_point(data = data.frame(x = baselines_ %>% select(v) %>% pull() %>% unique(), 
+                               y = baseline_cournot, 
+                               names = 'Quantity adjustment'),aes(x = x, y = y), colour = '#1f78b4', size = 2.5)+
+  facet_grid(~names)+
+  labs(colour = 'Transaction cost (USD/mt)')+
+  xlab('Farming cost (USD/mt)')+
+  ylab('Variation from monopoly steady state population (in %)')+
+  theme_bw()+
+  theme(legend.position = 'bottom',
+  )
+
+ggsave(here('visuals', 'sup_figure3.png'), height = 22.5, width = 15, units = 'cm')
 ```
 
 
@@ -1036,15 +1104,15 @@ tol = .01
 
 # Set up data 
 graph_dat = exploit_ %>%
-  subset(spec %in% c('alpha and gamma'))%>%
-  subset(alpha > .62 * baseline_alpha)%>%
+  subset(spec %in% c('alpha and gamma'))%>% 
+  subset(alpha > .62 * baseline_alpha)%>% # Keep only data with demand rangin from -20% to +100% as alpha is multiplied by increments of .2
   subset(!(names %in% c('ss_monop_lq')))%>%
-  mutate(alpha = as.factor(alpha/baseline_alpha))%>%
+  mutate(alpha = as.factor(alpha/baseline_alpha))%>% # Mutate alpha to have ratio
   filter((gamma< (1+ tol)*sqrt(.1) * baseline_beta & gamma > (1 - tol)*sqrt(.1)*baseline_beta) |
          (gamma< (1+ tol)*sqrt(.5) * baseline_beta & gamma > (1 - tol)*sqrt(.5)*baseline_beta)|
          (gamma< (1+ tol)*sqrt(.75) * baseline_beta & gamma > (1 - tol)*sqrt(.75)*baseline_beta)|
          (gamma< (1+ tol)*sqrt(.9) * baseline_beta & gamma > (1 - tol)*sqrt(.9)*baseline_beta))%>%
-  mutate(alpha2 = as.factor(paste(alpha, Stable)),
+  mutate(alpha2 = as.factor(paste(alpha, Stable)),# Create alpha2 variable for plotting in grey : not an analysis variable!
          gamma2 = round(gamma,2),
          value2 = (x - baseline_stock)/baseline_stock*100)
 
@@ -1099,10 +1167,210 @@ theme(axis.text.x = element_text(angle = 60,
         legend.title = element_text(family = font_), 
         aspect.ratio = 10/4)
 p
-ggsave(here('visuals', 'demand_evolution_sensitivity.jpg'), p, width = 20, height = 15, units = 'cm')
+ggsave(here('visuals', 'Figure5.jpg'), p, width = 20, height = 15, units = 'cm')
 ```
 
-That sucks : with new specification, quantity adjustment can go wrong when demand increases by 80% in the baseline scenario... That changes our recommendations. 
+```{r, support for numbers in last paragraph}
+graph_dat%>%
+  subset(gamma3 %in% c('50%'))%>%
+  select(c(identifier,names, x, alpha, gamma3, Stable))%>%
+  subset(alpha %in% c(1.8))
 
-Weird also because there is a steady state for Bertrand competition, while there should not be according to graphs. 
+
+model_illustration = function(params){
+  params = suppressWarnings(as.numeric(unlist(params, use.names = T)))
+  beta  = params[1]
+  alpha = params[2]
+  gamma = params[3]
+  W     = params[4]
+  W1    = params[5]
+  W2    = params[6]
+  c     = params[7]
+  v     = params[8]
+  r     = params[9]
+  k     = params[10]
+  interest_rate = params[11]
+  sigma = params[12]
+  identifier = params[15]
+  
+  # Define functions for model run 
+  alpha_w = alpha
+  alpha_f = alpha
+  beta_w = beta
+  beta_f = beta
+  # Demand functions parameters
+  e   = gamma/(beta_w*beta_f - (gamma^2))
+  a_f = (alpha_f*beta_w - alpha_w*gamma)/(beta_w*beta_f - (gamma^2))
+  a_w = (alpha_w*beta_f - alpha_f*gamma)/(beta_w*beta_f - (gamma^2))
+  b_f = beta_f/(beta_w*beta_f - (gamma^2))
+  b_w = beta_w/(beta_w*beta_f - (gamma^2))
+  
+  growth = function(x, 
+                  k.=k, 
+                  r.=r){
+  y = r.*x*(1-x/k.)
+  return(y)
+}
+
+  # I. Monopoly
+  monop_harvest_lq = function(x,
+                              alpha. = alpha, 
+                              c. = c, 
+                              sigma. = sigma, 
+                              beta. = beta,
+                              W1. = W1,
+                              W2. = W2){
+    y = (sigma.^2 * x^2 * (alpha. - c.) - W1.*sigma.*x)/(2*(beta.*sigma.^2 * x^2 + W2.))
+    return(y)
+  }
+
+
+  # II. Cournot
+  cournot_harvest_lq = function(x, 
+                                alpha_f. = alpha_f, 
+                                alpha_w. = alpha_w, 
+                                beta_f. = beta_f, 
+                                beta_w. = beta_w, 
+                                gamma. = gamma, 
+                                sigma. = sigma, 
+                                c. = c, 
+                                v. = v, 
+                                W1. = W1, 
+                                W2. = W2){
+    y = ((2*beta_f. * (alpha_w. - c.) - gamma. * (alpha_w. -v.))*sigma.^2 * x^2 - 2*beta_f.*W1.*sigma.*x)/(4*beta_f.*W2. + (4*beta_f.*beta_w. - gamma.^2)*sigma.^2 * x^2)
+    return(y)
+  }
+  
+  price_poachers_cournot_lq = function(x,
+                                       alpha_f. = alpha_f, 
+                                       alpha_w. = alpha_w, 
+                                       beta_f. = beta_f, 
+                                       beta_w. = beta_w, 
+                                       gamma. = gamma, 
+                                       sigma. = sigma, 
+                                       c. = c, 
+                                       v. = v, 
+                                       W1. = W1, 
+                                       W2. = W2){
+    y = (2*W2.*(2*beta_f.*(alpha_w. - c) - gamma.*(alpha_f. - v.)) + W1.*sigma.*x*(4*beta_f.*beta_w. - gamma.^2))/(4*beta_f.*W2. + (4*beta_f.*beta_w. - gamma.^2)*sigma.^2*x^2)
+    return(y)
+  }
+  
+  farmed_cournot_lq = function(price_poachers,
+                               alpha_f. = alpha_f, 
+                               alpha_w. = alpha_w, 
+                               beta_f. = beta_f, 
+                               beta_w. = beta_w, 
+                               gamma. = gamma, 
+                               sigma. = sigma, 
+                               c. = c, 
+                               v. = v, 
+                               W1. = W1, 
+                               W2. = W2){
+    y = (2*beta_w.*(alpha_f. - v.) - gamma.*(alpha_w. - price_poachers - c.))/(4*beta_w.*beta_f. - gamma.^2)
+    return(y)
+  }
+
+  # III. Bertrand
+
+  bertrand_harvest_lq = function(x,
+                                 sigma. = sigma, 
+                                 a_f. = a_f, 
+                                 a_w. = a_w, 
+                                 b_f. = b_f, 
+                                 b_w. = b_w, 
+                                 e. = e, 
+                                 v. = v, 
+                                 c. = c, 
+                                 W1. = W1, 
+                                 W2. = W2){
+    y1 = b_w.*(sigma.^2 * x^2 *((2*a_w. +e.*v.)*b_f. + e.*a_f.) + (c. + W1. * sigma. * b_w. * x)*(e.^2 - 2*b_w. *b_f.))
+    y2 = 2*W2.*b_w.*(2*b_f.* b_w. - e.^2) + (4*b_f.*b_w. - e.^2)*sigma.^2*x^2
+    z = y1/y2
+    return(z)
+  }
+
+  price_poacher_bertrand_lq = function(x,
+                                     sigma. = sigma, 
+                                     a_f. = a_f, 
+                                     a_w. = a_w, 
+                                     b_f. = b_f, 
+                                     b_w. = b_w, 
+                                     e. = e, 
+                                     v. = v, 
+                                     c. = c, 
+                                     W1. = W1, 
+                                     W2. = W2){
+  y = 2*b_w.*W2.*((2*a_w. + e.*v.)*b_f. + e.*a_f. + c.*(e.^2 - 2* b_f.*b_w.)) + W1.*sigma.*x*(4*b_f.*b_w. - e.^2)
+  z = sigma.^2 * x^2 * (4*b_w.*b_f. - e.^2) + 2*b_w.*W2.*(2*b_f.*b_w - e.^2)
+  result = y/z
+  return(result)
+}
+
+  composite_bertrand_lq = function(x,
+                                   sigma. = sigma, 
+                                   a_f. = a_f, 
+                                   a_w. = a_w, 
+                                   b_f. = b_f, 
+                                   b_w. = b_w, 
+                                   e. = e, 
+                                   v. = v, 
+                                   c. = c, 
+                                   W1. = W1, 
+                                   W2. = W2){
+    y = b_w. * ((2*a_w. +e.*v.)*b_f. + e.*a_f. + (price_poacher_bertrand_lq(x)+c.)*(e.^2 - 2*b_w.*b_f))/(4*b_f.*b_w. - e.^2)
+    return(y)
+  }
+
+  bertrand_farmed = function(s,
+                             a_f. = a_f, 
+                             a_w. = a_w, 
+                             b_f. = b_f, 
+                             b_w. = b_w, 
+                             e. = e, 
+                             c. = c, 
+                             v. = v){
+    y = b_f. *(2*b_w.*a_f. + v.*(e.^2 - 2*b_w.*b_f.) + e.*(a_w. + (s+c.)*b_w.))/(4*b_f.*b_w. - e.^2)
+    return(y)
+  }
+  
+  # Run model :
+  result1 = data.frame(x = seq(1,k,.5 ))%>%
+    mutate(growth= growth(x),
+           # Harvests with quadratic and linear-quadratic costs
+           monop_harvest_lq = monop_harvest_lq(x),
+           cournot_harvest_lq = cournot_harvest_lq(x),
+           #bertrand_harvest_lq = bertrand_harvest_lq(x),
+           bertrand_harvest_lq = composite_bertrand_lq(x),
+           # Prices
+           price_poachers_bertrand = price_poacher_bertrand_lq(x),
+           price_poachers_cournot = price_poachers_cournot_lq(x),
+           # Farmed
+           bertrand_farmed_lq = bertrand_farmed(price_poachers_bertrand),
+           cournot_farmed_lq = farmed_cournot_lq(price_poachers_cournot),
+           # Steady states
+           ss_monop_lq = monop_harvest_lq - growth, 
+           ss_cournot_lq = cournot_harvest_lq - growth,
+           ss_bertrand_lq = bertrand_harvest_lq - growth
+           )
+  result1 = result1 %>%
+    select(x,
+           growth, 
+           monop_harvest_lq,
+           cournot_harvest_lq, 
+           bertrand_harvest_lq)%>%
+    pivot_longer(-x, 
+                 names_to = 'names',
+                 values_to = 'values')
+    
+  return(result1)
+}
+
+z = model_illustration(params_sensitivity[12946, ])
+
+z %>%
+  ggplot(aes(x =x, y = values, color = names))+
+  geom_line()
+
+```
 

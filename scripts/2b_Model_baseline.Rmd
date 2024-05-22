@@ -623,7 +623,7 @@ dat_ = rbind(dat_, dat_to_glue)
 ## Approach to grey the background
 p1 = dat_%>%
   subset(x %% 2 == 0)%>%
-  subset(quantile %in% unique(dat_$quantile)[c(1,2)])%>%
+  subset(quantile %in% unique(dat_$quantile)[c(1)])%>%
   ggplot(aes(x = x,
              y = values2, 
              color = new_names))+
@@ -641,8 +641,8 @@ p1 = dat_%>%
       title = ' ',
       ncol = 2
     ))+
-  xlab('Population')+
-  ylab('Harvest')+
+  xlab('Population (in mt)')+
+  ylab('Harvest (in mt)')+
   theme(legend.position = 'none',
         strip.text.x  = element_text(family = font_) ,
         axis.title.x  = element_blank(),
@@ -655,7 +655,7 @@ p1 = dat_%>%
 
 p2 = dat_%>%
   subset(x %% 2 == 0)%>%
-  subset(quantile %in% unique(dat_$quantile)[c(8,9)])%>%
+  subset(quantile %in% unique(dat_$quantile)[c(9)])%>%
   ggplot(aes(x = x,
              y = values2, 
              color = new_names))+
@@ -673,8 +673,8 @@ p2 = dat_%>%
       title = ' ',
       ncol = 2
     ))+
-  xlab('Population')+
-  ylab('Harvest')+
+  xlab('Population (in mt)')+
+  ylab('Harvest (in mt)')+
   theme(legend.position = 'none',
         strip.text.x  = element_text(family = font_) ,
         axis.title.x  = element_blank(),
@@ -705,8 +705,8 @@ p3 = dat_%>%
       title = ' ',
       ncol = 2
     ))+
-  xlab('Population')+
-  ylab('Harvest')+
+  xlab('Population (in mt)')+
+  ylab('Harvest (in mt)')+
   theme(legend.position = 'bottom',
         strip.text.x  = element_text(family = font_) ,
         axis.title.x  = element_text(family = font_),
@@ -723,10 +723,10 @@ p3 = dat_%>%
         panel.grid.minor = element_line(color = 'grey80')) 
 
 final = (p1|p3|p2)
-
-if(!file.exists(here('visuals', 'supplementary_visuals', 'equilibria_with_W1_W2.png'))){
+final
+if(!file.exists(here('visuals', 'Figure4.png'))){
   final
-  ggsave(here('visuals', 'supplementary_visuals', 'equilibria_with_W1_W2.png'),
+  ggsave(here('visuals', 'figure4.png'),
         width = 30,
         height = 15, 
         units = 'cm') 
@@ -765,7 +765,7 @@ W_mid    = W_choice['W_mid']
 W1       = W_choice['W1']
 W2       = W_choice['W2']
 quantile = W_choice['quantiles']
-#alpha = 2*alpha
+
 
 result1 = data.frame(x = seq(0,k,.5 ))%>%
   mutate(growth= growth(x),
@@ -863,7 +863,7 @@ dat_%>%
         axis.title.y  = element_text(family = font_),
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_))
-ggsave(here('visuals','figure2.png'), height = 12, width = 20, units = 'cm')
+ggsave(here('visuals','Figure3.png'), height = 12, width = 20, units = 'cm')
 ```
 Save plot for final results : 
 ```{r, plot}

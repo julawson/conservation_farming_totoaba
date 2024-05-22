@@ -167,87 +167,87 @@ growth = function(x,
   return(y)
 }
 
-plot_ = result1 %>%
+#plot_ = result1 %>%
   #subset(x<500)%>%
-  ggplot(aes(x=x))+
-  geom_line(aes(y = growth), linewidth = 1)+
-  geom_line(aes(y = monop_harvest, colour = 'Vertical monopoly'), linewidth = 1)+
-  geom_line(aes(y = cournot_harvest, colour = 'Quantity adjustment (Cournot)'), linewidth = 1)+
-  geom_line(aes(y = bertrand_harvest, colour = 'Price setting (Bertrand)'), linewidth = 1)+
-  geom_line(aes(y = pt_harvest, colour = 'Multiple traders'), linewidth = 1) +
-  theme_bw()+
-  ylab('Growth / harvest')+
-  xlab('Population stock')+
-  scale_color_manual(values = c('royalblue1','lightgreen','forestgreen','firebrick'))+
-  labs(colour = ' ')+
-  theme(legend.position = 'bottom',
-        strip.text.x  = element_text(family = font_) ,
-        axis.title.x  = element_text(family = font_),
-        axis.text = element_text(family = font_),
-        axis.title.y  = element_text(family = font_),
-        legend.text = element_text(family = font_), 
-        legend.title = element_text(family = font_))
-plot_
-ggsave(here('visuals', 'supplementary_visuals', 'Figure3.jpg'))
+#  ggplot(aes(x=x))+
+#  geom_line(aes(y = growth), linewidth = 1)+
+#  geom_line(aes(y = monop_harvest, colour = 'Vertical monopoly'), linewidth = 1)+
+#  geom_line(aes(y = cournot_harvest, colour = 'Quantity adjustment (Cournot)'), linewidth = 1)+
+#  geom_line(aes(y = bertrand_harvest, colour = 'Price setting (Bertrand)'), linewidth = 1)+
+#  geom_line(aes(y = pt_harvest, colour = 'Multiple traders'), linewidth = 1) +
+#  theme_bw()+
+#  ylab('Growth / harvest')+
+#  xlab('Population stock')+
+#  scale_color_manual(values = c('royalblue1','lightgreen','forestgreen','firebrick'))+
+#  labs(colour = ' ')+
+#  theme(legend.position = 'bottom',
+#        strip.text.x  = element_text(family = font_) ,
+#        axis.title.x  = element_text(family = font_),
+#        axis.text = element_text(family = font_),
+#        axis.title.y  = element_text(family = font_),
+ #       legend.text = element_text(family = font_), 
+#        legend.title = element_text(family = font_))
+#plot_
+#ggsave(here('visuals', 'supplementary_visuals', 'Figure3.jpg'))
 
 
-plot_ = result1 %>%
-  mutate(growth2 = growth(x,r.=4.03*r, k.=5000),
-         growth3 = growth(x, r. = 10.1*r, k.=2000))%>%
-  mutate(growth2 = sapply(growth2, zero), 
-         growth3 = sapply(growth3, zero))%>%
-  subset(x<7500)%>%
-  ggplot(aes(x=x))+
+#plot_ = result1 %>%
+#  mutate(growth2 = growth(x,r.=4.03*r, k.=5000),
+#         growth3 = growth(x, r. = 10.1*r, k.=2000))%>%
+#  mutate(growth2 = sapply(growth2, zero), 
+#         growth3 = sapply(growth3, zero))%>%
+#  subset(x<7500)%>%
+#  ggplot(aes(x=x))+
   #geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1)+
-  geom_line(aes(y = growth2), linewidth = 1)+
+#  geom_line(aes(y = growth2), linewidth = 1)+
   #geom_line(aes(y = growth3, colour = 'Growth'), linewidth = 1)+
-  geom_line(aes(y = monop_harvest, colour = 'Vertical monopoly'), linewidth = 1)+
-  geom_line(aes(y = cournot_harvest, colour = 'Quantity adjustment (Cournot)'), linewidth = 1)+
-  geom_line(aes(y = bertrand_harvest, colour = 'Price setting (Bertrand)'), linewidth = 1)+
-  geom_line(aes(y = pt_harvest, colour = 'Multiple traders'), linewidth = 1) +
-  theme_bw()+
-  ylab('Growth / harvest')+
-  xlab('Population stock')+
-  scale_color_manual(values = c('royalblue1','lightgreen','forestgreen','firebrick'))+
-  labs(colour = ' ')+
-  theme(legend.position = 'bottom',
-        strip.text.x  = element_text(family = font_) ,
-        axis.title.x  = element_text(family = font_),
-        axis.text = element_text(family = font_),
-        axis.title.y  = element_text(family = font_),
-        legend.text = element_text(family = font_), 
-        legend.title = element_text(family = font_))
-plot_
+#  geom_line(aes(y = monop_harvest, colour = 'Vertical monopoly'), linewidth = 1)+
+#  geom_line(aes(y = cournot_harvest, colour = 'Quantity adjustment (Cournot)'), linewidth = 1)+
+#  geom_line(aes(y = bertrand_harvest, colour = 'Price setting (Bertrand)'), linewidth = 1)+
+#  geom_line(aes(y = pt_harvest, colour = 'Multiple traders'), linewidth = 1) +
+#  theme_bw()+
+#  ylab('Growth / harvest')+
+#  xlab('Population stock')+
+#  scale_color_manual(values = c('royalblue1','lightgreen','forestgreen','firebrick'))+
+#  labs(colour = ' ')+
+#  theme(legend.position = 'bottom',
+#        strip.text.x  = element_text(family = font_) ,
+#        axis.title.x  = element_text(family = font_),
+#        axis.text = element_text(family = font_),
+#        axis.title.y  = element_text(family = font_),
+#        legend.text = element_text(family = font_), 
+#        legend.title = element_text(family = font_))
+#plot_
 #ggsave(here('visuals', 'supplementary_visuals', 'Figure3b.jpg'))
 
-plot_ = result1 %>%
-  mutate(growth2 = growth(x,r.=4.03*r, k.=5000),
-         growth3 = growth(x, r. = 10.1*r, k.=2000))%>%
-  mutate(growth2 = sapply(growth2, zero), 
-         growth3 = sapply(growth3, zero))%>%
-  subset(x<3000)%>%
-  ggplot(aes(x=x))+
+#plot_ = result1 %>%
+#  mutate(growth2 = growth(x,r.=4.03*r, k.=5000),
+#         growth3 = growth(x, r. = 10.1*r, k.=2000))%>%
+#  mutate(growth2 = sapply(growth2, zero), 
+#         growth3 = sapply(growth3, zero))%>%
+#  subset(x<3000)%>%
+#  ggplot(aes(x=x))+
   #geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1)+
   #geom_line(aes(y = growth2, colour = 'Growth'), linewidth = 1)+
-  geom_line(aes(y = growth3), linewidth = 1)+
-  geom_line(aes(y = monop_harvest, colour = 'Vertical monopoly'), linewidth = 1)+
-  geom_line(aes(y = cournot_harvest, colour = 'Quantity adjustment (Cournot)'), linewidth = 1)+
-  geom_line(aes(y = bertrand_harvest, colour = 'Price setting (Bertrand)'), linewidth = 1)+
-  geom_line(aes(y = pt_harvest, colour = 'Multiple traders'), linewidth = 1) +
-  theme_bw()+
-  ylab('Growth / harvest')+
-  xlab('Population stock')+
-  scale_color_manual(values = c('royalblue1','lightgreen','forestgreen','firebrick'))+
-  labs(colour = ' ')+
-  theme(legend.position = 'bottom',
-        strip.text.x  = element_text(family = font_) ,
-        axis.title.x  = element_text(family = font_),
-        axis.text = element_text(family = font_),
-        axis.title.y  = element_text(family = font_),
-        legend.text = element_text(family = font_), 
-        legend.title = element_text(family = font_))
+#  geom_line(aes(y = growth3), linewidth = 1)+
+#  geom_line(aes(y = monop_harvest, colour = 'Vertical monopoly'), linewidth = 1)+
+#  geom_line(aes(y = cournot_harvest, colour = 'Quantity adjustment (Cournot)'), linewidth = 1)+
+#  geom_line(aes(y = bertrand_harvest, colour = 'Price setting (Bertrand)'), linewidth = 1)+
+#  geom_line(aes(y = pt_harvest, colour = 'Multiple traders'), linewidth = 1) +
+ # theme_bw()+
+#  ylab('Growth / harvest')+
+#  xlab('Population stock')+
+#  scale_color_manual(values = c('royalblue1','lightgreen','forestgreen','firebrick'))+
+#  labs(colour = ' ')+
+#  theme(legend.position = 'bottom',
+#        strip.text.x  = element_text(family = font_) ,
+#        axis.title.x  = element_text(family = font_),
+#        axis.text = element_text(family = font_),
+#        axis.title.y  = element_text(family = font_),
+#        legend.text = element_text(family = font_), 
+#        legend.title = element_text(family = font_))
 
-plot_
+#plot_
 #ggsave(here('visuals', 'supplementary_visuals', 'Figure3c.jpg'))
 
 
@@ -259,7 +259,7 @@ plot_
 # Define functions
 a_m = alpha/beta
 b_m = 1/beta
-W = W_mid
+W = W_high
 
 
 harvest_monop_direct = function(x, 
@@ -296,7 +296,7 @@ bertrand_harvest = function(x,
                               e. = e, 
                               v. = v, 
                               c. = c, 
-                              W. = W_mid){
+                              W. = W_high){
   y = ((sigma.^2)*(x^2)*b_w.*(b_f.*(2*a_w.+e.*v.) + c.*((e.^2)- 2*b_f.*b_w.) + e.*a_f.))/((sigma.^2)*(x^2)*(4*b_w.*b_f. - (e.^2)) + 2*W.*b_w.*(2*b_f.*b_w. - (e.^2)))
   return(y)
 }
@@ -398,7 +398,7 @@ b_m = 1/beta
 
 v_func = function(x,c){
   coeff = (a_m - b_m*c)/(b_w*b_f*e)
-  parenthesis = (2*W_mid*b_w*(2*b_w*b_f - e^2) + (4*b_w*b_f - e^2)*sigma^2*x^2)/(2*W_mid*b_m + 2*sigma^2*x^2)
+  parenthesis = (2*W_high*b_w*(2*b_w*b_f - e^2) + (4*b_w*b_f - e^2)*sigma^2*x^2)/(2*W_high*b_m + 2*sigma^2*x^2)
   const = (e*a_f + c*(e^2 - 2*b_w*b_f) + 2*b_f*a_w)/(b_f*e)
   return(coeff* parenthesis - const)
 }
@@ -547,7 +547,7 @@ new_dat %>%
 
 ```
 
-## Extended data figure 7 : Von Bertlaffery Growth curves
+## Extended data figure  : Von Bertlaffery Growth curves
 ```{r}
 farmed_VBGF <- read.csv(here("data","inputs","aqua_par_farm.csv")) #Source: Semi-structured interviews
 wild_VBGF <- read.csv(here("data","inputs","aqua_par_wild.csv")) #Source: INAPESCA 2020
@@ -586,7 +586,7 @@ dat %>%
         legend.title = element_text(family = font_)
         )
   
-ggsave(here("visuals", 'supplementary_visuals', 'Figure11_VBGF_growth.jpg'))
+ggsave(here("visuals", 'sup_fig4_VBGF_growth.jpg'), width = 15, height = 22, units = 'cm')
 
 
 ```
