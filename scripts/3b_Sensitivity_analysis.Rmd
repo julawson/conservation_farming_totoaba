@@ -934,6 +934,14 @@ v_sens %>%
 ggsave(here('visuals', 'supplementary_visuals', 'effect_of_subsidy.jpg'))
 
 ```
+```{r, identify v to have safe space}
+v_sens %>%
+  mutate(transformation = (1 - as.numeric(transformation))*100,
+         x_norm = (x - baseline_stock)/baseline_stock * 100)%>%
+  subset(names == 'Price setting')%>%
+  subset(x_norm>=0 & x_norm < .2 )
+
+```
 
 ### 3. Impact of different v and c
 
@@ -946,19 +954,76 @@ c_and_v$names = sapply(c_and_v$names, renamer)
 c_and_v = c_and_v %>%
   mutate(x_norm = (x - baseline_stock)/baseline_stock * 100)
 
-c_and_v%>%
-  subset(names != 'Vertical monopoly')%>%
-  ggplot(aes(x = c, y = v, fill = x_norm))+
-  geom_tile()+
-  scale_fill_gradient2(
-    high='green',
-    low = 'red',
-    mid = 'white',
-    midpoint = 0
-  )+
-  facet_grid(~names)+
-  theme_minimal()
 
+
+
+a = c_and_v %>%
+  subset(c %in% c(0,5000, 10000, 15000, 20000, 25000, 30000))%>%
+  mutate(c = as.factor(c))
+
+store = data.frame(0,0,0,0)
+colnames(store) = c('names', 'values', 'c', 'v')
+
+names_ = c('Price setting', 'Quantity adjustment')
+for(row_ in unique(a$identifier)){
+  here = a %>%
+    subset(identifier == row_)
+  monop = here %>%
+    subset(names =='Vertical monopoly')%>%
+    select(x)%>%
+    pull()
+  bertrand = here %>%
+    subset(names == 'Price setting')%>%
+    select(x)%>%
+    pull()
+  cournot = here %>%
+    subset(names == 'Quantity adjustment')%>%
+    select(x)%>%
+    pull()
+  values = c((bertrand-monop)/monop*100, (cournot - monop)/monop*100)
+  dat__ = data.frame(names_, values, 
+                     rep(here%>%select(c)%>%pull()%>%unique(),2), rep(here%>%select(v)%>%pull()%>%unique(),2))
+  colnames(dat__) = c('names', 'values', 'c', 'v')
+  store = rbind(store, dat__)
+}
+
+baselines_ = exploit_ %>%
+  subset(spec == 'baseline')
+baseline_cournot = (baselines_ %>% 
+  subset(names == 'ss_cournot_lq')%>%
+  select(x)%>%
+  pull()-baseline_stock)/baseline_stock*100
+baseline_bertrand = (baselines_ %>% 
+  subset(names == 'ss_bertrand_lq')%>%
+  select(x)%>%
+  pull()-baseline_stock)/baseline_stock*100
+
+points = data.frame(names = c('Price setting', 'Quantity adjustment'), 
+                    values = c(baseline_bertrand, baseline_cournot), 
+                    v = rep(baselines_%>%select(v)%>%pull()%>%unique()))
+
+store %>%
+  subset(names != 0)%>%
+  mutate(c = factor(c, levels = seq(0,30000, 5000)))%>%
+  ggplot(aes(x = v, y = values, color = c))+
+  geom_line(linewidth = 1)+
+  scale_color_discrete_sequential('SunsetDark')+
+  geom_hline(yintercept = 0)+
+  geom_point(data = data.frame(x = baselines_ %>% select(v) %>% pull() %>% unique(), 
+                               y = baseline_bertrand, 
+                               names = 'Price setting'),aes(x = x, y = y), colour = '#B22222')+
+    geom_point(data = data.frame(x = baselines_ %>% select(v) %>% pull() %>% unique(), 
+                               y = baseline_cournot, 
+                               names = 'Quantity adjustment'),aes(x = x, y = y), colour = '#1f78b4')+
+  facet_grid(~names)+
+  labs(colour = 'Transaction cost (USD/mt)')+
+  xlab('Farming cost (USD/mt)')+
+  ylab('Variation from monopoly steady state population (in %)')+
+  theme_bw()+
+  theme(legend.position = 'bottom',
+  )
+
+ggsave(here('visuals', 'supplementary_visuals', 'supp_figure_4.png'), height = 15, width = 10, units = 'cm')
 ```
 
 
