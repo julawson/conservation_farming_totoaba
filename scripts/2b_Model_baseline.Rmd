@@ -22,6 +22,7 @@ library(webshot2)
 library(RColorBrewer)
 library(writexl)
 library(berryFunctions)
+library(patchwork)
 
 if(!(c('Fishlife')  %in% installed.packages())){
   devtools::install_github("james-thorson/FishLife")
@@ -619,8 +620,74 @@ dat_to_glue = dat_ %>%
 
 dat_ = rbind(dat_, dat_to_glue)
 
-p = dat_%>%
+## Approach to grey the background
+p1 = dat_%>%
   subset(x %% 2 == 0)%>%
+  subset(quantile %in% unique(dat_$quantile)[c(1,2)])%>%
+  ggplot(aes(x = x,
+             y = values2, 
+             color = new_names))+
+  geom_line(linewidth = 1)+
+  facet_grid(cost_structure ~ quantile)+
+  scale_linetype_manual(values=c("twodash", "solid"))+
+  scale_color_manual(values = palette_)+
+  theme_bw()+
+  guides(
+    color = guide_legend(
+      title = " ",  # Title for the first column
+      ncol = 2              # Number of columns
+    ),
+    linetype = guide_legend(
+      title = ' ',
+      ncol = 2
+    ))+
+  xlab('Population')+
+  ylab('Harvest')+
+  theme(legend.position = 'none',
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_blank(),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_),
+        strip.background.y = element_blank(),
+        strip.text.y = element_blank()) 
+
+p2 = dat_%>%
+  subset(x %% 2 == 0)%>%
+  subset(quantile %in% unique(dat_$quantile)[c(8,9)])%>%
+  ggplot(aes(x = x,
+             y = values2, 
+             color = new_names))+
+  geom_line(linewidth = 1)+
+  facet_grid(cost_structure ~ quantile)+
+  scale_linetype_manual(values=c("twodash", "solid"))+
+  scale_color_manual(values = palette_)+
+  theme_bw()+
+  guides(
+    color = guide_legend(
+      title = " ",  # Title for the first column
+      ncol = 2              # Number of columns
+    ),
+    linetype = guide_legend(
+      title = ' ',
+      ncol = 2
+    ))+
+  xlab('Population')+
+  ylab('Harvest')+
+  theme(legend.position = 'none',
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_blank(),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_)) 
+
+p3 = dat_%>%
+  subset(x %% 2 == 0)%>%
+  subset(quantile %in% unique(dat_$quantile)[4])%>%
   ggplot(aes(x = x,
              y = values2, 
              color = new_names))+
@@ -644,13 +711,22 @@ p = dat_%>%
         strip.text.x  = element_text(family = font_) ,
         axis.title.x  = element_text(family = font_),
         axis.text = element_text(family = font_),
-        axis.title.y  = element_text(family = font_),
         legend.text = element_text(family = font_), 
-        legend.title = element_text(family = font_)) 
-p
+        legend.title = element_text(family = font_),
+        strip.background.y = element_blank(),
+        strip.text.y = element_blank(),
+        axis.title.y  = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.background = element_rect(fill = 'grey90'),
+        panel.grid.major = element_line(color = 'grey80'),
+        panel.grid.minor = element_line(color = 'grey80')) 
+
+final = (p1|p3|p2)
+
 if(!file.exists(here('visuals', 'supplementary_visuals', 'equilibria_with_W1_W2.png'))){
-  p
-  ggsave(here('visuals', 'supplementary_visuals', 'equilibria_with_W1_W1.png'),
+  final
+  ggsave(here('visuals', 'supplementary_visuals', 'equilibria_with_W1_W2.png'),
         width = 30,
         height = 15, 
         units = 'cm') 
