@@ -17,7 +17,7 @@ library(stargazer)
 
 rm(list = ls())
 
-result1 = read.csv(here('data', 'outputs', 'result1.csv'))
+#result1 = read.csv(here('data', 'outputs', 'result1.csv'))
 
 
 calibration = read.csv(here("data", 'outputs', "calibration_params.csv"))
