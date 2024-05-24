@@ -1014,10 +1014,17 @@ store %>%
   geom_hline(yintercept = 0)+
   geom_point(data = data.frame(x = baselines_ %>% select(v) %>% pull() %>% unique(), 
                                y = baseline_bertrand, 
+<<<<<<< HEAD
                                names = 'Price setting'),aes(x = x, y = y), colour = '#B22222', size = 2.5)+
     geom_point(data = data.frame(x = baselines_ %>% select(v) %>% pull() %>% unique(), 
                                y = baseline_cournot, 
                                names = 'Quantity adjustment'),aes(x = x, y = y), colour = '#1f78b4', size = 2.5)+
+=======
+                               names = 'Price setting'),aes(x = x, y = y), colour = '#B22222')+
+    geom_point(data = data.frame(x = baselines_ %>% select(v) %>% pull() %>% unique(), 
+                               y = baseline_cournot, 
+                               names = 'Quantity adjustment'),aes(x = x, y = y), colour = '#1f78b4')+
+>>>>>>> c387a7f635befaf3aff5e5c0e2e6160fcb0a19ee
   facet_grid(~names)+
   labs(colour = 'Transaction cost (USD/mt)')+
   xlab('Farming cost (USD/mt)')+
@@ -1026,7 +1033,11 @@ store %>%
   theme(legend.position = 'bottom',
   )
 
+<<<<<<< HEAD
 ggsave(here('visuals', 'sup_figure3.png'), height = 22.5, width = 15, units = 'cm')
+=======
+ggsave(here('visuals', 'supplementary_visuals', 'supp_figure_4.png'), height = 15, width = 10, units = 'cm')
+>>>>>>> c387a7f635befaf3aff5e5c0e2e6160fcb0a19ee
 ```
 
 

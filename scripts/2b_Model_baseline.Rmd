@@ -724,7 +724,11 @@ p3 = dat_%>%
 
 final = (p1|p3|p2)
 final
+<<<<<<< HEAD
 if(!file.exists(here('visuals', 'Figure4.png'))){
+=======
+if(!file.exists(here('visuals', 'supplementary_visuals', 'equilibria_with_W1_W2.png'))){
+>>>>>>> c387a7f635befaf3aff5e5c0e2e6160fcb0a19ee
   final
   ggsave(here('visuals', 'figure4.png'),
         width = 30,
