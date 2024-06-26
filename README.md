@@ -43,7 +43,7 @@ Output file :
 * `bioecon_performance_table.csv` : table in .csv format for manuscript summarizing model results
 
 
-## Sensitivity analysis (script: `3_Sensitivity_analysis.Rmd`)
+## Sensitivity analysis (script: `3b_Sensitivity_analysis.Rmd`)
 This script runs sensitivity analysis, for parameters holding other constants, as well as groups of parameters together. 
 
 Input file : 
