@@ -447,6 +447,10 @@ tester %>%
 
 ```
 
+
+
+
+
 ## Figure : v for poaching to stop in a Bertrand equilibrium
 ```{r, fig7}
 
@@ -590,3 +594,77 @@ ggsave(here("visuals", 'sup_fig4_VBGF_growth.jpg'), width = 15, height = 22, uni
 
 
 ```
+
+# Illustration of the link between harvest and v
+
+```{r, v func_}
+
+a_m = alpha/beta
+b_m = 1/beta
+
+phi = (a_m - b_m*c)/(b_w*b_f*e)
+eta = 2*W2*b_w*(2*b_w*b_f - e^2)
+mu = (4*b_w*b_f - e^2)*sigma^2
+theta = 2*W2*b_m
+nu = 2*sigma^2
+zeta = ((e*a_f + c*(e^2 - 2*b_w*b_f) + 2*b_f*a_w))/(b_f*e)
+kappa = W1 * sigma * ((4*b_f*b_w - e^2)*(b_m - b_w)+e^2* b_w)
+omega = 2*b_w*b_f*e*sigma^2
+epsilon = 2*b_m*b_w*b_f*e*W2
+
+
+v_func = function(x){
+  v = phi*(eta + mu*x^2)/(theta + nu * x^2) - (kappa*x)/(omega*x^2 + epsilon) - zeta
+  return(v)
+}
+
+component_one = function(x){
+  to_ret = phi*(eta+mu*x^2)/(theta + nu*x^2)
+  return(to_ret)
+}
+
+component_two = function(x){
+  y = kappa*x/(omega*x^2 + epsilon)
+  return(y)
+}
+
+
+
+K = calibration %>%
+  subset(params == 'k')%>%
+  select(value)%>%
+  pull()
+
+dat = data.frame(x = seq(0,K))%>%
+  mutate(v_ = v_func(x))
+
+dat_1 = dat %>%
+  subset(x>=4000)
+
+dat_rib1 = dat_1%>%
+    subset(x<= 14470)
+dat_rib2 = dat_1%>%
+  subset(x>= 14470)
+
+ggplot(dat_1, aes(x = x, y = v_))+
+  geom_line()+
+  #geom_vline(xintercept = 1/sigma*sqrt(W2*b_m))+
+  geom_ribbon(data = dat_rib1, aes(ymin = v, ymax = v_, alpha = 0.2), fill = '#B22222', show.legend = F)+
+  geom_ribbon(data = dat_rib2, aes(ymin = v, ymax = v_, alpha = 0.2), fill = '#248721', show.legend = F)+
+  geom_hline(yintercept = v, linetype = 'dashed')+
+  ylab('Threshold value of v e.g. v=F(x|c)')+
+  xlab('Population')+
+  theme(legend.position = 'bottom',
+        axis.text.x = element_text(angle = 70, 
+                                   hjust = 1, 
+                                   family = font_),
+        axis.title.x = element_text(family = font_),
+        axis.text.y = element_text(family = font_),
+        axis.title.y = element_text(family = font_), 
+        strip.text = element_text(family = font_),
+        legend.text = element_text(family = font_)
+        )+
+  theme_bw()
+ggsave(here('visuals', 'supplementary_visuals', 'lemma2_bertrand.png'))
+```
+

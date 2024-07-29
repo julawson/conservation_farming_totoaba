@@ -1645,12 +1645,16 @@ bioecon_table_large2[c(3,5,7,10,12,14),1] = NA
 
 
 bioecon_table_large2[is.na(bioecon_table_large2)] = ''
+
+
+#color_table = c(, '#EEDD62','#EEDD82')
+#color_table = c('grey60', 'grey70', 'grey80')
 bioecon_table_large2 %>%
   tt()%>%
-  style_tt(i =0 , j=1:7, background = '#EEDD72')%>%
-  style_tt(i = 1, j= 1:7, background = '#EEDD62')%>%
-  style_tt(i = 8, j = 1:7, background = '#EEDD62')%>%
-  style_tt(i = c(2,3,6,7,10,11), j = 1:7, background = '#EEDD82')%>%
+  style_tt(i =0 , j=1:7, background = '#EEDD72' )%>% # Color table1
+  style_tt(i = 1, j= 1:7, background = '#EEDD62')%>% # color table 2
+  style_tt(i = 8, j = 1:7, background = '#EEDD82')%>% # color table 3
+  style_tt(i = c(2,3,6,7,10,11), j = 1:7, background = )%>%
   style_tt(i = c(3,5,7,9,11,13), j = 2:7, italic = T)
 
 write_xlsx(bioecon_table_large2,here('data','outputs','bioecon_table_manuscript.xlsx'))
@@ -1688,13 +1692,13 @@ write.csv(bioecon_table_synthetic, here('data','outputs', 'bioecon_performance_t
 
 bioecon_table_synthetic%>%
   tt(caption = 'Bioeconomic performance')%>%
-  style_tt(i = c(0,2), background = '#EEDD82')%>%
+  style_tt(i = c(0,2), background = '#bdbebd')%>% # color_table3
   save_tt(here('visuals', 'bioecon_perf.png'), overwrite = T)
 
 
 bioecon_table_synthetic%>%
   tt(caption = 'Bioeconomic performance')%>%
-  style_tt(i = c(0,2), background = '#EEDD82')
+  style_tt(i = c(0,2), background = '#bdbebd') # color_table3
 
 
 
