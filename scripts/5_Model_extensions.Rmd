@@ -13,6 +13,7 @@ library(dplyr)
 library(tidyr)
 library(stringi)
 library(ggplot2)
+library(extrafont)
 library(here)
 
 # Styling
@@ -220,7 +221,7 @@ data2 = data %>%
 
 # function to create the two groups : less trader or more trader
 grouper = function(x){
-  if(x %in% c('growth', 'Monopoly', '1 trader - 1 farmer')){
+  if(x %in% c('growth', 'Monopoly')){
     return('Baseline')
   }else{ # Extract number of farmers and traders and compare them
     a = as.numeric(stri_extract_first_regex(strsplit(x, ' - ')[[1]][1], '[0-9]+'))
@@ -238,7 +239,7 @@ grouper = function(x){
 data2$grouper = sapply(data2$name, grouper)
 data2$order = factor(paste0(data2$name, data2$grouper), c(paste0(levels(data2$name), 'Baseline'),
                                                           paste0(levels(data2$name), 'More farmers than traders'),
-                                                          paste0(levels(data2$name), 'More traders than farmers')))
+                                                          paste0(levels(data2$name), 'More (or equal) traders than farmers')))
 
 
 ```
@@ -256,6 +257,7 @@ monopoly_ss = data2 %>%
 
 data2 %>%
   subset(!(grouper %in% c('Baseline')))%>%
+  filter(name2!= "50 traders")%>%
   mutate(x_norm = (x - monopoly_ss)/monopoly_ss * 100)%>%
   ggplot(aes(x = order, y = x_norm, colour = name3, shape = name2))+
   facet_grid(~ grouper, scales = 'free')+
@@ -268,6 +270,7 @@ data2 %>%
   scale_colour_manual(values = palette)+
   scale_shape_discrete()+
   theme_bw()+
+  ylim(-100,15)+
   ylab('Steady state population (in % variation from vertical monopoly scenario)')+
   xlab('')+
   guides(
@@ -311,6 +314,7 @@ data2$order2 = factor(paste0(data2$name3, data2$name2), c(paste0(levels(data2$na
 
 data2 %>%
   subset(!(name %in% c('Monopoly')))%>%
+  filter(name2 != "50 traders")%>%
   ggplot(aes(x = order2, y = x, colour = name3))+
   facet_grid(~ name2, scales = 'free')+
   geom_point()+
@@ -414,16 +418,17 @@ data = data %>%
   mutate(Growth = growth(x_),
          'Vertical Monopoly' = monop_harvest_lq(x_),
          "Quantity adjustment" = cournot_harvest_lq(x_),
-         'Cartel takeover' = monop_takeover(x_))%>%
-  pivot_longer(cols = -c('x'),
-               names_to = 'name',
-               values_to = 'values')%>%
-  mutate(values = ifelse(values<0, 0, values))
+         'Cartel takeover' = monop_takeover(x_))
+  
 ```
 
 ## C. Graphical output
 ```{r, extended cartel graph}
 data %>%
+  pivot_longer(cols = -c('x'),
+               names_to = 'name',
+               values_to = 'values')%>%
+  mutate(values = ifelse(values<0, 0, values))%>%
   ggplot(aes(x = x, y = values, color = name))+
   geom_line(linewidth = 1.1)+
   guides(
@@ -455,4 +460,388 @@ data %>%
 
 ```
 
+Identify values : 
+
+```{r}
+ss_quantity = data %>%
+  mutate(ss_quantity = `Quantity adjustment` - Growth, 
+         ss_takeover = `Cartel takeover`- Growth)%>%
+  filter(ss_quantity <= .2 & ss_quantity >=-.2)%>%
+  subset(x>0)%>%
+  pull(x)%>%
+  mean()
+
+ss_takeover = data %>%
+  mutate(ss_quantity = `Quantity adjustment` - Growth, 
+         ss_takeover = `Cartel takeover`- Growth)%>%
+  filter(ss_takeover <= .2 & ss_takeover >=-.2)%>%
+  subset(x>0)%>%
+  pull(x)%>%
+  mean()
+
+ss_monopo = data %>%
+  mutate(ss_quantity = `Vertical Monopoly`- Growth)%>%
+  filter(ss_quantity <= .2 & ss_quantity >=-.2)%>%
+  subset(x>0)%>%
+  pull(x)%>%
+  mean()
+
+data_ss = data.frame(Monopoly = ss_monopo,
+                     Takeover = ss_takeover,
+                     Cournot = ss_quantity)
+data_ss %>%
+  mutate(Takeover_ = (Takeover - Monopoly)/Monopoly*100,
+         Cournot_ = (Cournot - Monopoly)/Monopoly*100)%>%
+  select(-c(Takeover, Cournot))
+
+```
+# Extension : simultaneous effects of transaction cost change and effect of competition
+
+```{r}
+for(i in 1:nrow(calibration)){
+  assign(calibration$params[i], calibration$value[i])
+}
+
+growth <- function(x, k. = k, r. = r) {
+#' Logistic Growth Model Function
+#'
+#' This function calculates the logistic growth at a given point based on the current value, carrying capacity, and growth rate.
+#'
+#' @param x Numeric, current population or value at time t.
+#' @param k Numeric, carrying capacity of the environment.
+#' @param r Numeric, inggtrinsic growth rate of the population.
+#'
+#' @return Numeric, the calculated growth value at time t.
+#' @examples
+#' growth(50, 100, 0.02)
+#' @export
+  y <- r. * x * (1 - x / k.)
+  return(y)
+}
+
+
+# II. Monopoly
+monop_harvest = function(x, 
+                         alpha. = alpha, 
+                         c. = c, 
+                         sigma. = sigma, 
+                         beta. = beta, 
+                         W. = W_mid){
+#' Monopoly Harvest Function - Quadratic cost model
+#'
+#' Calculates the harvest level in a vertical monopolistic setting based on a model of quadratic fishery costs in
+#' costs (W), transaction costs (c), demand parameters (intercept alpha and sensitivity beta)
+#'
+#' @param x Numeric, population level at time t
+#' @param alpha Numeric, demand intercept in USD
+#' @param c Numeric, cost associated with trading
+#' @param sigma Numeric, species catchability
+#' @param beta Numeric, demand sensisitivity in USD/metric ton
+#' @param W Numeric, fishery cost parameter
+#'
+#' @return Numeric, the calculated monopoly harvest output based on the input parameters.
+#' @examples
+#' monop_harvest(100, 0.05, 0.01, 0.02, 0.03, 50)
+#' @export  
+
+ y = ((alpha. - c.)*sigma.^2 * x^2) / (2*beta.* sigma.^2 * x^2 + 2*W.)
+ return(y)
+}
+
+monop_harvest_lq = function(x,
+                            alpha. = alpha, 
+                            c. = c, 
+                            sigma. = sigma, 
+                            beta. = beta,
+                            W1. = W1,
+                            W2. = W2){
+#' Monopoly Harvest Function - Linear quadratic cost model 
+#'
+#' Calculates the harvest level in a vertical monopolistic setting based on a model of linear quadratic fishery costs in
+#' costs (W), transaction costs (c), demand parameters (intercept alpha and sensitivity beta)
+#'
+#' @param x Numeric, population level at time t
+#' @param alpha Numeric, demand intercept in USD
+#' @param c Numeric, cost associated with trading
+#' @param sigma Numeric, species catchability
+#' @param beta Numeric, demand sensisitivity in USD/metric ton
+#' @param W1 Numeric, linear fishery cost parameter, in USD/effort
+#' @param W2 Numeric, quadratic fishery effort cost parameter, in USD/effort
+#'
+#' @return Numeric, the calculated monopoly harvest output based on the input parameters.
+#' @examples
+#' monop_harvest(100, 0.05, 0.01, 0.02, 0.03, 50)
+#' @export  
+  
+
+  y = (sigma.^2 * x^2 * (alpha. - c.) - W1.*sigma.*x)/(2*(beta.*sigma.^2 * x^2 + W2.))
+  return(y)
+}
+
+
+# III. Cournot
+
+cournot_harvest = function(x, 
+                             alpha_f. = alpha_f, 
+                             alpha_w. = alpha_w, 
+                             beta_f. = beta_f, 
+                             beta_w. = beta_w, 
+                             gamma. = gamma, 
+                             sigma. = sigma, 
+                             c. = c, 
+                             v. = v, 
+                             W. = W_mid){
+#' Cournot Competition Harvest Function - Quadratic cost model 
+#'
+#' Computes the harvest in a Cournot competition setting, considering
+#' multiple economic factors like production costs, market demand elasticity, and strategic
+#' interaction parameters between firms.
+#'
+#' @param x Numeric, population level at time t
+#' @param alpha_f Numeric, demand intercept in USD for farmed product
+#' @param alpha_w Numeric, demand intercept in USD for wild product
+#' @param beta_f Numeric, demand sensitivity in USD/metric ton for farmed product
+#' @param beta_w Numeric, demand sensitivity in USD/metric ton for wild product
+#' @param gamma Numeric, demand sensitivity in USD/metric ton for cross product
+#' @param sigma Numeric, catchability
+#' @param c Numeric, transaction cost for trader
+#' @param v Numeric, marginal cost of production for aquaculture
+#' @param W Numeric, fishery effort cost in a quadratic model
+#'
+#' @return Numeric, the calculated output level based on Cournot competition theory adapted to specific market and firm conditions.
+
+  
+  y = ((sigma.^2)*(x^2)*(2*beta_f.*(alpha_w. - c.) - gamma.*(alpha_f. - v.)))/(4*beta_f.*W. + (sigma.^2)*(x^2)*(4*beta_f.*beta_w. - (gamma.^2)))
+  return(y)
+}
+
+cournot_harvest_lq = function(x, 
+                              alpha_f. = alpha_f, 
+                              alpha_w. = alpha_w, 
+                              beta_f. = beta_f, 
+                              beta_w. = beta_w, 
+                              gamma. = gamma, 
+                              sigma. = sigma, 
+                              c. = c, 
+                              v. = v, 
+                              W1. = W1, 
+                              W2. = W2){
+#' Cournot Competition Harvest Function - Linear quadratic model 
+#'
+#' Computes the harvest in a Cournot competition setting, considering
+#' multiple economic factors like production costs, market demand elasticity, and strategic
+#' interaction parameters between firms.
+#'
+#' @param x Numeric, population level at time t
+#' @param alpha_f Numeric, demand intercept in USD for farmed product
+#' @param alpha_w Numeric, demand intercept in USD for wild product
+#' @param beta_f Numeric, demand sensitivity in USD/metric ton for farmed product
+#' @param beta_w Numeric, demand sensitivity in USD/metric ton for wild product
+#' @param gamma Numeric, demand sensitivity in USD/metric ton for cross product
+#' @param sigma Numeric, catchability
+#' @param c Numeric, transaction cost for trader
+#' @param v Numeric, marginal cost of production for aquaculture
+#' @param W1 Numeric, linear fishery effort cost in a linear quadratic model
+#' @param W2 Numeric, quadratic fishery effort cost in a linear quadratic model
+#'
+#' @return Numeric, the calculated output level based on Cournot competition theory adapted to specific market and firm conditions.
+
+ y = ((2*beta_f. * (alpha_w. - c.) - gamma. * (alpha_w. -v.))*sigma.^2 * x^2 - 2*beta_f.*W1.*sigma.*x)/(4*beta_f.*W2. + (4*beta_f.*beta_w. - gamma.^2)*sigma.^2 * x^2)
+ return(y)
+}
+
+price_poachers_cournot = function(x,
+                                  alpha_f. = alpha_f, 
+                                  alpha_w. = alpha_w, 
+                                  beta_f. = beta_f, 
+                                  beta_w. = beta_w, 
+                                  gamma. = gamma, 
+                                  sigma. = sigma, 
+                                  c. = c, 
+                                  v. = v, 
+                                  W. = W_mid){
+#' Cournot Competition Price Paid to Poachers Function - Quadratic model 
+#'
+#' Calculates the price level in a Cournot competition model considering poaching or competitive undercutting,
+#' based on parameters that represent strategic interactions, market variability, and firm-specific cost structures.
+#'
+#' @param x Numeric, population level at time t
+#' @param alpha_f Numeric, demand intercept in USD for farmed product
+#' @param alpha_w Numeric, demand intercept in USD for wild product
+#' @param beta_f Numeric, demand sensitivity in USD/metric ton for farmed product
+#' @param beta_w Numeric, demand sensitivity in USD/metric ton for wild product
+#' @param gamma Numeric, demand sensitivity in USD/metric ton for cross product
+#' @param sigma Numeric, catchability
+#' @param c Numeric, transaction cost for trader
+#' @param v Numeric, marginal cost of production for aquaculture
+#' @param W Numeric, fishery effort cost in a linear quadratic model
+#'
+#' @return Numeric, the calculated price under Cournot competition 
+#' @examples
+#' price_poachers_cournot(100, 0.05, 0.04, 0.03, 0.02, 0.01, 0.02, 0.01, 0.015, 50)
+#' @export
+  y = (2*W.*(2*beta_f.*(alpha_w. - c.) - gamma.*(alpha_f. - v.)))/((sigma.^2)*(x^2)*(4*beta_f.*beta_w. - gamma.^2) + 4*beta_f.*W.)
+  return(y)
+}
+
+cournot_farmed = function(s, 
+                          alpha_f. = alpha_f, 
+                          alpha_w. = alpha_w, 
+                          beta_f. = beta_f, 
+                          beta_w. = beta_w, 
+                          gamma. = gamma, 
+                          sigma. = sigma, 
+                          c. = c, 
+                          v. = v){
+#' Cournot Competition Model for Farmed Goods
+#'
+#' Computes the output level in a Cournot competition setting for farmed goods,
+#' incorporating market dynamics, competitive interactions, and firm-specific
+#' cost structures. The function models the strategic interactions between a
+#' firm and its competitor in a market where goods are farmed.
+#'
+#' @param s Numeric, price paid to poachers in USD
+#' @param alpha_f Numeric, demand intercept for farmed product, in USD
+#' @param alpha_w Numeric, demand intercept for wild product, in USD
+#' @param beta_f Numeric, demand sensitivity for farmed product, in USD/metric ton of biomass
+#' @param beta_w Numeric, demand sensitivity for wild product, in USD/metric ton of biomass
+#' @param gamma Numeric, demand sensitivity in USD/metric ton of biomass for cross product
+#' @param sigma Numeric, catchability
+#' @param c Numeric, transaction cost for traders
+#' @param v Numeric, marginal cost of farming.
+#'
+#' @return Numeric, the calculated equilibrium output level for the farming sector under Cournot competition, considering strategic interactions and farm-specific subsidies.
+#' @export
+  y = (2 * beta_w. * (alpha_f. - v.) - gamma.* (alpha_w. - (s + c.)) )/(4*beta_w.*beta_f. - gamma.^2)
+  return(y)
+}
+
+# IV. Bertrand
+
+price_poachers_bertrand = function(x, 
+                                   a_f. = a_f, 
+                                   a_w. = a_w, 
+                                   b_f. = b_f, 
+                                   b_w. = b_w, 
+                                   e.  = e, 
+                                   c. = c, 
+                                   v. = v, 
+                                   sigma. = sigma, 
+                                   W. = W_mid){
+  y = (2*W.*b_w.*( b_f.*(2*a_w. + e.*v.) + c.*((e.^2) - 2*b_f.*b_w.) + e.*a_f.))/((sigma.^2)*(x^2)*(4*b_f.*b_w. - (e.^2)) + 2*W.*b_w.*(2*b_w.*b_f. - (e.^2)))
+  return(y)
+}
+
+bertrand_harvest = function(x,
+                              sigma. = sigma, 
+                              a_f. = a_f, 
+                              a_w. = a_w, 
+                              b_f. = b_f, 
+                              b_w. = b_w, 
+                              e. = e, 
+                              v. = v, 
+                              c. = c, 
+                              W. = W_mid){
+  y = ((sigma.^2)*(x^2)*b_w.*(b_f.*(2*a_w.+e.*v.) + c.*((e.^2)- 2*b_f.*b_w.) + e.*a_f.))/((sigma.^2)*(x^2)*(4*b_w.*b_f. - (e.^2)) + 2*W.*b_w.*(2*b_f.*b_w. - (e.^2)))
+  return(y)
+}
+
+bertrand_harvest_lq = function(x,
+                               sigma. = sigma, 
+                               a_f. = a_f, 
+                               a_w. = a_w, 
+                               b_f. = b_f, 
+                               b_w. = b_w, 
+                               e. = e, 
+                               v. = v, 
+                               c. = c, 
+                               W1. = W1, 
+                               W2. = W2){
+  y1 = b_w.*(sigma.^2 * x^2 *((2*a_w. +e.*v.)*b_f. + e.*a_f. + c*(e.^2 - 2*b_w. *b_f.)) -
+               W1. * sigma. * b_w. * x *(2*b_w. *b_f. - e.^2))
+  y2 = 2*W2.*b_w.*(2*b_f.* b_w. - e.^2) + (4*b_f.*b_w. - e.^2)*sigma.^2*x^2
+  z = y1/y2
+  return(z)
+}
+
+price_poacher_bertrand_lq = function(x,
+                                     sigma. = sigma, 
+                                     a_f. = a_f, 
+                                     a_w. = a_w, 
+                                     b_f. = b_f, 
+                                     b_w. = b_w, 
+                                     e. = e, 
+                                     v. = v, 
+                                     c. = c, 
+                                     W1. = W1, 
+                                     W2. = W2){
+  y = 2*b_w.*W2.*((2*a_w. + e.*v.)*b_f. + e.*a_f. + c.*(e.^2 - 2* b_f.*b_w.)) + W1.*sigma.*x*(4*b_f.*b_w. - e.^2)
+  z = sigma.^2 * x^2 * (4*b_w.*b_f. - e.^2) + 2*b_w.*W2.*(2*b_f.*b_w - e.^2)
+  result = y/z
+  return(result)
+}
+
+composite_bertrand_lq = function(x,
+                               sigma. = sigma, 
+                               a_f. = a_f, 
+                               a_w. = a_w, 
+                               b_f. = b_f, 
+                               b_w. = b_w, 
+                               e. = e, 
+                               v. = v, 
+                               c. = c, 
+                               W1. = W1, 
+                               W2. = W2){
+  y = b_w. * ((2*a_w. +e.*v.)*b_f. + e.*a_f. + (price_poacher_bertrand_lq(x, c. = c )+c.)*(e.^2 - 2*b_w.*b_f))/(4*b_f.*b_w. - e.^2)
+  return(y)
+}
+
+
+bertrand_farmed = function(s, 
+                             a_f. = a_f, 
+                             a_w. = a_w, 
+                             b_f. = b_f, 
+                             b_w. = b_w, 
+                             e. = e, 
+                             c. = c, 
+                             v. = v){
+  y = b_f. *(2*b_w.*a_f. + v.*(e.^2 - 2*b_w.*b_f.) + e.*(a_w. + (s+c.)*b_w.))/(4*b_f.*b_w. - e.^2)
+  return(y)
+}
+
+
+
+result1 = data.frame(x = seq(1,k,.5 ))%>%
+    mutate(Growth= growth(x),
+           `Monopoly with large cost` = monop_harvest_lq(x, c = 100000),
+           `Monopoly with low cost` = monop_harvest_lq(x),
+           `Quantity adjustment`=  cournot_harvest_lq(x),
+           #bertrand_harvest_lq1 = bertrand_harvest_lq(x),
+           `Price setting` = composite_bertrand_lq(x))
+           #bertrand_harvest_lq = (price_poacher_bertrand_lq(x)*sigma^2*x^2 - W1*sigma*x)/(2*W2),
+
+
+
+result1%>%
+  pivot_longer(cols = -c('x'),
+               names_to = 'name',
+               values_to = 'values')%>%
+  mutate(values = ifelse(values<0, 0, values))%>%
+  ggplot(aes(x = x, y = values, color = name))+
+  geom_line(linewidth = 1.1)+
+  guides(
+    color = guide_legend(
+      title = " ",  # Title for the first column
+      ncol = 1              # Number of columns
+    ),
+    shape = guide_legend(
+      title = " ",     # Title for the second column
+      ncol = 1              # Number of columns
+    )
+  )
+
+
+```
+$$q^{W*}_B(x) = \frac{b^W[\sigma^2 x^2 \big(b^F (2a^W + ev) + ea^F + c(e^2 - 2b^Wb^F)\big) - W_1 \sigma x (2b^F b^W - e^2)]}{2Wb^W (2b^Wb^F - e^2) + (4b^Fb^W - e^2) \sigma^2 x^2}$$
+Big Big problem with harvest bertrand. 
 

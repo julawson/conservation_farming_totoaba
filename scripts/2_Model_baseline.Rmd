@@ -866,6 +866,8 @@ dat_%>%
 ggsave(here('visuals','Figure3.png'), height = 12, width = 20, units = 'cm')
 ```
 Save plot for final results : 
+
+
 ```{r, plot}
 p = dat_%>%
   subset(cost_structure=='Linear quadratic cost')%>%
