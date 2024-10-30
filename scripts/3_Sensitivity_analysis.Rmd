@@ -15,6 +15,7 @@ library(colorspace)
 library("ggsci")
 library(here)
 library(knitr)
+library(extrafont)
 library(stargazer)
 library(parallel)
 library(wesanderson)
@@ -124,12 +125,11 @@ params_sensitivity = rbind(params_sensitivity,
 
 
 ### C. Trading costs
-c_sens = seq(0,300, by = 5)
-c_plus = 100
-sensitivity = do.call(rbind, replicate(length(c_sens), baseline, simplify = F))%>%
-  mutate(c = (c+c_plus)*c_sens,
+c_ = seq(0, 350000, by = (350000/7))
+sensitivity = do.call(rbind, replicate(length(c_), baseline, simplify = F))%>%
+  mutate(c = c_,
          spec = 'c',
-         transformation = paste(c_plus, ' + ', c_sens))
+         transformation = c_)
 params_sensitivity = rbind(params_sensitivity, 
                            sensitivity)
 ### D. Demand intercept
@@ -196,15 +196,18 @@ params_sensitivity = rbind(params_sensitivity,
 ## 2. Joint Parameters
 ### A. c and v
 
-c_sens_ = c_plus * c_sens
+c_sens_ = seq(0, 350000, by = round(350000/7))
+
 to_append = expand.grid(v_sens,
                         c_sens_)
 
-sensitivity = do.call(rbind, replicate(nrow(to_append), baseline, simplify = F))%>%
+sensitivity = do.call(rbind, 
+                      replicate(nrow(to_append), baseline, simplify = F)
+                      )%>%
   mutate(v = to_append$Var1,
          c = to_append$Var2,
          spec = 'v and c',
-         transformation = paste('c=',round((to_append$Var1 - c_plus)/c_sens,2),'and v=',round(to_append$Var2/v_sens,2)))
+         transformation = paste('c=',round(to_append$Var1/c_sens_,2),'and v=',round(to_append$Var2/v_sens,2)))
 params_sensitivity = rbind(params_sensitivity, 
                            sensitivity)
 ### B. c and v and gamma
@@ -217,7 +220,7 @@ sensitivity = do.call(rbind, replicate(nrow(to_append), baseline, simplify = F))
          c = to_append$Var2,
          gamma = to_append$Var3,
          spec = 'v and c and gamma',
-         transformation = paste('c=',round((to_append$Var1 - c_plus)/c_sens,2),'and v=',round(to_append$Var2/v_sens,2), 'and gamma', to_append$Var3/gamma_sens))
+         transformation = paste('c=',round(to_append$Var1/c_sens_,2),'and v=',round(to_append$Var2/v_sens,2), 'and gamma', to_append$Var3/gamma_sens))
 params_sensitivity = rbind(params_sensitivity, 
                            sensitivity)
 
@@ -727,12 +730,17 @@ if(!(file.exists(here('data','outputs','sensitivity_analysis.csv')))){
       mutate(identifier = row)%>%
       select(-row)
   }else{
+    pb <- txtProgressBar(min = 0, max = nrow(params_sensitivity), style = 3)
+
     for(row in 1:nrow(params_sensitivity)){
+      
       storage =rbind(storage,
                    model_run(params_sensitivity[row,])%>%
-                   mutate(identifier = row))
+                     mutate(identifier = row)%>%
+                     select(-row))
       storage = storage %>%
                    subset(identifier >0)
+      setTxtProgressBar(pb, row) 
     }
 # Keep only real data
   }
@@ -946,6 +954,9 @@ v_sens %>%
 
 ```
 
+
+
+
 ### 3. Impact of different v and c
 
 ```{r, c and v}
@@ -958,14 +969,14 @@ c_and_v = c_and_v %>%
   mutate(x_norm = (x - baseline_stock)/baseline_stock * 100)
 
 
-
-
 a = c_and_v %>%
-  subset(c %in% c(0,5000, 10000, 15000, 20000, 25000, 30000))%>%
+  #subset(c %in% c(0,5000, 10000, 15000, 20000, 25000, 30000))%>%
   mutate(c = as.factor(c))
 
 store = data.frame(0,0,0,0)
 colnames(store) = c('names', 'values', 'c', 'v')
+
+
 
 names_ = c('Price setting', 'Quantity adjustment')
 for(row_ in unique(a$identifier)){
@@ -985,7 +996,16 @@ for(row_ in unique(a$identifier)){
     pull()
   values = c((bertrand-monop)/monop*100, (cournot - monop)/monop*100)
   dat__ = data.frame(names_, values, 
-                     rep(here%>%select(c)%>%pull()%>%unique(),2), rep(here%>%select(v)%>%pull()%>%unique(),2))
+                     rep(here%>%
+                           select(c)%>%
+                           pull()%>%
+                           unique(),
+                         2), 
+                     rep(here%>%
+                           select(v)%>%
+                           pull()%>%
+                           unique(),
+                         2))
   colnames(dat__) = c('names', 'values', 'c', 'v')
   store = rbind(store, dat__)
 }
@@ -1003,11 +1023,14 @@ baseline_bertrand = (baselines_ %>%
 
 points = data.frame(names = c('Price setting', 'Quantity adjustment'), 
                     values = c(baseline_bertrand, baseline_cournot), 
-                    v = rep(baselines_%>%select(v)%>%pull()%>%unique()))
+                    v = rep(baselines_%>%
+                              select(v)%>%
+                              pull()%>%
+                              unique()))
 
 store %>%
   subset(names != 0)%>%
-  mutate(c = factor(c, levels = seq(0,30000, 5000)))%>%
+  mutate(c = factor(c, levels = seq(0,350000, 50000)), )%>%
   ggplot(aes(x = v, y = values, color = c))+
   geom_line(linewidth = 1)+
   scale_color_discrete_sequential('SunsetDark')+
@@ -1018,9 +1041,15 @@ store %>%
              aes(x = x, y = y), 
              colour = '#B22222',
              size = 2.5)+
-    geom_point(data = data.frame(x = baselines_ %>% select(v) %>% pull() %>% unique(), 
+    geom_point(data = data.frame(x = baselines_ %>% 
+                                   select(v) %>%
+                                   pull() %>% 
+                                   unique(), 
                                y = baseline_cournot, 
-                               names = 'Quantity adjustment'),aes(x = x, y = y), colour = '#1f78b4', size = 2.5)+
+                               names = 'Quantity adjustment'),
+               aes(x = x, y = y), 
+               colour = '#1f78b4',
+               size = 2.5)+
   facet_grid(~names)+
   labs(colour = 'Transaction cost (USD/mt)')+
   xlab('Farming cost (USD/mt)')+
@@ -1050,7 +1079,7 @@ gamma_sens = exploit_ %>%
 gamma_sens$names = sapply(gamma_sens$names, renamer)
 
 gamma_sens %>%
-  ggplot(aes( x= transformation, y = x_norm, color = names))+
+  ggplot(aes(x= transformation, y = x_norm, color = names))+
   #geom_line(aes(group = names), size = 1)+
   geom_point(size = 2.2)+
   geom_vline(xintercept = (baseline_gamma/beta)^2*100, linetype = 'dashed')+

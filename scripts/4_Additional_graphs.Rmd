@@ -99,6 +99,11 @@ qty_monop3 = function(x){
  return(y)
 }
 
+qty_monop4 = function(x){
+ y = (10 - 4)*.25^2 * x^2 / (2*80* 0.02^2 * x^2 + 2*5)
+ return(y)
+}
+
 growth = function(x){
   y = 0.1*x*(1-x/100)
   return(y)
@@ -113,15 +118,17 @@ data.frame(x = seq(1,100))%>%
   mutate(monop = qty_monop(x),
          monop2 = qty_monop2(x),
          monop3 = qty_monop3(x),
+         monop4 = qty_monop4(x),
          growth = growth(x))%>%
   ggplot(aes(x = x))+
   geom_line(aes(y = monop, colour = 'Harvest'), linewidth = 1.2)+
   geom_line(aes(y = monop2, colour = 'Harvest'), linewidth = 1.2)+
   geom_line(aes(y = monop3, colour = 'Harvest'), linewidth = 1.2)+
+  #geom_line(aes(y = monop4, colour = "Harvest"), linewidth = 1.2)+
   geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1.2)+
   geom_point(data = points_, aes(x=x, y=y), size=3, shape = 17)+
   scale_color_manual(values = c( 'grey','black'))+
-  ylim(0,3)+
+  #ylim(0,3)+
   ylab('Growth / harvest')+
   xlab('Stock')+
   theme_classic()+
@@ -147,8 +154,89 @@ data.frame(x = seq(1,100))%>%
         legend.text = element_text(family = font_), 
         legend.title = element_text(family = font_))
 
-ggsave(here("visuals", "supplementary_visuals", "Figure1_potential_equilibria.jpg"))
+ggsave(here("visuals", "supplementary_visuals", "Figure1_potential_equilibria.jpg"), 
+       width = 15, height = 30, units = 'cm')
 ```
+## Figure (SM) and 1 in Main : Alternative with extinction - Hypothetical schematic of equilibrium points under different poaching harvest functions
+
+```{r}
+qty_monop = function(x){
+ y = (400 - 4)*.02^2 * x^2 / (2*80* 0.02^2 * x^2 + 2*5)
+ return(y)
+}
+
+qty_monop2 = function(x){
+ y = (400 - 4)*.02^2 * x^2 / (2*80* 0.025^2 * x^2 + 2*5)
+ return(y)
+}
+
+qty_monop3 = function(x){
+ y = (400 - 4)*.02^2 * x^2 / (2*80* 0.018^2 * x^2 + 2*5)
+ return(y)
+}
+
+qty_monop4 = function(x){
+  y = (10 - 4) * 0.5^2 * x^2 / (2 * 500 * 0.02^2 * x^2 + 2 * 5)
+ return(y)
+}
+
+growth = function(x){
+  y = 0.1*x*(1-x/100)
+  return(y)
+}
+
+size_ = 5
+
+points_ = data.frame(x = c(0,7.9, 30.46, 61.15, 80.75),
+                     y = c(0,0.75, 2.12 , 2.36, 1.56))
+
+data.frame(x = seq(0,100))%>%
+  mutate(monop = qty_monop(x),
+         monop2 = qty_monop2(x),
+         monop3 = qty_monop3(x),
+         monop4 = qty_monop4(x),
+         growth = growth(x))%>%
+  ggplot(aes(x = x))+
+  geom_line(aes(y = monop, colour = 'Harvest'), linewidth = 1.2)+
+  geom_line(aes(y = monop2, colour = 'Harvest'), linewidth = 1.2)+
+  geom_line(aes(y = monop3, colour = 'Harvest'), linewidth = 1.2)+
+  geom_line(aes(y = monop4, colour = "Harvest"), linewidth = 1.2)+
+  geom_line(aes(y = growth, colour = 'Growth'), linewidth = 1.2)+
+  geom_point(data = points_, aes(x=x, y=y), size=3, shape = 17)+
+  scale_color_manual(values = c( 'grey','black'))+
+  #ylim(0,3)+
+  ylab('Growth / harvest')+
+  xlab('Stock')+
+  theme_classic()+
+  #geom_segment(x = 8, xend = 8, y = 0, yend= .75, linetype = 2)+
+  #geom_segment(x = 31, xend = 31, y = 0, yend= 2.1, linetype = 2)+
+  #geom_segment(x = 61, xend = 61, y = 0, yend= 2.35, linetype = 2)+
+
+  theme(legend.position = "none", 
+        axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        strip.text.x  = element_text(family = font_) ,
+        axis.title.x  = element_text(family = font_),
+        axis.text = element_text(family = font_),
+        axis.title.y  = element_text(family = font_),
+        legend.text = element_text(family = font_), 
+        legend.title = element_text(family = font_))+
+    annotate('text', x = 15, y = .7, label= 'stable', family = font_, size = size_)+
+  annotate('text', x = 38, y = 2, label= 'unstable', family = font_, size = size_)+
+  annotate('text', x = 65, y = 2.5, label= 'stable', family = font_, size = size_)+
+  annotate('text', x = 85, y = 1.7, label= 'stable', family = font_, size = size_) +
+  annotate('text', x = 0,  y = -.1, label= 'stable', family = font_, size = size_) +
+  annotate('text', x = 103, y = 3.75, label= 'A', family = font_, size = size_) +
+  annotate('text', x = 103, y = 3, label= 'B', family = font_, size = size_) +
+  annotate('text', x = 103, y = 2.45, label= 'C', family = font_, size = size_) +
+  annotate('text', x = 103, y = 1.55, label= 'D', family = font_, size = size_)
+
+ggsave(here("visuals", "supplementary_visuals", "Figure1_potential_equilibria_alternative.jpg"), 
+       width = 20, height = 20, units = 'cm')
+```
+
 
 ## Figure : Different equilibria
 ```{r, fig3}

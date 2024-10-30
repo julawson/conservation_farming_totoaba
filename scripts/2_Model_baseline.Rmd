@@ -16,11 +16,13 @@ library(tidyverse)
 library("ggsci")
 library(here)
 library(knitr)
+library(chromote)
 library(stargazer)
 library(parallel)
 library(webshot2)
 library(RColorBrewer)
 library(writexl)
+library(extrafont)
 library(berryFunctions)
 library(patchwork)
 
@@ -1046,6 +1048,7 @@ Define bio-economic performance by combining population variables (stock and har
 
 ```{r, bioeconomic performance}
 baseline_quantile = 90
+
 profit = function(param){
   # Variable assignment
   to_assign = names(param)
@@ -1116,8 +1119,8 @@ profit = function(param){
     # Harvest:
     poached_harvest = monop_harvest_lq(x)
     farmed_harvest = 0
-    # Price : 
-    price_poachers = (W2*(alpha-c)+beta*W1*sigma*x)/(beta*sigma^2*x^2 + W2)
+    # Price per metric ton : 
+    price_poachers = (W2 * (alpha-c) + beta * W1 * sigma * x)/(beta * sigma^2 * x^2 + W2)
     price_retail = (alpha - beta*poached_harvest)
     # Redefine profit
     profit_poaching = (alpha - beta*poached_harvest - c - price_poachers)*poached_harvest
@@ -1383,8 +1386,12 @@ renamer= function(x){
 bioecon_table['names']= sapply(bioecon_table$names, renamer)
 
 bioecon_table = bioecon_table %>%
+  # Take the price of a ton of totoaba
+  # Make it price of kilo of totoaba
+  # Take the typical weight of a totoaba -> Get the price of buche
   mutate(price_buche_final = price_retail / 1000 * avg_toto_weight,
          price_buche_fisher = price_poachers / 1000 * avg_toto_weight)%>%
+  
   relocate(x, .after = farmed_harvest)%>%
   relocate(normalized_ss, .after = profit_fishermen_diff)%>%
   relocate(price_retail, .before = price_poachers)%>%
@@ -1424,6 +1431,23 @@ bioecon_table = bioecon_table %>%
          'Poaching change (%)' = variation_poaching)
 
 ```
+
+Change in number of totoabas : 
+
+```{r}
+steady_bio = bioecon_table %>%
+  select(`Poached harvest (in mt)`)%>%
+  pull()
+
+ss_monop= steady_bio[2]
+ss_bertrand = steady_bio[1]
+ss_cournot = steady_bio[3]
+
+totoaba_cournot_improvement = round(abs(ss_cournot - ss_monop)*1000/avg_toto_weight)
+totoaba_bertrand_loss = round(abs(ss_monop - ss_bertrand)*1000/avg_toto_weight)
+
+```
+
 
 ```{r, table lq}
 # I. Define scenario for baseline as monopoly lq 

@@ -119,7 +119,7 @@ new_dat %>%
   labs(colour = NULL)
 ggsave(here('visuals','supplementary_visuals','demand_data.jpg' ))
 
-# OLS Model
+# OLS Model for price of totoaba complete, not just buche. 
 model  = lm(price_ton_toto ~ c, data = new_dat)
 summary(model)
 
