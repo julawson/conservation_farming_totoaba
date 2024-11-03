@@ -39,6 +39,7 @@ Define :
 -  `growth(x, ...)` : logistic growth function, yields growth of population (in metric tons) 
 
 ```{r}
+
 q_ = function(N,M,x){
   num = N*sigma.^2*x^2*(beta_f. * (M+1)*(alpha_w. - c.) - gamma.*M*(alpha_f.-v.))
   det = sigma.^2 * x^2 * (beta_f. * beta_w.* (N+1) * (M+1) - gamma.^2 * N * M) + 2*W*N*(M+1)*beta_f.
@@ -127,20 +128,19 @@ price_poacher_bertrand_lq = function(x,
 }
 
 composite_bertrand_lq = function(x,
-                                   sigma. = sigma, 
-                                   a_f. = a_f, 
-                                   a_w. = a_w, 
-                                   b_f. = b_f, 
-                                   b_w. = b_w, 
-                                   e. = e, 
-                                   v. = v, 
-                                   c. = c, 
-                                   W1. = W1, 
-                                   W2. = W2){
-    y = b_w. * ((2*a_w. +e.*v.)*b_f. + e.*a_f. + (price_poacher_bertrand_lq(x, c.)+c.)*(e.^2 - 2*b_w.*b_f))/(4*b_f.*b_w. - e.^2)
-    return(y)
-  }
-
+                               sigma. = sigma, 
+                               a_f. = a_f, 
+                               a_w. = a_w, 
+                               b_f. = b_f, 
+                               b_w. = b_w, 
+                               e. = e, 
+                               v. = v, 
+                               c. = c, 
+                               W1. = W1, 
+                               W2. = W2){
+  y = b_w. * ((2*a_w. +e.*v.)*b_f. + e.*a_f. + (price_poacher_bertrand_lq(x)+c.)*(e.^2 - 2*b_w.*b_f))/(4*b_f.*b_w. - e.^2)
+  return(y)
+}
 ```
 
 
@@ -223,7 +223,7 @@ data %>%
       ncol = 2              # Number of columns
     ))
 
-ggsave(here('visuals', 'sup_figure1.jpg'), width = 15, height = 18, units = 'cm')
+ggsave(here('visuals', 'sup_figure_multiple_cartels.jpg'), width = 15, height = 18, units = 'cm')
 
 ```
 ```{r}
@@ -258,7 +258,37 @@ price_stock = data %>%
 data %>%
   select(-values)
 
+data = data %>%
+  filter(!(x %in% c(968,3264,4974,14367,14368,17234)))%>%
+  select(-values)%>%
+  group_by(names) %>%
+  mutate(row = row_number()) %>%
+  ungroup()
 
+# Transformation en format large
+result <- data %>%
+  pivot_wider(names_from = row, values_from = x, names_prefix = "x")
+
+result = as.matrix(result)
+result[,1] = c("5 players", "2 players", "Price setting", "Vertical monopoly", "Quantity adjustment")
+values_ = result[3:5,2]
+result[3:5,4] = values_
+result[3:5,2] = NA
+
+result2 = matrix(nrow = 5,ncol = 4)
+result2[1,] = result[1,]
+result2[2,] = result[2,]
+result2[3,] = result[4,]
+result2[4,] = result[3,]
+result2[5,] = result[5,]
+result2 = as.data.frame(result2)
+
+colnames(result2) = c('Market configuration', 'Low stable steady state','Middle unstable steady state', 'High stable steady state')
+
+print(result2)
+table_to_print =  kable(result2, format = "latex", booktabs = TRUE) %>%
+    kable_styling(latex_options = c("hold_position"))
+table_to_print
 ```
 
 ### ii. Multiple traders and farmers
