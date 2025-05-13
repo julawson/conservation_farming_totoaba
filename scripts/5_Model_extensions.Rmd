@@ -735,15 +735,20 @@ profit_cartel_mil = profit_cartel / 10^6
 
 # 3. Reduced bioecon perf
 takeover_performance = data.frame(
-  "Harvest (in mt)" = c(q_monop, q_cournot, q_takeover),
-  "Stock (in mt)" = c(x_monop, x_cournot, x_takeover),
-  "Poacher price (in USD/mt)" = c(price_monopoly, price_cournot, price_poacher_takeover),
-  "Profit (in 10^6 USD)" = c(profit_monopoly_mil, profit_cartel_mil, profit_takeover_mil)
+  Scenario = c("Vertical Monopoly",
+               "Cournot Competition",
+               "Cartel takeover"),  
+  harvest = c(q_monop, q_cournot, q_takeover),
+  stock = c(x_monop, x_cournot, x_takeover),
+  price = c(price_monopoly, price_cournot, price_poacher_takeover),
+  Profit = c(profit_monopoly_mil, profit_cartel_mil, profit_takeover_mil)
 )
-rownames(takeover_performance) = c("Vertical Monopoly", 
-                                   "Cournot Competition", 
-                                   "Cartel takeover")
-kable(takeover_performance)
+takeover_performance %>%
+  rename("Harvest in (mt)"= harvest,
+         "Stock in (mt)" = stock, 
+         "Price paid to poachers (USD/mt)" = price, 
+         "Profit in 10^6 USD" = Profit) %>% 
+  tt(caption = 'Bioeconomic performance of takeover scenario')
 ```
 
  
