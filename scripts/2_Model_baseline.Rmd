@@ -1196,7 +1196,8 @@ profit = function(param){
     }
     
     poached_harvest = cournot_harvest_lq(x)
-    price_poachers = (2*W2*(2*beta_f*(alpha_w - c) - gamma*(alpha_f - v)) + W1*sigma*x*(4*beta_f*beta_w - gamma^2))/(4*beta_f*W2 + (4*beta_f*beta_w - gamma^2)*sigma^2*x^2)
+    price_poachers = (2*W2*(2*beta_f*(alpha_w - c) - gamma*(alpha_f - v)) + W1*sigma*x*(4*beta_f*beta_w - gamma^2))/
+      (4*beta_f*W2 + (4*beta_f*beta_w - gamma^2)*sigma^2*x^2)
     farmed_harvest = (2*beta_w*(alpha_f - v) - gamma*(alpha_w - price_poachers - c))/(4*beta_w*beta_f - gamma^2)
     
     price_retail = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest)

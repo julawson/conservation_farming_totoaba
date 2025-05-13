@@ -676,6 +676,77 @@ data_ss %>%
   select(-c(Takeover, Cournot))
 
 ```
+
+
+Finally, identify bioeconomic performance : 
+
+```{r}
+# 1. Cartel takeover
+
+# Define equilibrium stock in case of takeover, as well as harvest
+x_takeover = data_ss %>%
+                   select(Takeover)%>%
+                   pull()
+x_cournot = data_ss %>%
+  select(Cournot)%>%
+  pull()
+
+x_monop = data_ss%>%
+  select(Monopoly)%>%
+  pull()
+
+q_takeover = growth(x_takeover)
+
+
+# Define price as market clearing
+price_equilibrium = function(s, market_structure = "takeover"){
+  if(market_structure=="takeover"){
+      y = (s*sigma^2*x_takeover^2 - W1*sigma*x_takeover)/(2*W2) - monop_takeover(x_takeover)
+  }else if(market_structure == "cournot"){
+      y = (s*sigma^2*x_cournot^2 - W1*sigma*x_cournot)/(2*W2) - growth(x_cournot)
+  }else if(market_structure == "monopoly"){
+      y = (s*sigma^2*x_monop^2 - W1*sigma*x_monop)/(2*W2) - growth(x_monop)
+  }
+  return(y)
+}
+
+# Find price as solving equilibrium market clearing
+price_poacher_takeover = uniroot(price_equilibrium, interval = c(0,500000))$root
+
+# Compute farmed output from FOC of equation sup.mat 41
+q_farmed = (alpha_f - 2*gamma*q_takeover - v)/(2*beta_f)
+
+profit_takeover = (alpha_w - beta_w*q_takeover - gamma*q_farmed - (price_poacher_takeover + c))*q_takeover +
+                  (alpha_f - beta_f*q_farmed - gamma*q_takeover - v)*q_farmed
+profit_takeover_mil = profit_takeover/10^6
+
+# 2. Data for comparison with scenarios
+q_monop = growth(x_monop)
+price_monopoly = uniroot(function(s) price_equilibrium(s, market_structure = 'monopoly'), interval = c(0,5000000))$root
+#price_poachers = (W2 * (alpha-c) + beta * W1 * sigma * x_monop)/(beta * sigma^2 * x_monop^2 + W2)
+profit_monopoly = (alpha - beta * q_monop - (price_monopoly + c)) * q_monop
+profit_monopoly_mil = profit_monopoly/10^6
+
+q_cournot = growth(x_cournot)
+price_cournot = uniroot(function(s) price_equilibrium(s, market_structure = "cournot"), interval = c(0,500000))$root
+q_farmed =  (2*beta_w*(alpha_f - v) - gamma*(alpha_w - price_cournot - c))/(4*beta_w*beta_f - gamma^2)
+profit_cartel = (alpha_w - beta_w*q_cournot - gamma*q_farmed - (price_cournot + c))*q_cournot
+profit_cartel_mil = profit_cartel / 10^6
+
+# 3. Reduced bioecon perf
+takeover_performance = data.frame(
+  "Harvest (in mt)" = c(q_monop, q_cournot, q_takeover),
+  "Stock (in mt)" = c(x_monop, x_cournot, x_takeover),
+  "Poacher price (in USD/mt)" = c(price_monopoly, price_cournot, price_poacher_takeover),
+  "Profit (in 10^6 USD)" = c(profit_monopoly_mil, profit_cartel_mil, profit_takeover_mil)
+)
+rownames(takeover_performance) = c("Vertical Monopoly", 
+                                   "Cournot Competition", 
+                                   "Cartel takeover")
+kable(takeover_performance)
+```
+
+ 
 # III. Simultaneous effects of transaction cost change and effect of competition
 
 First, we calibrate a hypothetical cost of transaction based on most recent observed price data. Assume that the cost of transaction is 100% of the observed price paid to poachers in most recent data. 
