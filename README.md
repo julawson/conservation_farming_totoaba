@@ -3,6 +3,8 @@
 
 Scripts and other files relevant to *Substantial gains and little downside from farming of Totoaba macdonaldi* (Lawson et al, 2023) are detailed here. 
 
+You can run all the following steps by running the script `0_Full.Rmd`, or proceed step by step as follows.
+
 
 ## Data prep and initial conditions (script: `1_Parameters.Rmd`)
 This script runs the various analysis needed to find the parameters to calibrate our model (biological parameters, cost estimates for poaching and aquaculture, demand structure.)
@@ -43,7 +45,7 @@ Output file :
 * `bioecon_performance_table.csv` : table in .csv format for manuscript summarizing model results
 
 
-## Sensitivity analysis (script: `3b_Sensitivity_analysis.Rmd`)
+## Sensitivity analysis (script: `3_Sensitivity_analysis.Rmd`)
 This script runs sensitivity analysis, for parameters holding other constants, as well as groups of parameters together. 
 
 Input file : 

@@ -14,3 +14,4 @@
 "13","v",89929.9153285874,"Unit cost of farming","USD/metric ton of biomass"
 "14","i_r",0.1,"Interest rate","%"
 "15","c",0,"Unit cost of trading","USD/ metric ton of biomass"
+"16","cost_pen",200000,"Cost of pen","USD"

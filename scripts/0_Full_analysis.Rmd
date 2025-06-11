@@ -1,0 +1,37 @@
+---
+title: "Run full analysis"
+author: "S. Jean"
+date: "2025-06-11"
+output: html_document
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+require(here)
+
+```
+
+# 1. Parameters
+
+```{r, child=here("scripts", "1_Parameters.Rmd")}
+```
+
+# 2. Model baseline
+
+```{r, child=here("scripts", "2_Model_baseline.Rmd")}
+```
+
+# 3. Sensitivity analysis
+
+```{r, child=here("scripts", "3_Sensitivity_analysis.Rmd")}
+```
+
+# 4. Additional graphs
+
+```{r, child=here("scripts", "4_Additional_graphs.Rmd")}
+```
+
+# 5. Model extensions
+
+```{r, child=here("scripts", "5_Model_extensions.Rmd")}
+```

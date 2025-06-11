@@ -5,26 +5,65 @@ date: "2023-06-16"
 output: html_document
 ---
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F)
-options(scipen=999)
+# Setup global chunk options for knitr
+knitr::opts_chunk$set(echo = FALSE)
+options(scipen = 999)  # Disable scientific notation
 
+# Clear environment
 rm(list = ls())
 
-library(tidyverse)
-library("ggsci")
-library(here)
-library(knitr)
-library(stargazer)
+# --- Libraries ---
 
-if(!(all(c('Fishlife') %in% installed.packages()))){
+# Core tidyverse packages
+library(tidyverse)    # dplyr, tidyr, ggplot2, stringr, etc.
+
+# Data presentation and tables
+library(kableExtra)
+library(stargazer)
+library(tinytable)
+
+# Plotting & colors
+library(ggsci)
+library(wesanderson)
+library(RColorBrewer)
+library(colorspace)
+library(scales)
+library(patchwork)
+
+# Fonts and styling
+library(extrafont)
+font_ <- 'Helvetica'   # Set font variable for styling
+
+# Project workflow and paths
+library(here)
+
+# Parallel processing
+library(parallel)
+
+# Web / rendering helpers
+library(chromote)
+library(webshot2)
+library(writexl)
+
+# Additional utility
+library(berryFunctions)
+library(stringi)
+# Specialized domain packages
+if (!("FishLife" %in% installed.packages())) {
   devtools::install_github("james-thorson/FishLife")
 }
-
-
 library(FishLife)
-library(kableExtra)
 
-Latex =T
+# Color palette for plots
+color_growth <- 'black'
+color_vertical_monopoly <- '#B22222'
+color_bertrand <- '#1f78b4'
+color_cournot <- '#248721'
+palette_ <- c(color_growth, color_vertical_monopoly, color_bertrand, color_cournot)
+
+# Latex flag (usage not shown here, but kept for context)
+Latex <- TRUE
+
 ```
 
 In this script, we share the code to replicate our parameters.
@@ -569,6 +608,16 @@ if(Latex==T){
 ```
 
 
+## Quasi-fixed cost for set-up
+
+The quasi fixed cost for pens is `cost_pen` from the Buche Bros data
+
+```{r}
+
+cost_pen = 200000
+
+```
+
 # VI. Save calibration data
 ```{r}
 
@@ -589,7 +638,8 @@ params = c('alpha',
            'gamma', 
            'v', 
            'i_r',
-           'c')
+           'c',
+           'cost_pen')
 value = c(alpha,
           beta, 
           r, 
@@ -605,7 +655,9 @@ value = c(alpha,
           age, 
           gamma,
           v, 
-          interest_rate, c)
+          interest_rate, 
+          c,
+          cost_pen)
 concept = c('Demand model : intercept', 
             'Demand model : coefficient', 
             'Intrinsic growth rate', 
@@ -622,7 +674,8 @@ concept = c('Demand model : intercept',
             'Demand model : substitutable good coefficient', 
             'Unit cost of farming', 
             'Interest rate',
-            'Unit cost of trading')
+            'Unit cost of trading',
+            "Cost of pen")
 
 units = c('USD', 
           'USD/metric ton of biomass',
@@ -640,7 +693,8 @@ units = c('USD',
           'USD/metric ton of biomass', 
           'USD/metric ton of biomass', 
           '%', 
-          'USD/ metric ton of biomass')
+          'USD/ metric ton of biomass',
+          "USD")
 
 calibration = data.frame(params, value, concept, units)
 write.csv(calibration, here('data', 'outputs', 'calibration_params.csv'))

@@ -5,22 +5,8 @@ date: "2023-08-25"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r, include=FALSE}
 knitr::opts_chunk$set(echo = F)
-
-rm(list = ls())
-library(dplyr)
-library(tidyr)
-library(stringi)
-library(kableExtra)
-library(ggplot2)
-library(extrafont)
-library(here)
-
-# Styling
-
-font_ = 'Helvetica'
-
 
 ```
 
@@ -147,7 +133,7 @@ composite_bertrand_lq = function(x,
 ## B. Set data for analysis
 
 ### i. No competition, just traders
-```{r, data & analysis}
+```{r}
 # Load parameters
 calibration = read.csv(here("data", 'outputs', "calibration_params.csv"))
 
@@ -294,7 +280,7 @@ table_to_print
 ### ii. Multiple traders and farmers
 
 
-```{r, data & analysis}
+```{r}
 # Load parameters
 calibration = read.csv(here("data", 'outputs', "calibration_params.csv"))
 
@@ -716,8 +702,10 @@ price_poacher_takeover = uniroot(price_equilibrium, interval = c(0,500000))$root
 # Compute farmed output from FOC of equation sup.mat 41
 q_farmed = (alpha_f - 2*gamma*q_takeover - v)/(2*beta_f)
 
-profit_takeover = (alpha_w - beta_w*q_takeover - gamma*q_farmed - (price_poacher_takeover + c))*q_takeover +
-                  (alpha_f - beta_f*q_farmed - gamma*q_takeover - v)*q_farmed
+profit_takeover = (alpha_w - beta_w*q_takeover - gamma*q_farmed - 
+                     (price_poacher_takeover +c))* q_takeover +
+  (alpha_f - beta_f*q_farmed - gamma*q_takeover - v)*q_farmed - 
+  (q_farmed %/% 144 + 1)*cost_pen
 profit_takeover_mil = profit_takeover/10^6
 
 # 2. Data for comparison with scenarios
@@ -799,7 +787,7 @@ mean_price_ton_toto_recent = new_dat %>%
   mean()
 
 ```
-The observed price per kilogram of totoaba in most recent years is `r mean_price_toto_recent/1000` USD. The model is expressed in metric tons, so we use the metric ton numbers instead to parameterize an idea of the worst case trading costs.
+The observed price per kilogram of totoaba in most recent years is `r mean_price_ton_toto_recent/1000` USD. The model is expressed in metric tons, so we use the metric ton numbers instead to parameterize an idea of the worst case trading costs.
 
 
 ## B. Run analysis

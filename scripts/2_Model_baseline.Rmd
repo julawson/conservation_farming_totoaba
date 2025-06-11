@@ -5,45 +5,11 @@ date: "2024-01-09"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r, include=FALSE}
 knitr::opts_chunk$set(echo = F, 
                       warning = F)
 options(scipen=999)
 
-rm(list = ls())
-
-library(tidyverse)
-library("ggsci")
-library(here)
-library(knitr)
-library(chromote)
-library(stargazer)
-library(parallel)
-library(webshot2)
-library(RColorBrewer)
-library(writexl)
-library(extrafont)
-library(berryFunctions)
-library(patchwork)
-
-if(!(c('Fishlife')  %in% installed.packages())){
-  devtools::install_github("james-thorson/FishLife")
-}
-#if(!(c('tinytable') %in% installed.packages())){
-#  devtools::install_github("vincentarelbundock/tinytable")
-#}
-
-library(tinytable)
-#library(FishLife)
-library(kableExtra)
-
-Latex = T
-font_ = 'Helvetica'
-color_growth = 'black'
-color_vertical_monopoly = '#B22222'
-color_bertrand = '#1f78b4'
-color_cournot = '#248721'
-palette_ = c(color_growth, color_vertical_monopoly, color_bertrand, color_cournot)
 ```
 
 # I. Load data
@@ -1176,7 +1142,9 @@ profit = function(param){
     
     price_retail = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest)
     profit_poaching = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest - c - price_poachers)*poached_harvest
-    profit_farming  = (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest - v) * farmed_harvest
+    profit_farming =  (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest - v)* 
+      farmed_harvest - 
+      (farmed_harvest %/% 144 + 1)*cost_pen
     profit_fishermen = (price_poachers*x*sigma)^2/(4*W)
     
   }else if(names == 'ss_cournot_lq'){
@@ -1202,7 +1170,9 @@ profit = function(param){
     
     price_retail = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest)
     profit_poaching = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest - price_poachers - c)*poached_harvest
-    profit_farming =  (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest - v)* farmed_harvest
+    profit_farming =  (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest - v)* 
+      farmed_harvest - 
+      (farmed_harvest %/% 144 + 1)*cost_pen
     profit_fishermen = price_poachers * poached_harvest - W1*((price_poachers * sigma * x -W1)/(2*W2)) - W2*((price_poachers * sigma * x - W1)/(2*W2))^2
     
   }else if(names == 'ss_bertrand'){
@@ -1252,7 +1222,9 @@ profit = function(param){
     price_retail = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest)
     profit_fishermen = (price_poachers*x*sigma)^2/(4*W)
     profit_poaching = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest - c - price_poachers) * poached_harvest
-    profit_farming = (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest - v)*farmed_harvest
+    profit_farming =  (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest - v)* 
+      farmed_harvest - 
+      (farmed_harvest %/% 144 + 1)*cost_pen
     
   }else if(names == 'ss_bertrand_lq'){
     price_poacher_bertrand_lq = function(x,
@@ -1292,8 +1264,11 @@ profit = function(param){
     farmed_harvest = b_f*(b_w*(2*a_f + e*(price_poachers + c)) + e*a_w + v*(e^2 - 2*b_w*b_f))/(4*b_f*b_w - e^2)
     
     price_retail = (alpha_w - beta_w * poached_harvest - gamma * farmed_harvest)
-    profit_poaching = (alpha_w - beta_w * poached_harvest - gamma*farmed_harvest - price_poachers - c)*poached_harvest
-    profit_farming = (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest -v)*farmed_harvest
+    profit_poaching = (alpha_w - beta_w * poached_harvest - gamma*farmed_harvest - price_poachers - c)*
+      poached_harvest
+    profit_farming =  (alpha_f - beta_f * farmed_harvest - gamma * poached_harvest - v)* 
+      farmed_harvest - 
+      (farmed_harvest %/% 144 + 1)*cost_pen
     profit_fishermen = price_poachers * poached_harvest - W1*((price_poachers * sigma * x -W1)/(2*W2)) - W2*((price_poachers * sigma * x - W1)/(2*W2))^2
   }
   
@@ -1577,8 +1552,8 @@ bioecon_table_large_tt = bioecon_table_large %>%
   style_tt(i = 0,  background = '#eae4e4')%>%
   style_tt(j = 1, bold = T)
 
-bioecon_table_large_tt%>%
-  save_tt(here('visuals', 'bioecon_table_quadratic_and_lq.png'), overwrite =  T)
+#bioecon_table_large_tt%>%
+#  save_tt(here('visuals', 'bioecon_table_quadratic_and_lq.png'), overwrite =  T)
 
 bioecon_table_large_tt
 

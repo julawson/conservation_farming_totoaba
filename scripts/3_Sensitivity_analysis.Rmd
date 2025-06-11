@@ -5,22 +5,10 @@ date: "2024-04-16"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r, include=FALSE}
 knitr::opts_chunk$set(echo = F)
 options(scipen=999)
 
-library(tidyverse)
-library(scales)
-library(colorspace)
-library("ggsci")
-library(here)
-library(knitr)
-library(extrafont)
-library(stargazer)
-library(parallel)
-library(wesanderson)
-
-rm(list = ls())
 ```
 
 
