@@ -9,8 +9,6 @@ output: html_document
 knitr::opts_chunk$set(echo = FALSE)
 options(scipen = 999)  # Disable scientific notation
 
-# Clear environment
-rm(list = ls())
 
 # --- Libraries ---
 

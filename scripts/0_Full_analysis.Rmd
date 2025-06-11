@@ -7,31 +7,35 @@ output: html_document
 
 ```{r, include=FALSE}
 knitr::opts_chunk$set(echo = F)
-require(here)
+library(here)
 
 ```
 
-# 1. Parameters
 
-```{r, child=here("scripts", "1_Parameters.Rmd")}
-```
 
-# 2. Model baseline
 
-```{r, child=here("scripts", "2_Model_baseline.Rmd")}
-```
+```{r}
 
-# 3. Sensitivity analysis
+rm(list = ls())
 
-```{r, child=here("scripts", "3_Sensitivity_analysis.Rmd")}
-```
+rmd_files = list.files(here("scripts"), 
+                       pattern = "^[^0].*\\.Rmd$",
+                       full.names = T,
+                       ignore.case = TRUE)
+i = 1
+for (rmd in rmd_files) {
+  # Path to original .Rmd
+  # Temporary .R path (in memory or a temp dir)
+  temp_r <- tempfile(fileext = ".R")
+  
+  # Extract R code from .Rmd
+  purl(input = rmd, output = temp_r, quiet = TRUE)
+  
+  # Run it
+  source(temp_r, echo = TRUE, print.eval = TRUE)
+  
+  print(paste0(rmd_files[i], " is over"))
+  i = i+1
+}
 
-# 4. Additional graphs
-
-```{r, child=here("scripts", "4_Additional_graphs.Rmd")}
-```
-
-# 5. Model extensions
-
-```{r, child=here("scripts", "5_Model_extensions.Rmd")}
 ```
